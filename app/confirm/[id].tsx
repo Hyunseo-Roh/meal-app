@@ -1,34 +1,85 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { formatCost } from '../../lib/format';
+import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
 
-/**
- * TEMPORARY placeholder — Step 4 only.
- *
- * Confirms the "Make this." action carries the real meal_id through. Replaced
- * by Screen 8 ("Handled") in Step 5, which will set was_selected = true.
- */
-export default function ConfirmPlaceholder() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+type Meal = { name: string; cook_time_min: number; est_cost: number };
+
+export default function Handled() {
+  const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
+  const router = useRouter();
+  const [meal, setMeal] = useState<Meal | null>(null);
+  // Calm note shown only if the selection couldn't be recorded.
+  const [writeNote, setWriteNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    // The one meaningful write: mark the chosen option selected. Idempotent —
+    // only this option flips to true; the other two stay false. Degrade
+    // gracefully if option_id is absent (e.g. deep link).
+    async function recordSelection() {
+      if (!option_id) {
+        if (active) setWriteNote('We couldn’t link this to your three, but it’s yours to make.');
+        return;
+      }
+      const { error } = await supabase
+        .from('recommendation_options')
+        .update({ was_selected: true })
+        .eq('id', option_id);
+      if (error && active) {
+        setWriteNote('We couldn’t save the pick just now — no matter, go make it.');
+      }
+    }
+
+    async function loadMeal() {
+      if (!id) return;
+      const { data } = await supabase
+        .from('meals')
+        .select('name, cook_time_min, est_cost')
+        .eq('id', id)
+        .single();
+      if (active) setMeal(data ?? null);
+    }
+
+    recordSelection();
+    loadMeal();
+    return () => {
+      active = false;
+    };
+  }, [id, option_id]);
 
   return (
     <Screen style={styles.screen}>
-      <Text variant="caption" color="textSecondary" style={styles.tag}>
-        Temporary · confirm
-      </Text>
-      <Text variant="title">Make this.</Text>
       <View style={styles.block}>
-        <Text variant="caption" color="textSecondary">
-          Meal id
-        </Text>
-        <Text variant="body">{id}</Text>
+        <Text variant="display">Handled.</Text>
+        {meal ? (
+          <>
+            <Text variant="title" style={styles.meal}>
+              {`Tonight, you’re making ${meal.name}.`}
+            </Text>
+            <Text variant="caption" color="textSecondary">
+              {`${meal.cook_time_min} min`} · {formatCost(meal.est_cost)}
+            </Text>
+          </>
+        ) : null}
+        {writeNote ? (
+          <Text variant="body" color="textSecondary" style={styles.note}>
+            {writeNote}
+          </Text>
+        ) : null}
       </View>
-      <Text variant="body" color="textSecondary">
-        Next: Screen 8 — Handled.
-      </Text>
+
+      <View style={styles.backLink}>
+        <Text variant="caption" color="accent" onPress={() => router.replace('/')}>
+          Back to start
+        </Text>
+      </View>
     </Screen>
   );
 }
@@ -36,12 +87,18 @@ export default function ConfirmPlaceholder() {
 const styles = StyleSheet.create({
   screen: {
     justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  tag: {
-    marginBottom: spacing.sm,
+    gap: spacing.xl,
   },
   block: {
-    gap: spacing.xs,
+    gap: spacing.md,
+  },
+  meal: {
+    marginTop: spacing.sm,
+  },
+  note: {
+    marginTop: spacing.sm,
+  },
+  backLink: {
+    marginTop: spacing.xl,
   },
 });

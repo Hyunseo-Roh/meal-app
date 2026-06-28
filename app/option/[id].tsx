@@ -97,7 +97,12 @@ export default function WhyWeChose() {
       <View style={styles.footer}>
         <PrimaryButton
           label="See what's in it."
-          onPress={() => router.push({ pathname: '/meal/[id]', params: { id: why.mealId } })}
+          onPress={() =>
+            router.push({
+              pathname: '/meal/[id]',
+              params: { id: why.mealId, option_id: id },
+            })
+          }
         />
         <View style={styles.backLink}>
           <Text variant="caption" color="accent" onPress={() => router.back()}>

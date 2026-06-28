@@ -21,7 +21,7 @@ type State =
   | { status: 'error' };
 
 export default function MealDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
 
@@ -135,7 +135,12 @@ export default function MealDetail() {
       <View style={styles.footer}>
         <PrimaryButton
           label="Make this."
-          onPress={() => router.push({ pathname: '/confirm/[id]', params: { id } })}
+          onPress={() =>
+            router.push({
+              pathname: '/confirm/[id]',
+              params: { id, ...(option_id ? { option_id } : {}) },
+            })
+          }
         />
         <View style={styles.backLink}>
           <Text variant="caption" color="accent" onPress={() => router.back()}>
