@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID } from './currentUser';
+import { getCurrentUserId } from './currentUser';
 import { supabase } from './supabase';
 
 export type GapData = {
@@ -39,8 +39,9 @@ export async function loadGap(mealId: string): Promise<GapData> {
     .single();
   if (mealErr || !meal) throw new Error('meal_not_found');
 
+  const userId = await getCurrentUserId();
   const { data: rows, error: gapErr } = await supabase.rpc('get_ingredient_gap', {
-    p_user_id: CURRENT_USER_ID,
+    p_user_id: userId,
     p_meal_id: mealId,
   });
   if (gapErr || !rows) throw new Error('gap_failed');

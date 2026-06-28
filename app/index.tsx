@@ -6,7 +6,7 @@ import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { CURRENT_USER_ID } from '../lib/currentUser';
+import { getCurrentUserId } from '../lib/currentUser';
 import { supabase } from '../lib/supabase';
 import { spacing } from '../theme/tokens';
 
@@ -45,12 +45,22 @@ export default function HowsTonight() {
     setSubmitting(true);
     setError(null);
 
+    // Resolve the per-device anonymous user (created on first run).
+    let userId: string;
+    try {
+      userId = await getCurrentUserId();
+    } catch {
+      setSubmitting(false);
+      setError("Couldn't set up tonight. Check your connection and try again.");
+      return;
+    }
+
     // created_at is NOT NULL with no DB default, so set it explicitly.
     // energy / ingredients_on_hand / context_source / inferred_mood stay null.
     const { data, error: insertError } = await supabase
       .from('recommendation_requests')
       .insert({
-        user_id: CURRENT_USER_ID,
+        user_id: userId,
         time_available: time,
         budget,
         mood, // null when skipped

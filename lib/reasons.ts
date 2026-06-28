@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID } from './currentUser';
+import { getCurrentUserId } from './currentUser';
 import { supabase } from './supabase';
 import type { Tier } from './recommend';
 
@@ -63,11 +63,12 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
     .single();
   if (reqErr || !request) throw new Error('request_not_found');
 
-  // 4. User prefs (Sofia for now).
+  // 4. Current anonymous user's prefs.
+  const userId = await getCurrentUserId();
   const { data: user, error: userErr } = await supabase
     .from('users')
     .select('pref_cuisine_id, pref_effort')
-    .eq('id', CURRENT_USER_ID)
+    .eq('id', userId)
     .single();
   if (userErr || !user) throw new Error('user_not_found');
 
