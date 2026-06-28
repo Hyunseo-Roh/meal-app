@@ -1,47 +1,191 @@
-import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { formatCost } from '../../lib/format';
+import { loadGap, type GapData } from '../../lib/gap';
 import { spacing } from '../../theme/tokens';
 
-/**
- * TEMPORARY placeholder — Step 3 only.
- *
- * Confirms the "See what's in it." action carries the real meal_id through.
- * Replaced by Screen 7 ("Meal Detail + Gap") in Step 4.
- */
-export default function MealPlaceholder() {
+const EFFORT_LABEL: Record<number, string> = {
+  1: 'Low effort',
+  2: 'Some effort',
+  3: 'More effort',
+};
+
+type State =
+  | { status: 'loading' }
+  | { status: 'ready'; gap: GapData }
+  | { status: 'error' };
+
+export default function MealDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [state, setState] = useState<State>({ status: 'loading' });
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setState({ status: 'loading' });
+    try {
+      const gap = await loadGap(id);
+      setState({ status: 'ready', gap });
+    } catch {
+      setState({ status: 'error' });
+    }
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (state.status === 'loading') {
+    return (
+      <Screen style={styles.centered}>
+        <Text variant="body" color="textSecondary">
+          Checking your pantry…
+        </Text>
+      </Screen>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <Screen style={styles.centered}>
+        <Text variant="title">Couldn&apos;t open this.</Text>
+        <Text variant="body" color="textSecondary" style={styles.errorBody}>
+          The details didn&apos;t load. Try again.
+        </Text>
+        <View style={styles.retry}>
+          <PrimaryButton label="Try again" onPress={load} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const { gap } = state;
+  const effort = EFFORT_LABEL[gap.effortLevel] ?? `Effort ${gap.effortLevel}`;
 
   return (
-    <Screen style={styles.screen}>
-      <Text variant="caption" color="textSecondary" style={styles.tag}>
-        Temporary · meal detail
-      </Text>
-      <Text variant="title">What&apos;s in it.</Text>
-      <View style={styles.block}>
-        <Text variant="caption" color="textSecondary">
-          Meal id
-        </Text>
-        <Text variant="body">{id}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          {gap.cuisineLabel ? (
+            <Text variant="caption" color="textSecondary">
+              {gap.cuisineLabel}
+            </Text>
+          ) : null}
+          <Text variant="title">{gap.name}</Text>
+          <Text variant="caption" color="textSecondary">
+            {`${gap.cookTimeMin} min`} · {effort} · {formatCost(gap.estCost)}
+          </Text>
+          {gap.description ? (
+            <Text variant="body" color="textSecondary" style={styles.description}>
+              {gap.description}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Pantry-memory payoff, one calm line. */}
+        <Text variant="title">{`You have ${gap.n} of ${gap.m}.`}</Text>
+
+        {!gap.consistent ? (
+          <Text variant="body" color="textSecondary">
+            One ingredient didn&apos;t match either list — counts may be off.
+          </Text>
+        ) : null}
+
+        {gap.have.length > 0 ? (
+          <View style={styles.section}>
+            <Text variant="caption" color="textSecondary">
+              What you have
+            </Text>
+            {gap.have.map((name) => (
+              <View key={name} style={styles.row}>
+                {/* The ONLY place Sage appears. */}
+                <Text variant="body" color="have" style={styles.marker}>
+                  ✓
+                </Text>
+                <Text variant="body">{name}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {gap.toBuy.length > 0 ? (
+          <View style={styles.section}>
+            <Text variant="caption" color="textSecondary">
+              What to buy
+            </Text>
+            {gap.toBuy.map((name) => (
+              <View key={name} style={styles.row}>
+                <Text variant="body" color="textSecondary" style={styles.marker}>
+                  +
+                </Text>
+                <Text variant="body" color="textSecondary">
+                  {name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label="Make this."
+          onPress={() => router.push({ pathname: '/confirm/[id]', params: { id } })}
+        />
+        <View style={styles.backLink}>
+          <Text variant="caption" color="accent" onPress={() => router.back()}>
+            Back
+          </Text>
+        </View>
       </View>
-      <Text variant="body" color="textSecondary">
-        Next: Screen 7 — the Gap Tracker.
-      </Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  content: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.xl,
+  },
+  header: {
+    gap: spacing.sm,
+  },
+  description: {
+    marginTop: spacing.xs,
+  },
+  section: {
+    gap: spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'baseline',
+  },
+  marker: {
+    width: spacing.lg,
+  },
+  centered: {
     justifyContent: 'center',
+    gap: spacing.md,
+  },
+  errorBody: {
+    marginTop: -spacing.xs,
+  },
+  retry: {
+    marginTop: spacing.md,
+  },
+  footer: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
-  tag: {
-    marginBottom: spacing.sm,
-  },
-  block: {
-    gap: spacing.xs,
+  backLink: {
+    alignItems: 'center',
   },
 });
