@@ -1,67 +1,142 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { supabase } from '../../lib/supabase';
+import { formatCost } from '../../lib/format';
+import { TIER_LABEL } from '../../lib/recommend';
+import { loadWhy, type WhyData } from '../../lib/reasons';
 import { spacing } from '../../theme/tokens';
 
-/**
- * TEMPORARY placeholder — Step 2 only.
- *
- * Confirms a card tap carries the real recommendation_options.id through. Looks
- * up the option's meal_id to prove the row exists. Replaced by Screen 5
- * ("Why We Chose This") in Step 3.
- */
-export default function OptionPlaceholder() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [mealId, setMealId] = useState<string | null>(null);
+type State =
+  | { status: 'loading' }
+  | { status: 'ready'; why: WhyData }
+  | { status: 'error' };
 
-  useEffect(() => {
+export default function WhyWeChose() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [state, setState] = useState<State>({ status: 'loading' });
+
+  const load = useCallback(async () => {
     if (!id) return;
-    supabase
-      .from('recommendation_options')
-      .select('meal_id')
-      .eq('id', id)
-      .single()
-      .then(({ data }) => setMealId(data?.meal_id ?? 'not found'));
+    setState({ status: 'loading' });
+    try {
+      const why = await loadWhy(id);
+      setState({ status: 'ready', why });
+    } catch {
+      setState({ status: 'error' });
+    }
   }, [id]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (state.status === 'loading') {
+    return (
+      <Screen style={styles.centered}>
+        <Text variant="body" color="textSecondary">
+          Here&apos;s why…
+        </Text>
+      </Screen>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <Screen style={styles.centered}>
+        <Text variant="title">Lost the thread.</Text>
+        <Text variant="body" color="textSecondary" style={styles.errorBody}>
+          We couldn&apos;t pull this one up. Try again.
+        </Text>
+        <View style={styles.retry}>
+          <PrimaryButton label="Try again" onPress={load} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const { why } = state;
+
   return (
-    <Screen style={styles.screen}>
-      <Text variant="caption" color="textSecondary" style={styles.tag}>
-        Temporary · option selected
-      </Text>
-      <Text variant="title">Why this one.</Text>
-      <View style={styles.block}>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text variant="caption" color="textSecondary">
+            {TIER_LABEL[why.tier]}
+            {why.cuisineLabel ? ` · ${why.cuisineLabel}` : ''}
+          </Text>
+          <Text variant="title">{why.name}</Text>
+          <Text variant="body" color="textSecondary">
+            Picked for you — here&apos;s why.
+          </Text>
+        </View>
+
+        <View style={styles.reasons}>
+          {why.reasons.map((line, i) => (
+            <Text key={i} variant="body">
+              {line}
+            </Text>
+          ))}
+        </View>
+
+        {why.description ? (
+          <Text variant="body" color="textSecondary">
+            {why.description}
+          </Text>
+        ) : null}
+
         <Text variant="caption" color="textSecondary">
-          Option id
+          {`${why.cookTimeMin} min`} · {formatCost(why.estCost)}
         </Text>
-        <Text variant="body">{id}</Text>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label="See what's in it."
+          onPress={() => router.push({ pathname: '/meal/[id]', params: { id: why.mealId } })}
+        />
+        <View style={styles.backLink}>
+          <Text variant="caption" color="accent" onPress={() => router.back()}>
+            Back to tonight&apos;s three
+          </Text>
+        </View>
       </View>
-      <View style={styles.block}>
-        <Text variant="caption" color="textSecondary">
-          Meal id
-        </Text>
-        <Text variant="body">{mealId ?? '…'}</Text>
-      </View>
-      <Text variant="body" color="textSecondary">
-        Next: Screen 5 will explain the pick.
-      </Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  content: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.xl,
+  },
+  header: {
+    gap: spacing.sm,
+  },
+  reasons: {
+    gap: spacing.md,
+  },
+  centered: {
     justifyContent: 'center',
+    gap: spacing.md,
+  },
+  errorBody: {
+    marginTop: -spacing.xs,
+  },
+  retry: {
+    marginTop: spacing.md,
+  },
+  footer: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
-  tag: {
-    marginBottom: spacing.sm,
-  },
-  block: {
-    gap: spacing.xs,
+  backLink: {
+    alignItems: 'center',
   },
 });
