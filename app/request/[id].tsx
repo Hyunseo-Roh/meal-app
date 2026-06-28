@@ -6,6 +6,7 @@ import { MealCard } from '../../components/MealCard';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { formatCost } from '../../lib/format';
 import { loadOptions, TIER_LABEL, type OptionCard } from '../../lib/recommend';
 import { spacing } from '../../theme/tokens';
 
@@ -75,7 +76,7 @@ export default function ThreeOptions() {
             name={opt.meal}
             contextLine={opt.explanation}
             cookTime={`${opt.cook_time_min} min`}
-            cost={`$${opt.est_cost.toFixed(2)}`}
+            cost={formatCost(opt.est_cost)}
             overTime={opt.over_time}
             onPress={() =>
               router.push({ pathname: '/option/[id]', params: { id: opt.optionId } })
