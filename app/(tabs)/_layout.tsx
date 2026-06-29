@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../theme/tokens';
@@ -14,6 +15,7 @@ export default function TabsLayout() {
   // Respect the phone's bottom gesture/home-indicator inset so labels aren't
   // clipped by the safe area.
   const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === 'web';
 
   return (
     <Tabs
@@ -28,11 +30,13 @@ export default function TabsLayout() {
           // Flat: strip the default shadow/elevation.
           elevation: 0,
           shadowOpacity: 0,
-          // Grow the bar by the bottom inset and pad it, so labels sit above the
-          // gesture area instead of being cut off.
-          height: 58 + insets.bottom,
+          // Native: grow the bar by the safe-area inset (insets.bottom reads 0
+          // on web). Mobile web: a comfortable fixed bar; the actual chrome /
+          // home-indicator clearance comes from env(safe-area-inset-bottom)
+          // padding on #root in app/+html.tsx.
+          height: isWeb ? 64 : 58 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: insets.bottom + 8,
+          paddingBottom: isWeb ? 12 : insets.bottom + 8,
         },
         tabBarLabelStyle: {
           fontSize: 13,
