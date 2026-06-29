@@ -2,19 +2,19 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Chip } from '../components/Chip';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { Screen } from '../components/Screen';
-import { Text } from '../components/Text';
+import { Chip } from '../../components/Chip';
+import { PrimaryButton } from '../../components/PrimaryButton';
+import { Screen } from '../../components/Screen';
+import { Text } from '../../components/Text';
 import {
   getCurrentUserId,
   getLocalOnboarded,
   isOnboarded,
   setLocalOnboarded,
   withTimeout,
-} from '../lib/currentUser';
-import { supabase } from '../lib/supabase';
-import { spacing } from '../theme/tokens';
+} from '../../lib/currentUser';
+import { supabase } from '../../lib/supabase';
+import { spacing } from '../../theme/tokens';
 
 type BudgetLevel = 'low' | 'medium' | 'high';
 
