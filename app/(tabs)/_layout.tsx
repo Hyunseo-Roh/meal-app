@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../theme/tokens';
@@ -9,11 +9,33 @@ import { colors } from '../../theme/tokens';
  * Bottom tab navigation — Home / History / Taste.
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
  * no shadow/elevation. Active = Cool Slate accent, inactive = Warm Gray Deep.
- * Labels are caption-style (13, uppercase, light tracking).
+ *
+ * Labels are rendered with a custom RN <Text> (nav chrome, not screen content)
+ * so they size to their own content — react-navigation's default label sits in
+ * a fixed-height container that cropped the text bottom on iOS web. The `color`
+ * arg carries the active/inactive tint automatically.
  */
+function tabLabel(text: string) {
+  return ({ color }: { color: string }) => (
+    <Text
+      style={{
+        color,
+        fontSize: 13,
+        lineHeight: 18,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        textAlign: 'center',
+        includeFontPadding: false,
+        paddingBottom: 2,
+      }}
+    >
+      {text}
+    </Text>
+  );
+}
+
 export default function TabsLayout() {
-  // Respect the phone's bottom gesture/home-indicator inset so labels aren't
-  // clipped by the safe area.
+  // Native uses the bottom safe-area inset (reads 0 on web).
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === 'web';
 
@@ -30,25 +52,9 @@ export default function TabsLayout() {
           // Flat: strip the default shadow/elevation.
           elevation: 0,
           shadowOpacity: 0,
-          // Native: grow the bar by the safe-area inset (insets.bottom reads 0
-          // on web). Mobile web: a fixed-height bar with only modest bottom
-          // padding — the label is lifted UP via the item/label styles below so
-          // it sits fully inside the bar instead of overflowing past it.
-          height: isWeb ? 86 : 58 + insets.bottom,
-          paddingTop: isWeb ? 6 : 8,
-          paddingBottom: isWeb ? 12 : insets.bottom + 8,
-        },
-        // Web: nudge the icon+label group up off the bottom edge.
-        tabBarItemStyle: isWeb ? { paddingBottom: 6 } : undefined,
-        tabBarLabelStyle: {
-          fontSize: 13,
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
-          // Web: lineHeight + bottom margin keep descenders from being clipped
-          // and pull the label fully inside the bar. Native keeps a small lift.
-          ...(isWeb
-            ? { marginTop: 2, marginBottom: 10, lineHeight: 16, includeFontPadding: false }
-            : { marginBottom: 4 }),
+          height: isWeb ? 64 : 58 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: isWeb ? 10 : insets.bottom + 8,
         },
       }}
     >
@@ -56,6 +62,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
+          tabBarLabel: tabLabel('Home'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
           ),
@@ -65,6 +72,7 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'History',
+          tabBarLabel: tabLabel('History'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
           ),
@@ -74,6 +82,7 @@ export default function TabsLayout() {
         name="taste"
         options={{
           title: 'Taste',
+          tabBarLabel: tabLabel('Taste'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
