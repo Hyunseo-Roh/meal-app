@@ -8,9 +8,11 @@
     "scheme": "mealapp",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "userInterfaceStyle": "light"
     },
     "android": {
+      "userInterfaceStyle": "light",
       "adaptiveIcon": {
         "backgroundColor": "#EDEAE3",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

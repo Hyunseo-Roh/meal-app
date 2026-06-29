@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../theme/tokens';
 
@@ -10,6 +11,10 @@ import { colors } from '../../theme/tokens';
  * Labels are caption-style (13, uppercase, light tracking).
  */
 export default function TabsLayout() {
+  // Respect the phone's bottom gesture/home-indicator inset so labels aren't
+  // clipped by the safe area.
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -23,6 +28,11 @@ export default function TabsLayout() {
           // Flat: strip the default shadow/elevation.
           elevation: 0,
           shadowOpacity: 0,
+          // Grow the bar by the bottom inset and pad it, so labels sit above the
+          // gesture area instead of being cut off.
+          height: 58 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 8,
         },
         tabBarLabelStyle: {
           fontSize: 13,
