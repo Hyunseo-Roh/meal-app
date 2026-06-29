@@ -56,19 +56,38 @@ export default function PantrySetup() {
 
     // Pantry may be empty (skippable) — just move on.
     if (items.size > 0) {
-      const now = new Date().toISOString();
-      const rows = [...items].map((name) => ({
-        user_id: userId,
-        name,
-        source: 'manual' as const,
-        created_at: now,
-        updated_at: now,
-      }));
-      const { error: insertError } = await supabase.from('pantry_items').insert(rows);
-      if (insertError) {
+      // Dedupe against what the user already has so re-adding a staple is a
+      // harmless no-op (there's no DB unique constraint on (user_id, name), so
+      // a blind insert would create duplicate rows). Only insert new names.
+      const { data: existing, error: readError } = await supabase
+        .from('pantry_items')
+        .select('name')
+        .eq('user_id', userId);
+      if (readError) {
         setSaving(false);
         setError("Couldn't save your pantry. Try once more.");
         return;
+      }
+
+      const have = new Set((existing ?? []).map((r) => (r.name as string).toLowerCase()));
+      const now = new Date().toISOString();
+      const rows = [...items]
+        .filter((name) => !have.has(name))
+        .map((name) => ({
+          user_id: userId,
+          name,
+          source: 'manual' as const,
+          created_at: now,
+          updated_at: now,
+        }));
+
+      if (rows.length > 0) {
+        const { error: insertError } = await supabase.from('pantry_items').insert(rows);
+        if (insertError) {
+          setSaving(false);
+          setError("Couldn't save your pantry. Try once more.");
+          return;
+        }
       }
     }
 

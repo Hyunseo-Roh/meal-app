@@ -48,28 +48,32 @@ export async function getCurrentUserId(): Promise<string> {
   if (inflight) return inflight;
 
   inflight = (async () => {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      cachedId = stored;
-      return stored;
+    let id = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!id) {
+      id = uuidv4();
+      await AsyncStorage.setItem(STORAGE_KEY, id);
     }
 
-    // First run on this device: create the user with cold-start defaults.
-    // prefs stay NULL (coalesced downstream); disliked arrays start empty.
-    const id = uuidv4();
-    const now = new Date().toISOString();
-    const { error } = await supabase.from('users').insert({
-      id,
-      disliked_ingredients: [],
-      disliked_cuisine_ids: [],
-      last_active_at: now,
-    });
+    // Ensure the row EXISTS before we hand the id to any FK write. A stored id
+    // can point to a user row that was deleted out from under us (e.g. a
+    // previous run / test cleanup), which otherwise causes a 409 FK violation
+    // on the first dependent insert (pantry, requests). upsert with
+    // ignoreDuplicates is idempotent: it creates a cold-start row if missing
+    // and leaves an existing row (and its prefs) untouched.
+    const { error } = await supabase.from('users').upsert(
+      {
+        id,
+        disliked_ingredients: [],
+        disliked_cuisine_ids: [],
+        last_active_at: new Date().toISOString(),
+      },
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
     if (error) {
       inflight = null; // allow a later retry
       throw new Error('user_create_failed');
     }
 
-    await AsyncStorage.setItem(STORAGE_KEY, id);
     cachedId = id;
     return id;
   })();
