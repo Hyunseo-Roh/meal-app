@@ -83,6 +83,22 @@ export default function ThreeOptions() {
             }
           />
         ))}
+
+        <View style={styles.backLink}>
+          <Text
+            variant="caption"
+            color="accent"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/');
+              }
+            }}
+          >
+            Back to start
+          </Text>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -106,6 +122,10 @@ const styles = StyleSheet.create({
     marginTop: -spacing.xs,
   },
   retry: {
+    marginTop: spacing.md,
+  },
+  backLink: {
+    alignItems: 'center',
     marginTop: spacing.md,
   },
 });
