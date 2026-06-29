@@ -31,20 +31,24 @@ export default function TabsLayout() {
           elevation: 0,
           shadowOpacity: 0,
           // Native: grow the bar by the safe-area inset (insets.bottom reads 0
-          // on web). Mobile web: a generous FIXED bar that guarantees the
-          // labels clear the browser chrome / home indicator without depending
-          // on env() resolving to a nonzero value (env padding in +html.tsx is
-          // an extra cushion on real devices).
-          height: isWeb ? 88 : 58 + insets.bottom,
-          paddingTop: 8,
-          paddingBottom: isWeb ? 28 : insets.bottom + 8,
+          // on web). Mobile web: a fixed-height bar with only modest bottom
+          // padding — the label is lifted UP via the item/label styles below so
+          // it sits fully inside the bar instead of overflowing past it.
+          height: isWeb ? 86 : 58 + insets.bottom,
+          paddingTop: isWeb ? 6 : 8,
+          paddingBottom: isWeb ? 12 : insets.bottom + 8,
         },
+        // Web: nudge the icon+label group up off the bottom edge.
+        tabBarItemStyle: isWeb ? { paddingBottom: 6 } : undefined,
         tabBarLabelStyle: {
           fontSize: 13,
           textTransform: 'uppercase',
           letterSpacing: 0.5,
-          // Lift the label off the bar's bottom edge.
-          marginBottom: 4,
+          // Web: lineHeight + bottom margin keep descenders from being clipped
+          // and pull the label fully inside the bar. Native keeps a small lift.
+          ...(isWeb
+            ? { marginTop: 2, marginBottom: 10, lineHeight: 16, includeFontPadding: false }
+            : { marginBottom: 4 }),
         },
       }}
     >
