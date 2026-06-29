@@ -31,17 +31,20 @@ export default function TabsLayout() {
           elevation: 0,
           shadowOpacity: 0,
           // Native: grow the bar by the safe-area inset (insets.bottom reads 0
-          // on web). Mobile web: a comfortable fixed bar; the actual chrome /
-          // home-indicator clearance comes from env(safe-area-inset-bottom)
-          // padding on #root in app/+html.tsx.
-          height: isWeb ? 64 : 58 + insets.bottom,
+          // on web). Mobile web: a generous FIXED bar that guarantees the
+          // labels clear the browser chrome / home indicator without depending
+          // on env() resolving to a nonzero value (env padding in +html.tsx is
+          // an extra cushion on real devices).
+          height: isWeb ? 88 : 58 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: isWeb ? 12 : insets.bottom + 8,
+          paddingBottom: isWeb ? 28 : insets.bottom + 8,
         },
         tabBarLabelStyle: {
           fontSize: 13,
           textTransform: 'uppercase',
           letterSpacing: 0.5,
+          // Lift the label off the bar's bottom edge.
+          marginBottom: 4,
         },
       }}
     >
