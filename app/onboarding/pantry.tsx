@@ -1,45 +1,193 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { colors, spacing } from '../../theme/tokens';
+import { getCurrentUserId } from '../../lib/currentUser';
+import { supabase } from '../../lib/supabase';
+import { colors, spacing, typography } from '../../theme/tokens';
 
-/**
- * TEMPORARY placeholder — Step 6b only.
- *
- * Taste Setup (step 1) routes here. Becomes the real Pantry Setup (step 2 of 2)
- * in Step 6c. For now it just confirms taste saved and lets you proceed to
- * Screen 3.
- */
-export default function PantrySetupPlaceholder() {
+// UI suggestion list only — not schema.
+const QUICK_ADD = ['olive oil', 'garlic', 'eggs', 'tuna', 'lemon', 'spinach', 'onion', 'chicken'];
+
+export default function PantrySetup() {
   const router = useRouter();
 
+  // Staged locally, written to pantry_items on Done.
+  const [items, setItems] = useState<Set<string>>(new Set());
+  const [draft, setDraft] = useState('');
+  const [scanNote, setScanNote] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle(name: string) {
+    const v = name.trim().toLowerCase();
+    if (!v) return;
+    setItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
+    });
+  }
+
+  function addDraft() {
+    const v = draft.trim().toLowerCase();
+    if (!v) return;
+    setItems((prev) => (prev.has(v) ? prev : new Set(prev).add(v)));
+    setDraft('');
+  }
+
+  async function finish() {
+    setSaving(true);
+    setError(null);
+
+    let userId: string;
+    try {
+      userId = await getCurrentUserId();
+    } catch {
+      setSaving(false);
+      setError("Couldn't save your pantry. Try once more.");
+      return;
+    }
+
+    // Pantry may be empty (skippable) — just move on.
+    if (items.size > 0) {
+      const now = new Date().toISOString();
+      const rows = [...items].map((name) => ({
+        user_id: userId,
+        name,
+        source: 'manual' as const,
+        created_at: now,
+        updated_at: now,
+      }));
+      const { error: insertError } = await supabase.from('pantry_items').insert(rows);
+      if (insertError) {
+        setSaving(false);
+        setError("Couldn't save your pantry. Try once more.");
+        return;
+      }
+    }
+
+    router.replace('/');
+  }
+
+  const added = [...items];
+
   return (
-    <Screen style={styles.screen}>
-      <View style={styles.progress}>
-        <View style={[styles.progressBar, styles.progressActive]} />
-        <View style={[styles.progressBar, styles.progressActive]} />
-      </View>
-      <Text variant="caption" color="textSecondary">
-        Step 2 of 2 · temporary
-      </Text>
-      <Text variant="title">Taste saved.</Text>
-      <Text variant="body" color="textSecondary">
-        Pantry Setup lands here next. For now, on to tonight.
-      </Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Step 2 of 2 */}
+        <View style={styles.progress}>
+          <View style={[styles.progressBar, styles.progressActive]} />
+          <View style={[styles.progressBar, styles.progressActive]} />
+        </View>
+        <Text variant="caption" color="textSecondary">
+          Step 2 of 2
+        </Text>
+
+        <View style={styles.header}>
+          <Text variant="title">What&apos;s usually in your kitchen?</Text>
+          <Text variant="body" color="textSecondary">
+            Add a few staples. We&apos;ll use them to show what you already have.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Scan a barcode
+          </Text>
+          <Pressable
+            onPress={() => setScanNote(true)}
+            accessibilityRole="button"
+            style={styles.ghost}
+          >
+            <Text variant="body" color="accent">
+              Scan a barcode
+            </Text>
+          </Pressable>
+          {scanNote ? (
+            <Text variant="body" color="textSecondary">
+              Scanning comes soon — add items by name for now.
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Add your own
+          </Text>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={addDraft}
+            placeholder="Type an item, press enter"
+            placeholderTextColor={colors.textSecondary}
+            returnKeyType="done"
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Quick add
+          </Text>
+          <View style={styles.chipRow}>
+            {QUICK_ADD.map((name) => (
+              <Chip
+                key={name}
+                label={name}
+                selected={items.has(name)}
+                onPress={() => toggle(name)}
+              />
+            ))}
+          </View>
+        </View>
+
+        {added.length > 0 ? (
+          <View style={styles.section}>
+            <Text variant="caption" color="textSecondary">
+              Added to your pantry
+            </Text>
+            <View style={styles.chipRow}>
+              {added.map((name) => (
+                <Chip key={name} label={name} selected onPress={() => toggle(name)} />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {error ? (
+          <Text variant="body" color="text">
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
+
       <View style={styles.footer}>
-        <PrimaryButton label="Start." onPress={() => router.replace('/')} />
+        <PrimaryButton
+          label={saving ? 'Saving…' : 'Done.'}
+          onPress={finish}
+          disabled={saving}
+        />
+        <View style={styles.skip}>
+          <Text variant="caption" color="accent" onPress={saving ? undefined : finish}>
+            Skip for now
+          </Text>
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    justifyContent: 'center',
-    gap: spacing.lg,
+  content: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.xl,
   },
   progress: {
     flexDirection: 'row',
@@ -53,7 +201,41 @@ const styles = StyleSheet.create({
   progressActive: {
     backgroundColor: colors.accent,
   },
+  header: {
+    gap: spacing.sm,
+  },
+  section: {
+    gap: spacing.md,
+  },
+  ghost: {
+    height: 52,
+    borderRadius: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.card,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   footer: {
-    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+  },
+  skip: {
+    alignItems: 'center',
   },
 });
