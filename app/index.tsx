@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { getCurrentUserId } from '../lib/currentUser';
+import { getCurrentUserId, isOnboarded } from '../lib/currentUser';
 import { supabase } from '../lib/supabase';
 import { spacing } from '../theme/tokens';
 
@@ -37,6 +37,29 @@ export default function HowsTonight() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Gate: a fresh user with no taste prefs is routed into onboarding first.
+  const [gate, setGate] = useState<'checking' | 'ready'>('checking');
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const done = await isOnboarded();
+        if (!active) return;
+        if (!done) {
+          router.replace('/onboarding/taste');
+          return;
+        }
+        setGate('ready');
+      } catch {
+        // If the check fails, don't trap the user — let them proceed.
+        if (active) setGate('ready');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const canSubmit = time !== null && budget !== null && !submitting;
 
@@ -76,6 +99,16 @@ export default function HowsTonight() {
     }
 
     router.push({ pathname: '/request/[id]', params: { id: data.id } });
+  }
+
+  if (gate === 'checking') {
+    return (
+      <Screen style={styles.centered}>
+        <Text variant="body" color="textSecondary">
+          One moment…
+        </Text>
+      </Screen>
+    );
   }
 
   return (
@@ -184,5 +217,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  centered: {
+    justifyContent: 'center',
   },
 });

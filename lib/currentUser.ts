@@ -29,6 +29,20 @@ function uuidv4(): string {
   });
 }
 
+/**
+ * Onboarded == taste prefs saved. We use pref_cuisine_id (required by Taste
+ * Setup) as the marker, so no schema flag is needed.
+ */
+export async function isOnboarded(): Promise<boolean> {
+  const id = await getCurrentUserId();
+  const { data } = await supabase
+    .from('users')
+    .select('pref_cuisine_id')
+    .eq('id', id)
+    .single();
+  return !!data?.pref_cuisine_id;
+}
+
 export async function getCurrentUserId(): Promise<string> {
   if (cachedId) return cachedId;
   if (inflight) return inflight;
