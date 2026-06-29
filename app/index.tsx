@@ -1,12 +1,18 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { getCurrentUserId, isOnboarded } from '../lib/currentUser';
+import {
+  getCurrentUserId,
+  getLocalOnboarded,
+  isOnboarded,
+  setLocalOnboarded,
+  withTimeout,
+} from '../lib/currentUser';
 import { supabase } from '../lib/supabase';
 import { spacing } from '../theme/tokens';
 
@@ -38,28 +44,50 @@ export default function HowsTonight() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Gate: a fresh user with no taste prefs is routed into onboarding first.
+  // Gate: routed purely from the LOCAL onboarded flag — no network round-trip —
+  // so Screen 3 becomes interactive instantly on every entry (cold mount AND
+  // back-navigation / re-focus) and can never hang on "One moment…".
   const [gate, setGate] = useState<'checking' | 'ready'>('checking');
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const done = await isOnboarded();
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      // Re-entering the screen must always show an interactive form: clear any
+      // leftover submitting state from a prior navigation (native keeps the
+      // screen mounted, so this state otherwise persists and disables the button).
+      setSubmitting(false);
+      setError(null);
+
+      (async () => {
+        const localDone = await getLocalOnboarded();
         if (!active) return;
-        if (!done) {
-          router.replace('/onboarding/taste');
+        if (localDone) {
+          setGate('ready');
           return;
         }
-        setGate('ready');
-      } catch {
-        // If the check fails, don't trap the user — let them proceed.
-        if (active) setGate('ready');
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [router]);
+        // No local proof of onboarding. Back-fill quietly with a timeout-guarded
+        // DB check so a pre-existing (DB-onboarded) user isn't sent through
+        // onboarding again — but never block: on not-onboarded / failure /
+        // timeout, route to onboarding (the safe default for a fresh user).
+        try {
+          const dbDone = await withTimeout(isOnboarded());
+          if (!active) return;
+          if (dbDone) {
+            setLocalOnboarded(true);
+            setGate('ready');
+            return;
+          }
+        } catch {
+          // fall through to onboarding
+        }
+        if (active) router.replace('/onboarding/taste');
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, [router]),
+  );
 
   const canSubmit = time !== null && budget !== null && !submitting;
 
@@ -80,25 +108,34 @@ export default function HowsTonight() {
 
     // created_at is NOT NULL with no DB default, so set it explicitly.
     // energy / ingredients_on_hand / context_source / inferred_mood stay null.
-    const { data, error: insertError } = await supabase
-      .from('recommendation_requests')
-      .insert({
-        user_id: userId,
-        time_available: time,
-        budget,
-        mood, // null when skipped
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // Timeout-guarded so a stalled request surfaces the calm retry error
+    // instead of hanging on "One moment…".
+    try {
+      const { data, error: insertError } = await withTimeout(
+        supabase
+          .from('recommendation_requests')
+          .insert({
+            user_id: userId,
+            time_available: time,
+            budget,
+            mood, // null when skipped
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single(),
+      );
 
-    if (insertError || !data) {
+      if (insertError || !data) {
+        setSubmitting(false);
+        setError("Couldn't set up tonight. Check your connection and try again.");
+        return;
+      }
+
+      router.push({ pathname: '/request/[id]', params: { id: data.id } });
+    } catch {
       setSubmitting(false);
       setError("Couldn't set up tonight. Check your connection and try again.");
-      return;
     }
-
-    router.push({ pathname: '/request/[id]', params: { id: data.id } });
   }
 
   if (gate === 'checking') {

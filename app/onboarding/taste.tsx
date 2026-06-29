@@ -6,7 +6,7 @@ import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { getCurrentUserId } from '../../lib/currentUser';
+import { getCurrentUserId, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
 
@@ -119,6 +119,10 @@ export default function TasteSetup() {
       setError("Couldn't save just now. Try once more.");
       return;
     }
+
+    // Prefs saved == onboarded (per the pref_cuisine_id marker). Persist the
+    // local flag so Screen 3's gate routes instantly without a DB read.
+    await setLocalOnboarded(true);
 
     router.replace('/onboarding/pantry');
   }
