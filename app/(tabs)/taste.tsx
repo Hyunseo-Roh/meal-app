@@ -37,7 +37,7 @@ export default function Taste() {
 
       <Pressable onPress={resetDemo} accessibilityLabel="Reset demo" style={styles.reset}>
         <Text variant="caption" color="textSecondary">
-          Reset demo
+          Start over
         </Text>
       </Pressable>
     </Screen>
