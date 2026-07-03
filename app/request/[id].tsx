@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MealCard } from '../../components/MealCard';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { loadOptions, TIER_LABEL, type OptionCard } from '../../lib/recommend';
+import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
 
 type State =
@@ -16,17 +16,89 @@ type State =
   | { status: 'ready'; options: OptionCard[] }
   | { status: 'error' };
 
+// Same upsize as Screen 5: swap the seeded 312x231 thumbnail for 636x393 so the
+// photo isn't blurry. Display only; unmatched URLs are returned unchanged.
+function upsizeImageUrl(url: string): string {
+  return url.replace('-312x231.', '-636x393.');
+}
+
+// One recommendation card: photo on top (optional, degrades gracefully) + tier,
+// name, one short line, and a compact time · price meta.
+function RecCard({
+  opt,
+  imageUrl,
+  onPress,
+}: {
+  opt: OptionCard;
+  imageUrl: string | null;
+  onPress: () => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={styles.card}>
+      {imageUrl && !imageFailed ? (
+        <Image
+          source={{ uri: upsizeImageUrl(imageUrl) }}
+          style={styles.cardImage}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : null}
+      <View style={styles.cardBody}>
+        <Text variant="caption" color="textSecondary">
+          {TIER_LABEL[opt.tier]}
+        </Text>
+        <Text variant="title">{opt.meal}</Text>
+        <Text variant="body" color="textSecondary" numberOfLines={2}>
+          {opt.explanation}
+        </Text>
+        <View style={styles.cardMeta}>
+          <Text variant="caption" color="textSecondary">
+            {`${opt.cook_time_min} min`}
+          </Text>
+          <Text variant="caption" color="textSecondary">
+            {formatCost(opt.est_cost)}
+          </Text>
+        </View>
+        {opt.over_time ? (
+          <Text variant="caption" color="textSecondary">
+            A little longer than tonight
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ThreeOptions() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
+  // meal_id -> image_url (photos are optional; fetched after the options load).
+  const [images, setImages] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!id) return;
     setState({ status: 'loading' });
+    setImages({});
     try {
       const options = await loadOptions(id);
       setState({ status: 'ready', options });
+      // Fetch the three photos in one go; missing ones just stay absent.
+      supabase
+        .from('meals')
+        .select('id, image_url')
+        .in(
+          'id',
+          options.map((o) => o.meal_id),
+        )
+        .then(({ data }) => {
+          const map: Record<string, string> = {};
+          (data ?? []).forEach((r) => {
+            if (r.image_url) map[r.id as string] = r.image_url as string;
+          });
+          setImages(map);
+        });
     } catch {
       setState({ status: 'error' });
     }
@@ -72,24 +144,18 @@ export default function ThreeOptions() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text variant="title">Tonight: three options.</Text>
+          <Text variant="title">Tonight: three suggestions.</Text>
           <Text variant="body" color="textSecondary">
             Picked for you — tap one to see why.
           </Text>
         </View>
 
         {state.options.map((opt) => (
-          <MealCard
+          <RecCard
             key={opt.optionId || opt.meal_id}
-            tierLabel={TIER_LABEL[opt.tier]}
-            name={opt.meal}
-            contextLine={opt.explanation}
-            cookTime={`${opt.cook_time_min} min`}
-            cost={formatCost(opt.est_cost)}
-            overTime={opt.over_time}
-            onPress={() =>
-              router.push({ pathname: '/option/[id]', params: { id: opt.optionId } })
-            }
+            opt={opt}
+            imageUrl={images[opt.meal_id] ?? null}
+            onPress={() => router.push({ pathname: '/option/[id]', params: { id: opt.optionId } })}
           />
         ))}
 
@@ -127,6 +193,27 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderColor: colors.chipBorder,
+    borderWidth: 1,
+    borderRadius: spacing.lg,
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: colors.card,
+  },
+  cardBody: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.xs,
   },
   centered: {
     justifyContent: 'center',
