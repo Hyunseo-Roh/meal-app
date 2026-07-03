@@ -73,16 +73,18 @@ export default function ConstraintsSetup() {
     }
 
     // Prefs saved == onboarded (per the pref_cuisine_id marker). Persist the
-    // local flag so Screen 3's gate routes instantly without a DB read.
+    // local flag so Screen 3's gate routes instantly without a DB read. This is
+    // the end of onboarding — pantry is no longer part of the flow, so the user
+    // is onboarded here with an empty pantry.
     await setLocalOnboarded(true);
 
-    router.replace('/onboarding/pantry');
+    router.replace('/');
   }
 
   return (
     <Screen>
       <Pressable
-        onPress={() => router.replace('/onboarding/taste')}
+        onPress={() => router.replace('/onboarding/avoid')}
         accessibilityLabel="Go back"
         hitSlop={12}
         style={styles.backArrow}
@@ -90,14 +92,14 @@ export default function ConstraintsSetup() {
         <Ionicons name="chevron-back" size={28} color={colors.text} />
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Step 2 of 3 */}
+        {/* Step 3 of 3 */}
         <View style={styles.progress}>
           <View style={[styles.progressBar, styles.progressActive]} />
           <View style={[styles.progressBar, styles.progressActive]} />
-          <View style={[styles.progressBar, styles.progressInactive]} />
+          <View style={[styles.progressBar, styles.progressActive]} />
         </View>
         <Text variant="caption" color="textSecondary">
-          Step 2 of 3
+          Step 3 of 3
         </Text>
 
         <View style={styles.header}>

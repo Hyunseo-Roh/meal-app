@@ -1,27 +1,25 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { supabase } from '../../lib/supabase';
-import { colors, spacing, typography } from '../../theme/tokens';
-import { CheckRow, RemovableTag, useOnboarding } from './_layout';
+import { colors, spacing } from '../../theme/tokens';
+import { useOnboarding } from './_layout';
 
 type Cuisine = { id: string; display_label: string; emoji: string };
 
-// Page 1 of 3 — Taste. Collects favorite cuisine, cuisines to never suggest,
-// and ingredients to skip. Nothing is saved here; selections live in the shared
-// onboarding draft and are written once at the end of Page 2 (Constraints).
+// Page 1 of 3 — Taste. Favorite cuisine only (kept on its own page since it may
+// gain ranking UI later). Nothing is saved here; selections live in the shared
+// onboarding draft and are written once at the end of Page 3 (Constraints).
 export default function TasteSetup() {
   const router = useRouter();
-  const { favorite, setFavorite, disliked, setDisliked, ingredients, setIngredients } =
-    useOnboarding();
+  const { favorite, setFavorite, setDisliked } = useOnboarding();
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
-  const [ingredientDraft, setIngredientDraft] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -37,8 +35,8 @@ export default function TasteSetup() {
     };
   }, []);
 
-  // Favorite and disliked are mutually exclusive — selecting one clears the
-  // conflicting choice in the other.
+  // Favorite and never-suggest (Page 2) are mutually exclusive — picking a
+  // favorite clears it from the skip list.
   function pickFavorite(id: string) {
     setFavorite((prev) => (prev === id ? null : id));
     setDisliked((prev) => {
@@ -47,27 +45,6 @@ export default function TasteSetup() {
       next.delete(id);
       return next;
     });
-  }
-
-  function toggleDisliked(id: string) {
-    setDisliked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setFavorite((prev) => (prev === id ? null : prev));
-  }
-
-  function addIngredient() {
-    const v = ingredientDraft.trim().toLowerCase();
-    if (!v) return;
-    setIngredients((prev) => (prev.includes(v) ? prev : [...prev, v]));
-    setIngredientDraft('');
-  }
-
-  function removeIngredient(name: string) {
-    setIngredients((prev) => prev.filter((x) => x !== name));
   }
 
   const canContinue = favorite !== null;
@@ -107,53 +84,12 @@ export default function TasteSetup() {
             ))}
           </View>
         </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Never suggest
-          </Text>
-          <Text variant="body" color="textSecondary">
-            We&apos;ll never suggest these. Pick any.
-          </Text>
-          <View style={styles.checkList}>
-            {cuisines.map((c) => (
-              <CheckRow
-                key={c.id}
-                label={`${c.emoji} ${c.display_label}`}
-                checked={disliked.has(c.id)}
-                onPress={() => toggleDisliked(c.id)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Skip ingredients
-          </Text>
-          <TextInput
-            value={ingredientDraft}
-            onChangeText={setIngredientDraft}
-            onSubmitEditing={addIngredient}
-            placeholder="Type an ingredient, press enter"
-            placeholderTextColor={colors.textSecondary}
-            returnKeyType="done"
-            style={styles.input}
-          />
-          {ingredients.length > 0 ? (
-            <View style={styles.chipRow}>
-              {ingredients.map((name) => (
-                <RemovableTag key={name} label={name} onRemove={() => removeIngredient(name)} />
-              ))}
-            </View>
-          ) : null}
-        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
           label="Continue."
-          onPress={() => router.replace('/onboarding/constraints')}
+          onPress={() => router.replace('/onboarding/avoid')}
           disabled={!canContinue}
         />
       </View>
@@ -192,19 +128,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  checkList: {
-    gap: spacing.xs,
-  },
-  input: {
-    ...typography.body,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    borderRadius: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.card,
   },
   footer: {
     paddingTop: spacing.lg,
