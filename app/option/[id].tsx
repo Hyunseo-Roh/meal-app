@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Fragment, type ComponentProps, useCallback, useEffect, useState } from 'react';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
@@ -8,24 +9,50 @@ import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { TIER_LABEL } from '../../lib/recommend';
 import { loadWhy, type WhyData } from '../../lib/reasons';
-import { spacing } from '../../theme/tokens';
+import { supabase } from '../../lib/supabase';
+import { colors, spacing } from '../../theme/tokens';
 
 type State =
   | { status: 'loading' }
   | { status: 'ready'; why: WhyData }
   | { status: 'error' };
 
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+// Quiet, per-reason marker inferred from the reason text (display only — does
+// not change what reasons are generated). Falls back to a neutral icon.
+function reasonIcon(text: string): IoniconName {
+  const t = text.toLowerCase();
+  if (/budget|afford|cost|cheap|price/.test(t)) return 'wallet-outline';
+  if (/time|tonight|min|longer|quick/.test(t)) return 'time-outline';
+  if (/effort|easy|easier|work|prep|involved/.test(t)) return 'flash-outline';
+  if (/tend to like|you like|favou?rite/.test(t)) return 'heart-outline';
+  if (/usual|lane|know|step|further|worth a try/.test(t)) return 'compass-outline';
+  return 'restaurant-outline';
+}
+
 export default function WhyWeChose() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
     setState({ status: 'loading' });
+    setImageUrl(null);
+    setImageFailed(false);
     try {
       const why = await loadWhy(id);
       setState({ status: 'ready', why });
+      // Meal photo is optional — fetch separately and degrade gracefully.
+      supabase
+        .from('meals')
+        .select('image_url')
+        .eq('id', why.mealId)
+        .single()
+        .then(({ data }) => setImageUrl(data?.image_url ?? null));
     } catch {
       setState({ status: 'error' });
     }
@@ -60,34 +87,46 @@ export default function WhyWeChose() {
   }
 
   const { why } = state;
+  const reasons = why.reasons.slice(0, 4);
+  const subtitle = why.cuisineLabel
+    ? `${why.cuisineLabel} · ${TIER_LABEL[why.tier]}`
+    : TIER_LABEL[why.tier];
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {imageUrl && !imageFailed ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : null}
+
         <View style={styles.header}>
-          <Text variant="caption" color="textSecondary">
-            {TIER_LABEL[why.tier]}
-            {why.cuisineLabel ? ` · ${why.cuisineLabel}` : ''}
-          </Text>
-          <Text variant="title">{why.name}</Text>
-          <Text variant="body" color="textSecondary">
-            Picked for you — here&apos;s why.
-          </Text>
+          <Text variant="display">Picked for you — here&apos;s why.</Text>
+          <View style={styles.nameBlock}>
+            <Text variant="title">{why.name}</Text>
+            <Text variant="body" color="textSecondary">
+              {subtitle}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.reasons}>
-          {why.reasons.map((line, i) => (
-            <Text key={i} variant="body">
-              {line}
-            </Text>
+          {reasons.map((line, i) => (
+            <Fragment key={i}>
+              {i > 0 ? <View style={styles.divider} /> : null}
+              <View style={styles.reasonRow}>
+                <Ionicons name={reasonIcon(line)} size={18} color={colors.textSecondary} />
+                <Text variant="body" style={styles.reasonText}>
+                  {line}
+                </Text>
+              </View>
+            </Fragment>
           ))}
         </View>
-
-        {why.description ? (
-          <Text variant="body" color="textSecondary">
-            {why.description}
-          </Text>
-        ) : null}
 
         <Text variant="caption" color="textSecondary">
           {`${why.cookTimeMin} min`} · {formatCost(why.estCost)}
@@ -120,11 +159,33 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
+  image: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: spacing.lg,
+    backgroundColor: colors.card,
+  },
   header: {
-    gap: spacing.sm,
+    gap: spacing.lg,
+  },
+  nameBlock: {
+    gap: spacing.xs,
   },
   reasons: {
+    // Rows are separated by dividers, not gap.
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  reasonText: {
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.chipBorder,
   },
   centered: {
     justifyContent: 'center',

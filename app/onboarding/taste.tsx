@@ -13,10 +13,12 @@ import { colors, spacing, typography } from '../../theme/tokens';
 type BudgetLevel = 'low' | 'medium' | 'high';
 type Cuisine = { id: string; display_label: string; emoji: string };
 
-const EFFORT_OPTIONS: { label: string; value: number }[] = [
-  { label: 'Quick', value: 1 },
-  { label: 'Easy', value: 2 },
-  { label: 'Worth the time', value: 3 },
+// Display labels/descriptions only. The stored value stays the same int
+// (pref_effort 1-3, low->high effort) that the scoring function reads.
+const EFFORT_OPTIONS: { label: string; description: string; value: number }[] = [
+  { label: 'Easy', description: 'Minimal prep, few steps', value: 1 },
+  { label: 'Medium', description: 'A bit of cooking', value: 2 },
+  { label: 'Involved', description: 'Worth the extra time', value: 3 },
 ];
 
 const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
@@ -87,6 +89,9 @@ export default function TasteSetup() {
   }
 
   const canContinue = favorite !== null && effort !== null && budget !== null && !saving;
+
+  // Description of the currently selected effort option (empty when none).
+  const effortDescription = EFFORT_OPTIONS.find((o) => o.value === effort)?.description ?? '';
 
   async function handleContinue() {
     if (favorite === null || effort === null || budget === null) return;
@@ -213,10 +218,19 @@ export default function TasteSetup() {
                 key={opt.value}
                 label={opt.label}
                 selected={effort === opt.value}
-                onPress={() => setEffort(opt.value)}
+                // Tap again to deselect.
+                onPress={() => setEffort((prev) => (prev === opt.value ? null : opt.value))}
               />
             ))}
           </View>
+          {/* One line, directly below the row: description of the selected
+              option only (sentence-case body/textSecondary). Rendered only when
+              something is selected, so no empty line/gap when nothing is. */}
+          {effortDescription ? (
+            <Text variant="body" color="textSecondary">
+              {effortDescription}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -229,7 +243,8 @@ export default function TasteSetup() {
                 key={opt.value}
                 label={opt.label}
                 selected={budget === opt.value}
-                onPress={() => setBudget(opt.value)}
+                // Tap again to deselect.
+                onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
               />
             ))}
           </View>
