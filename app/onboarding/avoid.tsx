@@ -17,7 +17,8 @@ type Cuisine = { id: string; display_label: string; emoji: string };
 // shared draft and are saved at the end of Page 3 (Constraints).
 export default function AvoidSetup() {
   const router = useRouter();
-  const { setFavorite, disliked, setDisliked, ingredients, setIngredients } = useOnboarding();
+  const { favorite, setFavorite, disliked, setDisliked, ingredients, setIngredients } =
+    useOnboarding();
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
@@ -94,14 +95,26 @@ export default function AvoidSetup() {
             We&apos;ll never suggest these. Pick any.
           </Text>
           <View style={styles.checkList}>
-            {cuisines.map((c) => (
-              <CheckRow
-                key={c.id}
-                label={`${c.emoji} ${c.display_label}`}
-                checked={disliked.has(c.id)}
-                onPress={() => toggleDisliked(c.id)}
-              />
-            ))}
+            {cuisines.map((c) =>
+              c.id === favorite ? (
+                // Your favorite can't also be a "never suggest" — show it
+                // disabled with a small note instead of a tappable checkbox.
+                <View key={c.id} style={styles.disabledRow}>
+                  <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
+                  <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
+                  <Text variant="caption" color="textSecondary">
+                    Your favorite
+                  </Text>
+                </View>
+              ) : (
+                <CheckRow
+                  key={c.id}
+                  label={`${c.emoji} ${c.display_label}`}
+                  checked={disliked.has(c.id)}
+                  onPress={() => toggleDisliked(c.id)}
+                />
+              ),
+            )}
           </View>
         </View>
 
@@ -180,6 +193,17 @@ const styles = StyleSheet.create({
   },
   checkList: {
     gap: spacing.xs,
+  },
+  // Mirrors CheckRow's row layout exactly (no layout shift), but dimmed and
+  // non-tappable — the favorite can't also be a "never suggest".
+  disabledRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    opacity: 0.6,
   },
   input: {
     ...typography.body,
