@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, type ComponentProps, useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
@@ -101,6 +101,14 @@ export default function WhyWeChose() {
 
   return (
     <Screen>
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {imageUrl && !imageFailed ? (
           <Image
@@ -161,8 +169,13 @@ export default function WhyWeChose() {
 }
 
 const styles = StyleSheet.create({
+  backArrow: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
+  },
   content: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },

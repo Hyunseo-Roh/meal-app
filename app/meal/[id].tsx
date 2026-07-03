@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { loadGap, type GapData } from '../../lib/gap';
-import { spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
 
 const EFFORT_LABEL: Record<number, string> = {
   1: 'Low effort',
@@ -69,6 +70,14 @@ export default function MealDetail() {
 
   return (
     <Screen>
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           {gap.cuisineLabel ? (
@@ -153,8 +162,13 @@ export default function MealDetail() {
 }
 
 const styles = StyleSheet.create({
+  backArrow: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
+  },
   content: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
