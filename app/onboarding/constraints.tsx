@@ -167,12 +167,14 @@ export default function ConstraintsSetup() {
 const styles = StyleSheet.create({
   backArrow: {
     alignSelf: 'flex-start',
-    paddingTop: spacing.xs,
+    // Pull the arrow toward the screen edge (arrow only — headings keep their margin).
+    marginLeft: -spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: 0,
     paddingRight: spacing.md,
   },
   content: {
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
