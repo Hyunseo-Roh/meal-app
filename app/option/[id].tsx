@@ -19,6 +19,13 @@ type State =
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
+// Spoonacular serves the same image at larger sizes. Upsize the seeded
+// "312x231" thumbnail to "636x393" so it isn't blurry full-width. Display only —
+// the stored URL is untouched. If the URL doesn't match, it's returned as-is.
+function upsizeImageUrl(url: string): string {
+  return url.replace('-312x231.', '-636x393.');
+}
+
 // Quiet, per-reason marker inferred from the reason text (display only — does
 // not change what reasons are generated). Falls back to a neutral icon.
 function reasonIcon(text: string): IoniconName {
@@ -97,7 +104,7 @@ export default function WhyWeChose() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {imageUrl && !imageFailed ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: upsizeImageUrl(imageUrl) }}
             style={styles.image}
             resizeMode="cover"
             onError={() => setImageFailed(true)}
