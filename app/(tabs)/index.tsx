@@ -13,6 +13,7 @@ import {
   setLocalOnboarded,
   withTimeout,
 } from '../../lib/currentUser';
+import { getMealGreeting } from '../../lib/greeting';
 import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
 
@@ -155,7 +156,7 @@ export default function HowsTonight() {
         showsVerticalScrollIndicator={false}
       >
         <Text variant="title" style={styles.heading}>
-          How&apos;s tonight?
+          {getMealGreeting(new Date())}
         </Text>
         <Text variant="body" color="textSecondary" style={styles.subhead}>
           Set the scene. We&apos;ll pick three.
@@ -163,7 +164,7 @@ export default function HowsTonight() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            How long
+            Cook time
           </Text>
           <View style={styles.chipRow}>
             {TIME_OPTIONS.map((opt) => (
@@ -219,7 +220,7 @@ export default function HowsTonight() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={submitting ? 'One moment…' : "See tonight's three."}
+          label={submitting ? 'One moment…' : 'See your three.'}
           onPress={handleSubmit}
           disabled={!canSubmit}
         />
