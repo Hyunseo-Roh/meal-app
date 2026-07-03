@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import {
   createContext,
@@ -6,8 +7,84 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
+
+import { Text } from '../../components/Text';
+import { colors, spacing } from '../../theme/tokens';
 
 export type BudgetLevel = 'low' | 'medium' | 'high';
+
+/**
+ * Multi-select row with a checkbox indicator — makes "pick as many as you like"
+ * obvious. Whole row is tappable; 44px min height for the accessibility target.
+ * Checked = accent filled checkbox; unchecked = muted outline square.
+ */
+export function CheckRow({
+  label,
+  checked,
+  onPress,
+}: {
+  label: string;
+  checked: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      style={sharedStyles.checkRow}
+    >
+      <Ionicons
+        name={checked ? 'checkbox' : 'square-outline'}
+        size={24}
+        color={checked ? colors.accent : colors.textSecondary}
+      />
+      <Text variant="body">{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * An added free-text item, shown as an accent pill with a trailing × so it's
+ * clear that tapping removes it. Whole pill is tappable.
+ */
+export function RemovableTag({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <Pressable
+      onPress={onRemove}
+      accessibilityRole="button"
+      accessibilityLabel={`Remove ${label}`}
+      style={sharedStyles.tag}
+    >
+      <Text variant="body" color="bg">
+        {label}
+      </Text>
+      <Text variant="body" color="bg">
+        ×
+      </Text>
+    </Pressable>
+  );
+}
+
+const sharedStyles = StyleSheet.create({
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+});
 
 /**
  * Draft state shared across the three onboarding pages. It lives in the

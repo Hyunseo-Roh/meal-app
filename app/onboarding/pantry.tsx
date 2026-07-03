@@ -3,14 +3,13 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { useOnboarding } from './_layout';
+import { CheckRow, RemovableTag, useOnboarding } from './_layout';
 
 // UI suggestion list only — not schema.
 const QUICK_ADD = ['olive oil', 'garlic', 'eggs', 'tuna', 'lemon', 'spinach', 'onion', 'chicken'];
@@ -170,12 +169,12 @@ export default function PantrySetup() {
           <Text variant="caption" color="textSecondary">
             Quick add
           </Text>
-          <View style={styles.chipRow}>
+          <View style={styles.checkList}>
             {QUICK_ADD.map((name) => (
-              <Chip
+              <CheckRow
                 key={name}
                 label={name}
-                selected={items.has(name)}
+                checked={items.has(name)}
                 onPress={() => toggle(name)}
               />
             ))}
@@ -189,7 +188,7 @@ export default function PantrySetup() {
             </Text>
             <View style={styles.chipRow}>
               {added.map((name) => (
-                <Chip key={name} label={name} selected onPress={() => toggle(name)} />
+                <RemovableTag key={name} label={name} onRemove={() => toggle(name)} />
               ))}
             </View>
           </View>
@@ -266,6 +265,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  checkList: {
+    gap: spacing.xs,
   },
   footer: {
     paddingTop: spacing.lg,

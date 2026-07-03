@@ -8,7 +8,7 @@ import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { useOnboarding } from './_layout';
+import { CheckRow, RemovableTag, useOnboarding } from './_layout';
 
 type Cuisine = { id: string; display_label: string; emoji: string };
 
@@ -113,14 +113,14 @@ export default function TasteSetup() {
             Never suggest
           </Text>
           <Text variant="body" color="textSecondary">
-            We&apos;ll never suggest these.
+            We&apos;ll never suggest these. Pick any.
           </Text>
-          <View style={styles.chipRow}>
+          <View style={styles.checkList}>
             {cuisines.map((c) => (
-              <Chip
+              <CheckRow
                 key={c.id}
                 label={`${c.emoji} ${c.display_label}`}
-                selected={disliked.has(c.id)}
+                checked={disliked.has(c.id)}
                 onPress={() => toggleDisliked(c.id)}
               />
             ))}
@@ -143,7 +143,7 @@ export default function TasteSetup() {
           {ingredients.length > 0 ? (
             <View style={styles.chipRow}>
               {ingredients.map((name) => (
-                <Chip key={name} label={name} selected onPress={() => removeIngredient(name)} />
+                <RemovableTag key={name} label={name} onRemove={() => removeIngredient(name)} />
               ))}
             </View>
           ) : null}
@@ -192,6 +192,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  checkList: {
+    gap: spacing.xs,
   },
   input: {
     ...typography.body,
