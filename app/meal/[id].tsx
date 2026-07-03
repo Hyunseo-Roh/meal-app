@@ -142,8 +142,14 @@ export default function MealDetail() {
         ) : null}
 
         {/* Taste feedback (free tier) — feeds recommend_meals' ±20 term.
-            Keyed per option, so only shown when we arrived with one. */}
-        {option_id ? <FeedbackControl optionId={option_id} /> : null}
+            Keyed per option, so only shown when we arrived with one.
+            Extra bottom margin detaches it from the fixed "Make this." footer so
+            it reads as a taste signal, not a post-cook rating on that action. */}
+        {option_id ? (
+          <View style={styles.feedbackBlock}>
+            <FeedbackControl optionId={option_id} />
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -188,6 +194,10 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.md,
+  },
+  feedbackBlock: {
+    // Detach the taste feedback from the fixed "Make this." footer.
+    marginBottom: spacing.xl,
   },
   row: {
     flexDirection: 'row',
