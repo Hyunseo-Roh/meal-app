@@ -176,11 +176,12 @@ export default function ThreeOptions() {
 const styles = StyleSheet.create({
   backArrow: {
     alignSelf: 'flex-start',
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: 0,
     paddingRight: spacing.md,
   },
   content: {
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xl,
     gap: spacing.lg,
   },
