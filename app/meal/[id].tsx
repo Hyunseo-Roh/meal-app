@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { FeedbackControl } from '../../components/FeedbackControl';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
@@ -139,6 +140,10 @@ export default function MealDetail() {
             ))}
           </View>
         ) : null}
+
+        {/* Taste feedback (free tier) — feeds recommend_meals' ±20 term.
+            Keyed per option, so only shown when we arrived with one. */}
+        {option_id ? <FeedbackControl optionId={option_id} /> : null}
       </ScrollView>
 
       <View style={styles.footer}>
