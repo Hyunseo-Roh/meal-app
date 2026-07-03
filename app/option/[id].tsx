@@ -6,7 +6,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { formatCost } from '../../lib/format';
+import { formatCost, upsizeImageUrl } from '../../lib/format';
 import { TIER_LABEL } from '../../lib/recommend';
 import { loadWhy, type WhyData } from '../../lib/reasons';
 import { supabase } from '../../lib/supabase';
@@ -18,13 +18,6 @@ type State =
   | { status: 'error' };
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
-
-// Spoonacular serves the same image at larger sizes. Upsize the seeded
-// "312x231" thumbnail to "636x393" so it isn't blurry full-width. Display only —
-// the stored URL is untouched. If the URL doesn't match, it's returned as-is.
-function upsizeImageUrl(url: string): string {
-  return url.replace('-312x231.', '-636x393.');
-}
 
 // Quiet, per-reason marker inferred from the reason text (display only — does
 // not change what reasons are generated). Falls back to a neutral icon.

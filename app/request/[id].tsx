@@ -6,7 +6,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { formatCost } from '../../lib/format';
+import { formatCost, upsizeImageUrl } from '../../lib/format';
 import { loadOptions, TIER_LABEL, type OptionCard } from '../../lib/recommend';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -15,12 +15,6 @@ type State =
   | { status: 'loading' }
   | { status: 'ready'; options: OptionCard[] }
   | { status: 'error' };
-
-// Same upsize as Screen 5: swap the seeded 312x231 thumbnail for 636x393 so the
-// photo isn't blurry. Display only; unmatched URLs are returned unchanged.
-function upsizeImageUrl(url: string): string {
-  return url.replace('-312x231.', '-636x393.');
-}
 
 // One recommendation card: photo on top (optional, degrades gracefully) + tier,
 // name, one short line, and a compact time · price meta.
