@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -9,15 +10,17 @@ import { Text } from '../../components/Text';
 import { getCurrentUserId, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
+import { useOnboarding } from './_layout';
 
 // UI suggestion list only — not schema.
 const QUICK_ADD = ['olive oil', 'garlic', 'eggs', 'tuna', 'lemon', 'spinach', 'onion', 'chicken'];
 
+// Page 3 of 3 — Pantry (optional). Staged in the shared draft; written to
+// pantry_items on Done. Prominent "Skip for now" keeps it low-pressure.
 export default function PantrySetup() {
   const router = useRouter();
+  const { pantry: items, setPantry: setItems } = useOnboarding();
 
-  // Staged locally, written to pantry_items on Done.
-  const [items, setItems] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState('');
   const [scanNote, setScanNote] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -102,20 +105,29 @@ export default function PantrySetup() {
 
   return (
     <Screen>
+      <Pressable
+        onPress={() => router.replace('/onboarding/constraints')}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Step 2 of 2 */}
+        {/* Step 3 of 3 */}
         <View style={styles.progress}>
+          <View style={[styles.progressBar, styles.progressActive]} />
           <View style={[styles.progressBar, styles.progressActive]} />
           <View style={[styles.progressBar, styles.progressActive]} />
         </View>
         <Text variant="caption" color="textSecondary">
-          Step 2 of 2
+          Step 3 of 3
         </Text>
 
         <View style={styles.header}>
           <Text variant="title">What&apos;s usually in your kitchen?</Text>
           <Text variant="body" color="textSecondary">
-            Add a few staples. We&apos;ll use them to show what you already have.
+            Optional — add a few staples, or skip and do it later.
           </Text>
         </View>
 
@@ -191,11 +203,7 @@ export default function PantrySetup() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton
-          label={saving ? 'Saving…' : 'Done.'}
-          onPress={finish}
-          disabled={saving}
-        />
+        <PrimaryButton label={saving ? 'Saving…' : 'Done.'} onPress={finish} disabled={saving} />
         <View style={styles.skip}>
           <Text variant="caption" color="accent" onPress={saving ? undefined : finish}>
             Skip for now
@@ -207,8 +215,13 @@ export default function PantrySetup() {
 }
 
 const styles = StyleSheet.create({
+  backArrow: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
+  },
   content: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },

@@ -6,40 +6,22 @@ import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { getCurrentUserId, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
+import { useOnboarding } from './_layout';
 
-type BudgetLevel = 'low' | 'medium' | 'high';
 type Cuisine = { id: string; display_label: string; emoji: string };
 
-// Display labels/descriptions only. The stored value stays the same int
-// (pref_effort 1-3, low->high effort) that the scoring function reads.
-const EFFORT_OPTIONS: { label: string; description: string; value: number }[] = [
-  { label: 'Easy', description: 'Minimal prep, few steps', value: 1 },
-  { label: 'Medium', description: 'A bit of cooking', value: 2 },
-  { label: 'Involved', description: 'Worth the extra time', value: 3 },
-];
-
-const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
-  { label: 'Low', value: 'low' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'High', value: 'high' },
-];
-
+// Page 1 of 3 — Taste. Collects favorite cuisine, cuisines to never suggest,
+// and ingredients to skip. Nothing is saved here; selections live in the shared
+// onboarding draft and are written once at the end of Page 2 (Constraints).
 export default function TasteSetup() {
   const router = useRouter();
+  const { favorite, setFavorite, disliked, setDisliked, ingredients, setIngredients } =
+    useOnboarding();
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
-  const [favorite, setFavorite] = useState<string | null>(null);
-  const [disliked, setDisliked] = useState<Set<string>>(new Set());
-  const [ingredients, setIngredients] = useState<string[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
-  const [effort, setEffort] = useState<number | null>(null);
-  const [budget, setBudget] = useState<BudgetLevel | null>(null);
-
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -88,64 +70,23 @@ export default function TasteSetup() {
     setIngredients((prev) => prev.filter((x) => x !== name));
   }
 
-  const canContinue = favorite !== null && effort !== null && budget !== null && !saving;
-
-  // Description of the currently selected effort option (empty when none).
-  const effortDescription = EFFORT_OPTIONS.find((o) => o.value === effort)?.description ?? '';
-
-  async function handleContinue() {
-    if (favorite === null || effort === null || budget === null) return;
-    setSaving(true);
-    setError(null);
-
-    let userId: string;
-    try {
-      userId = await getCurrentUserId();
-    } catch {
-      setSaving(false);
-      setError("Couldn't save just now. Try once more.");
-      return;
-    }
-
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        pref_cuisine_id: favorite,
-        disliked_cuisine_ids: [...disliked],
-        disliked_ingredients: ingredients,
-        pref_effort: effort,
-        default_budget: budget,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
-
-    if (updateError) {
-      setSaving(false);
-      setError("Couldn't save just now. Try once more.");
-      return;
-    }
-
-    // Prefs saved == onboarded (per the pref_cuisine_id marker). Persist the
-    // local flag so Screen 3's gate routes instantly without a DB read.
-    await setLocalOnboarded(true);
-
-    router.replace('/onboarding/pantry');
-  }
+  const canContinue = favorite !== null;
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Step 1 of 2 */}
+        {/* Step 1 of 3 */}
         <View style={styles.progress}>
           <View style={[styles.progressBar, styles.progressActive]} />
           <View style={[styles.progressBar, styles.progressInactive]} />
+          <View style={[styles.progressBar, styles.progressInactive]} />
         </View>
         <Text variant="caption" color="textSecondary">
-          Step 1 of 2
+          Step 1 of 3
         </Text>
 
         <View style={styles.header}>
-          <Text variant="title">A few taps and we&apos;ll take it from here.</Text>
+          <Text variant="title">What sounds good?</Text>
           <Text variant="body" color="textSecondary">
             Your taste, once — so every night picks itself.
           </Text>
@@ -207,60 +148,12 @@ export default function TasteSetup() {
             </View>
           ) : null}
         </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Effort
-          </Text>
-          <View style={styles.chipRow}>
-            {EFFORT_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={opt.label}
-                selected={effort === opt.value}
-                // Tap again to deselect.
-                onPress={() => setEffort((prev) => (prev === opt.value ? null : opt.value))}
-              />
-            ))}
-          </View>
-          {/* One line, directly below the row: description of the selected
-              option only (sentence-case body/textSecondary). Rendered only when
-              something is selected, so no empty line/gap when nothing is. */}
-          {effortDescription ? (
-            <Text variant="body" color="textSecondary">
-              {effortDescription}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Budget
-          </Text>
-          <View style={styles.chipRow}>
-            {BUDGET_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={opt.label}
-                selected={budget === opt.value}
-                // Tap again to deselect.
-                onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
-              />
-            ))}
-          </View>
-        </View>
-
-        {error ? (
-          <Text variant="body" color="text">
-            {error}
-          </Text>
-        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={saving ? 'Saving…' : 'Continue.'}
-          onPress={handleContinue}
+          label="Continue."
+          onPress={() => router.replace('/onboarding/constraints')}
           disabled={!canContinue}
         />
       </View>
