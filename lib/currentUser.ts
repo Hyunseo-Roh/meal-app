@@ -126,3 +126,24 @@ export function resetCurrentUser(): void {
   cachedId = null;
   inflight = null;
 }
+
+/**
+ * Read the current auth user, or null if there's no session. `isAnonymous`
+ * distinguishes a built-in anonymous user from a promoted/permanent
+ * (email + password) account — used by the Taste tab to switch between the
+ * "save your account" and "log out" states. Timeout-guarded like the rest.
+ */
+export async function getAuthUser(): Promise<
+  { id: string; email: string | null; isAnonymous: boolean } | null
+> {
+  const {
+    data: { session },
+  } = await withTimeout(supabase.auth.getSession());
+  const user = session?.user;
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    isAnonymous: user.is_anonymous ?? (user.email == null),
+  };
+}

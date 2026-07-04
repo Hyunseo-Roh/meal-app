@@ -9,10 +9,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import { getCurrentUserId } from '../lib/currentUser';
-// Imported at startup for its side effect: validates Supabase env vars and
+import { getCurrentUserId, resetCurrentUser } from '../lib/currentUser';
+// Named import also runs the module side effect: validates Supabase env vars and
 // throws loudly if they are missing/blank, so we never boot a broken client.
-import '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { colors } from '../theme/tokens';
 
 // Quiet Authority is light-only: pin React Navigation to the light theme always
@@ -35,6 +35,20 @@ export default function RootLayout() {
   // non-fatal; screens resolve the id again when they need it.
   useEffect(() => {
     getCurrentUserId().catch(() => {});
+  }, []);
+
+  // Keep the in-memory identity memo in sync with the auth session: on any
+  // identity-changing event (login / logout / promote-in-place), drop the memo
+  // so getCurrentUserId() re-derives from the new session. Idempotent and cheap.
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        resetCurrentUser();
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // Render nothing until Inter is ready, so the type ladder never flashes a fallback font.

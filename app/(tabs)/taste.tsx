@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { resetCurrentUser } from '../../lib/currentUser';
+import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
 
@@ -12,22 +14,44 @@ import { spacing } from '../../theme/tokens';
 // the Supabase auth session, not AsyncStorage.
 const ONBOARDED_KEY = 'app_onboarded';
 
+type Account = { email: string | null; isAnonymous: boolean } | null;
+
 export default function Taste() {
   const router = useRouter();
+  const [account, setAccount] = useState<Account>(null);
+  const [loaded, setLoaded] = useState(false);
 
-  // Hidden demo utility: drop the anonymous session + clear the onboarded flag so
-  // the next entry behaves like a fresh first launch (a new anon user is minted),
-  // then jump to onboarding.
-  async function resetDemo() {
+  // Re-read the auth user on every focus so the section reflects the latest state
+  // after returning from register / login / logout.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const u = await getAuthUser().catch(() => null);
+        if (!active) return;
+        setAccount(u ? { email: u.email, isAnonymous: u.isAnonymous } : null);
+        setLoaded(true);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  // Sign out of the current session (anon or permanent), clear the memo + onboarded
+  // flag, and return to onboarding — a fresh anonymous user is minted on next entry.
+  async function signOutToStart() {
     try {
-      await supabase.auth.signOut(); // drop the current anonymous session
-      resetCurrentUser(); // clear the in-memory identity memo
-      await AsyncStorage.removeItem(ONBOARDED_KEY); // send them back through onboarding
+      await supabase.auth.signOut();
+      resetCurrentUser();
+      await AsyncStorage.removeItem(ONBOARDED_KEY);
     } catch {
       // best-effort; still route to onboarding
     }
     router.replace('/onboarding/taste');
   }
+
+  const isPermanent = loaded && account !== null && !account.isAnonymous;
 
   return (
     <Screen style={styles.screen}>
@@ -38,9 +62,43 @@ export default function Taste() {
             What you like, learned over time.
           </Text>
         </View>
+
+        {loaded ? (
+          <View style={styles.account}>
+            {isPermanent ? (
+              <>
+                <Text variant="caption" color="textSecondary">
+                  Signed in as
+                </Text>
+                <Text variant="body">{account?.email}</Text>
+                <Pressable onPress={signOutToStart} accessibilityRole="button" style={styles.link}>
+                  <Text variant="body" color="accent">
+                    Log out
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <PrimaryButton
+                  label="Save your account"
+                  onPress={() => router.push('/auth/register')}
+                />
+                <Pressable
+                  onPress={() => router.push('/auth/login')}
+                  accessibilityRole="button"
+                  style={styles.link}
+                >
+                  <Text variant="body" color="accent">
+                    Already have an account? Log in
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        ) : null}
       </View>
 
-      <Pressable onPress={resetDemo} accessibilityLabel="Reset demo" style={styles.reset}>
+      <Pressable onPress={signOutToStart} accessibilityLabel="Start over" style={styles.reset}>
         <Text variant="caption" color="textSecondary">
           Start over
         </Text>
@@ -56,9 +114,17 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     justifyContent: 'center',
+    gap: spacing.xl,
   },
   block: {
     gap: spacing.sm,
+  },
+  account: {
+    gap: spacing.md,
+  },
+  link: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   reset: {
     alignItems: 'center',

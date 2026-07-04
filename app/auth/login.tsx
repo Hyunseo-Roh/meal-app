@@ -1,0 +1,211 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+
+import { PrimaryButton } from '../../components/PrimaryButton';
+import { Screen } from '../../components/Screen';
+import { Text } from '../../components/Text';
+import { setLocalOnboarded } from '../../lib/currentUser';
+import { supabase } from '../../lib/supabase';
+import { colors, spacing, typography } from '../../theme/tokens';
+
+export default function Login() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Inline confirm (NOT Alert.alert — unreliable on react-native-web): logging in
+  // switches accounts and the current device's anonymous data is not carried over.
+  const [confirming, setConfirming] = useState(false);
+
+  function requestLogin() {
+    setError(null);
+    if (!email.trim()) {
+      setError('Enter your email.');
+      return;
+    }
+    if (!password) {
+      setError('Enter your password.');
+      return;
+    }
+    setConfirming(true);
+  }
+
+  async function confirmLogin() {
+    setSubmitting(true);
+    setError(null);
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (err) {
+      setSubmitting(false);
+      setConfirming(false);
+      // Surface the server's actual reason (e.g. invalid credentials / password).
+      setError(err.message || 'Couldn’t log in. Try again.');
+      return;
+    }
+    // New account session — clear the local onboarded flag so the Home gate
+    // re-checks THIS account's prefs via the DB, instead of trusting the anon
+    // device flag. resetCurrentUser() runs via the _layout auth listener.
+    await setLocalOnboarded(false);
+    router.replace('/');
+  }
+
+  return (
+    <Screen>
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text variant="title">Log in.</Text>
+          <Text variant="body" color="textSecondary">
+            Welcome back.
+          </Text>
+        </View>
+
+        <View style={styles.field}>
+          <Text variant="caption" color="textSecondary">
+            Email
+          </Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!confirming}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text variant="caption" color="textSecondary">
+            Password
+          </Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Your password"
+            placeholderTextColor={colors.textSecondary}
+            secureTextEntry
+            autoCapitalize="none"
+            editable={!confirming}
+            style={styles.input}
+          />
+        </View>
+
+        {confirming ? (
+          <View style={styles.confirmBlock}>
+            <Text variant="body">
+              Logging in switches to that account. This device&apos;s unsaved data won&apos;t be
+              carried over.
+            </Text>
+          </View>
+        ) : null}
+
+        {error ? <Text variant="body">{error}</Text> : null}
+
+        {!confirming ? (
+          <Pressable
+            onPress={() => router.replace('/auth/register')}
+            accessibilityRole="button"
+            style={styles.link}
+          >
+            <Text variant="body" color="accent">
+              New here? Save an account
+            </Text>
+          </Pressable>
+        ) : null}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {confirming ? (
+          <>
+            <PrimaryButton
+              label={submitting ? 'One moment…' : 'Log in anyway'}
+              onPress={confirmLogin}
+              disabled={submitting}
+            />
+            <Pressable
+              onPress={() => setConfirming(false)}
+              accessibilityRole="button"
+              disabled={submitting}
+              style={styles.ghost}
+            >
+              <Text variant="body">Cancel</Text>
+            </Pressable>
+          </>
+        ) : (
+          <PrimaryButton label="Log in" onPress={requestLogin} disabled={submitting} />
+        )}
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  backArrow: {
+    alignSelf: 'flex-start',
+    marginLeft: -spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: 0,
+    paddingRight: spacing.md,
+  },
+  content: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
+  },
+  header: {
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  field: {
+    gap: spacing.sm,
+  },
+  input: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.card,
+  },
+  confirmBlock: {
+    gap: spacing.xs,
+  },
+  link: {
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  footer: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  ghost: {
+    height: 52,
+    borderRadius: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
