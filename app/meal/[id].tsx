@@ -12,9 +12,9 @@ import { loadGap, type GapData } from '../../lib/gap';
 import { colors, spacing } from '../../theme/tokens';
 
 const EFFORT_LABEL: Record<number, string> = {
-  1: 'Low effort',
-  2: 'Some effort',
-  3: 'More effort',
+  1: 'Easy',
+  2: 'Medium',
+  3: 'Involved',
 };
 
 type State =
@@ -90,11 +90,6 @@ export default function MealDetail() {
           <Text variant="caption" color="textSecondary">
             {`${gap.cookTimeMin} min`} · {effort} · {formatCost(gap.estCost)}
           </Text>
-          {gap.description ? (
-            <Text variant="body" color="textSecondary" style={styles.description}>
-              {gap.description}
-            </Text>
-          ) : null}
         </View>
 
         {/* Pantry-memory payoff, one calm line. */}

@@ -92,7 +92,7 @@ export default function AvoidSetup() {
             Never suggest
           </Text>
           <Text variant="body" color="textSecondary">
-            We&apos;ll never suggest these. Pick any.
+            Optional. Pick any.
           </Text>
           <View style={styles.checkList}>
             {cuisines.map((c) =>
