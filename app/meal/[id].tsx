@@ -157,11 +157,15 @@ export default function MealDetail() {
             })
           }
         />
-        <View style={styles.backLink}>
-          <Text variant="caption" color="accent" onPress={() => router.back()}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          style={styles.backLink}
+        >
+          <Text variant="caption" color="accent">
             Back
           </Text>
-        </View>
+        </Pressable>
       </View>
     </Screen>
   );
@@ -219,5 +223,7 @@ const styles = StyleSheet.create({
   },
   backLink: {
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
 });

@@ -159,21 +159,21 @@ export default function ThreeOptions() {
           />
         ))}
 
-        <View style={styles.backLink}>
-          <Text
-            variant="caption"
-            color="accent"
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/');
-              }
-            }}
-          >
+        <Pressable
+          accessibilityRole="button"
+          style={styles.backLink}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
+          }}
+        >
+          <Text variant="caption" color="accent">
             Back to start
           </Text>
-        </View>
+        </Pressable>
       </ScrollView>
     </Screen>
   );
@@ -230,6 +230,8 @@ const styles = StyleSheet.create({
   },
   backLink: {
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
     marginTop: spacing.md,
   },
 });

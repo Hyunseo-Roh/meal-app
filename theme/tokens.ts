@@ -17,7 +17,7 @@ export const colors = {
   bg: '#EDEAE3', // Bone — screen background
   card: '#DCD3C5', // Greige — cards
   chipBorder: '#C9C2B6', // Warm Gray — borders
-  textSecondary: '#A7A8A3', // Warm Gray Deep — muted text
+  textSecondary: '#53544F', // Warm Gray Deep — muted text (AA: 6.36:1 on Bone, 5.15:1 on Greige)
   accent: '#8A9AA6', // Cool Slate — single accent (selected chips, primary buttons, active nav)
   text: '#2E2E2C', // Charcoal Ink — text, never pure black
   have: '#7C8A6B', // Sage — semantic "have"/success ONLY (Gap Tracker ✓). NEVER a general accent.

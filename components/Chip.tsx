@@ -30,6 +30,10 @@ export function Chip({ label, selected, onPress }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
+    // minHeight guarantees a ≥44px tap target (content alone computes to ~42);
+    // justifyContent keeps the label vertically centered in the taller pill.
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: 999,

@@ -151,11 +151,15 @@ export default function WhyWeChose() {
             })
           }
         />
-        <View style={styles.backLink}>
-          <Text variant="caption" color="accent" onPress={() => router.back()}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          style={styles.backLink}
+        >
+          <Text variant="caption" color="accent">
             Back to your three
           </Text>
-        </View>
+        </Pressable>
       </View>
     </Screen>
   );
@@ -220,5 +224,7 @@ const styles = StyleSheet.create({
   },
   backLink: {
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
 });

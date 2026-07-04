@@ -35,7 +35,7 @@ Cuisine ids: italian `a0000000-...-001` 🍝 · mexican 002 🌮 · thai 003 �
 Call these RPCs as-is. Do not reimplement recommendation logic in the client. Do not add an LLM call anywhere.
 
 ## Design system — enforce exactly
-**Colors (only these):** Bone `#EDEAE3` (bg) · Greige `#DCD3C5` (cards) · Warm Gray `#C9C2B6` (borders) · Warm Gray Deep `#A7A8A3` (muted text) · Cool Slate `#8A9AA6` (selection accent: chips, feedback pills, active nav) · Charcoal Ink `#2E2E2C` (text & primary action buttons; never pure black) · **Sage `#7C8A6B` (semantic "have/success" ONLY — the ✓ checks in the Gap Tracker; nowhere else).** No other colors.
+**Colors (only these):** Bone `#EDEAE3` (bg) · Greige `#DCD3C5` (cards) · Warm Gray `#C9C2B6` (borders) · Warm Gray Deep `#53544F` (muted text) · Cool Slate `#8A9AA6` (selection accent: chips, feedback pills, active nav) · Charcoal Ink `#2E2E2C` (text & primary action buttons; never pure black) · **Sage `#7C8A6B` (semantic "have/success" ONLY — the ✓ checks in the Gap Tracker; nowhere else).** No other colors.
 
 **Type — locked 4-step ladder, no in-between sizes:** Screen Title 32/38 Semibold · Section Title 24/30 Medium · Body 16/24 Regular · Label 13/16 Medium UPPERCASE +6%. Never use 18, 20, or 15. Hierarchy comes from size + color, not from bolding everything.
 

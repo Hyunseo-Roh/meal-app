@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
@@ -75,11 +75,15 @@ export default function Handled() {
         ) : null}
       </View>
 
-      <View style={styles.backLink}>
-        <Text variant="caption" color="accent" onPress={() => router.replace('/')}>
+      <Pressable
+        onPress={() => router.replace('/')}
+        accessibilityRole="button"
+        style={styles.backLink}
+      >
+        <Text variant="caption" color="accent">
           Back to start
         </Text>
-      </View>
+      </Pressable>
     </Screen>
   );
 }
@@ -100,5 +104,9 @@ const styles = StyleSheet.create({
   },
   backLink: {
     marginTop: spacing.xl,
+    // Vertical centering only — no alignItems, to preserve the original
+    // (non-centered) horizontal alignment of this link.
+    justifyContent: 'center',
+    minHeight: 44,
   },
 });

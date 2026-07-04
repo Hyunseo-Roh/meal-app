@@ -78,7 +78,9 @@ const sharedStyles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    minHeight: 44,
     backgroundColor: colors.accent,
     borderRadius: 999,
     paddingVertical: spacing.sm,
