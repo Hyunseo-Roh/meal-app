@@ -7,13 +7,14 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost, upsizeImageUrl } from '../../lib/format';
+import { getMealBucket } from '../../lib/greeting';
 import { loadOptions, TIER_LABEL, type OptionCard } from '../../lib/recommend';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
 
 type State =
   | { status: 'loading' }
-  | { status: 'ready'; options: OptionCard[] }
+  | { status: 'ready'; options: OptionCard[]; createdAt: string | null }
   | { status: 'error' };
 
 // One recommendation card: photo on top (optional, degrades gracefully) + tier,
@@ -56,7 +57,7 @@ function RecCard({
         </View>
         {opt.over_time ? (
           <Text variant="caption" color="textSecondary">
-            A little longer than tonight
+            A little longer than usual
           </Text>
         ) : null}
       </View>
@@ -76,8 +77,8 @@ export default function ThreeOptions() {
     setState({ status: 'loading' });
     setImages({});
     try {
-      const options = await loadOptions(id);
-      setState({ status: 'ready', options });
+      const { options, createdAt } = await loadOptions(id);
+      setState({ status: 'ready', options, createdAt });
       // Fetch the three photos in one go; missing ones just stay absent.
       supabase
         .from('meals')
@@ -115,7 +116,7 @@ export default function ThreeOptions() {
   if (state.status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="title">Tonight slipped away.</Text>
+        <Text variant="title">That slipped away.</Text>
         <Text variant="body" color="textSecondary" style={styles.errorBody}>
           We couldn&apos;t pull your three just now. Try once more.
         </Text>
@@ -125,6 +126,11 @@ export default function ThreeOptions() {
       </Screen>
     );
   }
+
+  // Phrase the heading by the session's meal bucket (from the request time),
+  // falling back to now if created_at is somehow missing so it never crashes.
+  const bucket = getMealBucket(state.createdAt ? new Date(state.createdAt) : new Date());
+  const bucketLabel = bucket.charAt(0).toUpperCase() + bucket.slice(1);
 
   return (
     <Screen>
@@ -138,7 +144,7 @@ export default function ThreeOptions() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text variant="title">Tonight: three suggestions.</Text>
+          <Text variant="title">{`${bucketLabel}: three suggestions.`}</Text>
           <Text variant="body" color="textSecondary">
             Picked for you — tap one to see why.
           </Text>

@@ -103,7 +103,7 @@ export default function ConstraintsSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="title">Your limits tonight.</Text>
+          <Text variant="title">Your limits.</Text>
           <Text variant="body" color="textSecondary">
             How much effort, and what you&apos;re spending.
           </Text>

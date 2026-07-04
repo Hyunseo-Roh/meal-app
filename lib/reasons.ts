@@ -102,15 +102,15 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
   // time fit
   if (request.time_available != null) {
     if (meal.cook_time_min <= request.time_available) {
-      reasons.push("Fits tonight's time.");
+      reasons.push('Fits your time.');
     } else {
-      reasons.push('A little longer than tonight, but close.');
+      reasons.push('A little longer, but close.');
     }
   }
 
   // budget fit
   if (request.budget && meal.est_cost <= BUDGET_CEILING[request.budget as BudgetLevel]) {
-    reasons.push("Comfortable on tonight's budget.");
+    reasons.push('Comfortable on your budget.');
   }
 
   return {

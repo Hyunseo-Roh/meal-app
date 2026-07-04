@@ -9,9 +9,26 @@
  *   11:00–16:59 → lunch
  *   17:00–04:59 → dinner (late night rolls into dinner)
  */
-export function getMealGreeting(date: Date): string {
+export type MealBucket = 'breakfast' | 'lunch' | 'dinner';
+
+/**
+ * The session's meal bucket from the given Date's LOCAL hours. Single source of
+ * the thresholds (5 / 11 / 17) — reused to fill downstream copy so screens match
+ * the greeting. DISPLAY ONLY.
+ */
+export function getMealBucket(date: Date): MealBucket {
   const hours = date.getHours();
-  if (hours >= 5 && hours < 11) return "What's for breakfast?";
-  if (hours >= 11 && hours < 17) return "What's for lunch?";
-  return "What's for dinner?";
+  if (hours >= 5 && hours < 11) return 'breakfast';
+  if (hours >= 11 && hours < 17) return 'lunch';
+  return 'dinner';
+}
+
+const GREETING: Record<MealBucket, string> = {
+  breakfast: "What's for breakfast?",
+  lunch: "What's for lunch?",
+  dinner: "What's for dinner?",
+};
+
+export function getMealGreeting(date: Date): string {
+  return GREETING[getMealBucket(date)];
 }

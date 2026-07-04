@@ -61,7 +61,7 @@ export default function Handled() {
         {meal ? (
           <>
             <Text variant="title" style={styles.meal}>
-              {`Tonight, you’re making ${meal.name}.`}
+              {`You’re making ${meal.name}.`}
             </Text>
             <Text variant="caption" color="textSecondary">
               {`${meal.cook_time_min} min`} · {formatCost(meal.est_cost)}

@@ -42,7 +42,7 @@ function buildExplanation(row: RecRow): string {
     case 'adjacent':
       return `One small step over — still comfortable ${cuisine}.`;
     case 'stretch':
-      return `Something new tonight: ${cuisine}.`;
+      return `Something new: ${cuisine}.`;
   }
 }
 
@@ -51,11 +51,15 @@ function buildExplanation(row: RecRow): string {
  * rule-based RPC, persist the 3 options (idempotently), and return them in
  * tier order with their option ids. Throws on missing request / bad RPC result.
  */
-export async function loadOptions(requestId: string): Promise<OptionCard[]> {
-  // 1. The request row is the source of truth for the RPC params.
+export async function loadOptions(
+  requestId: string,
+): Promise<{ options: OptionCard[]; createdAt: string | null }> {
+  // 1. The request row is the source of truth for the RPC params. created_at is
+  //    also read (display only) so the screen can phrase its heading by the
+  //    session's meal bucket — one extra column on an existing query.
   const { data: request, error: reqError } = await supabase
     .from('recommendation_requests')
-    .select('user_id, time_available, budget, mood')
+    .select('user_id, time_available, budget, mood, created_at')
     .eq('id', requestId)
     .single();
 
@@ -107,9 +111,11 @@ export async function loadOptions(requestId: string): Promise<OptionCard[]> {
     for (const o of inserted) optionByMeal.set(o.meal_id as string, o.id as string);
   }
 
-  return rows.map((row) => ({
+  const options = rows.map((row) => ({
     ...row,
     optionId: optionByMeal.get(row.meal_id) ?? '',
     explanation: buildExplanation(row),
   }));
+
+  return { options, createdAt: request.created_at ?? null };
 }

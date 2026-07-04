@@ -153,7 +153,7 @@ export default function WhyWeChose() {
         />
         <View style={styles.backLink}>
           <Text variant="caption" color="accent" onPress={() => router.back()}>
-            Back to tonight&apos;s three
+            Back to your three
           </Text>
         </View>
       </View>
