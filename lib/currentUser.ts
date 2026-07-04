@@ -3,15 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
 /**
- * Per-device anonymous identity. On first run we silently mint a UUID, insert a
- * cold-start `users` row, and remember the id in AsyncStorage so it's stable
- * across reloads — no login wall, no sign-up screen (CLAUDE.md decision #5).
+ * Per-device anonymous identity via Supabase built-in anonymous auth. On first
+ * run we create an anonymous auth user (`supabase.auth.signInAnonymously`); a DB
+ * trigger (`on_auth_user_created`) inserts the matching `public.users` row, so
+ * this module never writes to the users table. Supabase's own auth storage (see
+ * lib/supabase.ts) persists the session across reloads — no login wall, no
+ * sign-up screen (CLAUDE.md decision #5).
  *
  * This module never runs at import time; `getCurrentUserId()` is only awaited
  * from client effects / event handlers, so it is web-SSR safe.
  */
 
-const STORAGE_KEY = 'app_user_id';
 const ONBOARDED_KEY = 'app_onboarded';
 
 // In-memory memo so concurrent callers in one session share a single create.
@@ -62,18 +64,6 @@ export async function setLocalOnboarded(value: boolean): Promise<void> {
   }
 }
 
-function uuidv4(): string {
-  const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
-  if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
-  // Fallback for runtimes without crypto.randomUUID (good enough for an
-  // anonymous device id, which is not security-sensitive).
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 /**
  * Onboarded == taste prefs saved. We use pref_cuisine_id (required by Taste
  * Setup) as the marker, so no schema flag is needed.
@@ -93,37 +83,29 @@ export async function getCurrentUserId(): Promise<string> {
   if (inflight) return inflight;
 
   inflight = (async () => {
-    let id = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!id) {
-      id = uuidv4();
-      await AsyncStorage.setItem(STORAGE_KEY, id);
+    // Prefer an existing Supabase session — persisted by the auth storage
+    // configured in lib/supabase.ts, so no network round-trip when one exists.
+    // Timeout-guarded so a stalled network call can never hang startup.
+    const {
+      data: { session },
+    } = await withTimeout(supabase.auth.getSession());
+    if (session?.user) {
+      cachedId = session.user.id;
+      return cachedId;
     }
 
-    // Ensure the row EXISTS before we hand the id to any FK write. A stored id
-    // can point to a user row that was deleted out from under us (e.g. a
-    // previous run / test cleanup), which otherwise causes a 409 FK violation
-    // on the first dependent insert (pantry, requests). upsert with
-    // ignoreDuplicates is idempotent: it creates a cold-start row if missing
-    // and leaves an existing row (and its prefs) untouched. Timeout-guarded so
-    // a stalled mobile request can never hang a caller forever.
-    const { error } = await withTimeout(
-      supabase.from('users').upsert(
-        {
-          id,
-          disliked_ingredients: [],
-          disliked_cuisine_ids: [],
-          last_active_at: new Date().toISOString(),
-        },
-        { onConflict: 'id', ignoreDuplicates: true },
-      ),
-    );
-    if (error) {
+    // No session yet: create a built-in ANONYMOUS auth user. The
+    // on_auth_user_created trigger inserts the matching public.users row, so we
+    // do NOT touch the users table here. Timeout-guarded for the same reason.
+    const { data, error } = await withTimeout(supabase.auth.signInAnonymously());
+    if (error || !data.user) {
       inflight = null; // allow a later retry
-      throw new Error('user_create_failed');
+      console.error('[auth] anonymous sign-in failed:', error?.message);
+      throw error ?? new Error('anonymous_sign_in_failed');
     }
 
-    cachedId = id;
-    return id;
+    cachedId = data.user.id;
+    return cachedId;
   })();
 
   // Reset the memo on rejection (incl. timeout) so a retry actually re-attempts
@@ -133,4 +115,14 @@ export async function getCurrentUserId(): Promise<string> {
   });
 
   return inflight;
+}
+
+/**
+ * Clear the in-memory identity memo so the next getCurrentUserId() re-derives
+ * identity from Supabase. Pair with supabase.auth.signOut() (the "Start over"
+ * reset) so a fresh anonymous user is minted.
+ */
+export function resetCurrentUser(): void {
+  cachedId = null;
+  inflight = null;
 }
