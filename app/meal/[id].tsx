@@ -9,6 +9,7 @@ import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { loadGap, type GapData } from '../../lib/gap';
+import { addPantryItem } from '../../lib/pantry';
 import { colors, spacing } from '../../theme/tokens';
 
 const EFFORT_LABEL: Record<number, string> = {
@@ -26,6 +27,11 @@ export default function MealDetail() {
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
+  // Optimistic overlay: names moved have←toBuy by tapping "+", plus an in-flight
+  // guard and a subtle error. These sit on top of the RPC's gap (read-only).
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [pantryError, setPantryError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -41,6 +47,39 @@ export default function MealDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reconcile with the RPC on every fresh load (mount/retry): reset the overlay,
+  // since a just-added item now comes back inside gap.have. No duplicate/flicker.
+  useEffect(() => {
+    if (state.status === 'ready') {
+      setAdded(new Set());
+      setAdding(new Set());
+      setPantryError(null);
+    }
+  }, [state]);
+
+  async function addToPantry(name: string) {
+    if (adding.has(name) || added.has(name)) return; // guard double-tap / already moved
+    setAdding((s) => new Set(s).add(name));
+    setAdded((s) => new Set(s).add(name)); // optimistic: toBuy → have
+    setPantryError(null);
+    try {
+      await addPantryItem(name); // lowercases/trims internally
+    } catch {
+      setAdded((s) => {
+        const n = new Set(s);
+        n.delete(name); // revert to original position in toBuy
+        return n;
+      });
+      setPantryError('Couldn’t add that. Try again.');
+    } finally {
+      setAdding((s) => {
+        const n = new Set(s);
+        n.delete(name);
+        return n;
+      });
+    }
+  }
 
   if (state.status === 'loading') {
     return (
@@ -68,6 +107,10 @@ export default function MealDetail() {
 
   const { gap } = state;
   const effort = EFFORT_LABEL[gap.effortLevel] ?? `Effort ${gap.effortLevel}`;
+  // Apply the optimistic overlay on top of the RPC lists.
+  const displayedToBuy = gap.toBuy.filter((n) => !added.has(n));
+  const displayedHave = [...gap.have, ...gap.toBuy.filter((n) => added.has(n))];
+  const haveCount = gap.have.length + added.size;
 
   return (
     <Screen>
@@ -93,7 +136,7 @@ export default function MealDetail() {
         </View>
 
         {/* Pantry-memory payoff, one calm line. */}
-        <Text variant="title">{`You have ${gap.n} of ${gap.m}.`}</Text>
+        <Text variant="title">{`You have ${haveCount} of ${gap.m}.`}</Text>
 
         {!gap.consistent ? (
           <Text variant="body" color="textSecondary">
@@ -101,12 +144,12 @@ export default function MealDetail() {
           </Text>
         ) : null}
 
-        {gap.have.length > 0 ? (
+        {displayedHave.length > 0 ? (
           <View style={styles.section}>
             <Text variant="caption" color="textSecondary">
               What you have
             </Text>
-            {gap.have.map((name) => (
+            {displayedHave.map((name) => (
               <View key={name} style={styles.row}>
                 {/* The ONLY place Sage appears. */}
                 <Text variant="body" color="have" style={styles.marker}>
@@ -118,21 +161,35 @@ export default function MealDetail() {
           </View>
         ) : null}
 
-        {gap.toBuy.length > 0 ? (
+        {displayedToBuy.length > 0 ? (
           <View style={styles.section}>
             <Text variant="caption" color="textSecondary">
               What to buy
             </Text>
-            {gap.toBuy.map((name) => (
+            {displayedToBuy.map((name) => (
               <View key={name} style={styles.row}>
-                <Text variant="body" color="textSecondary" style={styles.marker}>
-                  +
-                </Text>
+                <Pressable
+                  onPress={() => addToPantry(name)}
+                  disabled={adding.has(name)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add ${name} to pantry`}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                  style={styles.marker}
+                >
+                  <Text variant="body" color="textSecondary">
+                    +
+                  </Text>
+                </Pressable>
                 <Text variant="body" color="textSecondary">
                   {name}
                 </Text>
               </View>
             ))}
+            {pantryError ? (
+              <Text variant="body" color="textSecondary">
+                {pantryError}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
