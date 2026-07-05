@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 
 /**
- * Bottom tab navigation — Home / History / Pantry / Taste.
+ * Bottom tab navigation — Home / History / Pantry / Profile.
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
  * no shadow/elevation. Active = Cool Slate accent, inactive = Warm Gray Deep.
  *
@@ -89,10 +89,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="taste"
+        name="profile"
         options={{
-          title: 'Taste',
-          tabBarLabel: tabLabel('Taste'),
+          title: 'Profile',
+          tabBarLabel: tabLabel('Profile'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
