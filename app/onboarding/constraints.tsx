@@ -31,7 +31,7 @@ const BUDGET_OPTIONS: { label: string; description: string; value: BudgetLevel }
 // onboarded, and moves on to the optional Pantry step.
 export default function ConstraintsSetup() {
   const router = useRouter();
-  const { favorite, disliked, ingredients, effort, setEffort, budget, setBudget } =
+  const { favorites, disliked, ingredients, effort, setEffort, budget, setBudget } =
     useOnboarding();
 
   const [saving, setSaving] = useState(false);
@@ -42,7 +42,7 @@ export default function ConstraintsSetup() {
   const budgetDescription = BUDGET_OPTIONS.find((o) => o.value === budget)?.description ?? '';
 
   async function handleContinue() {
-    if (favorite === null || effort === null || budget === null) return;
+    if (favorites.length === 0 || effort === null || budget === null) return;
     setSaving(true);
     setError(null);
 
@@ -58,7 +58,10 @@ export default function ConstraintsSetup() {
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        pref_cuisine_id: favorite,
+        // Ordered ranked favorites, plus the legacy scalar mirrored to position 1
+        // so the onboarding gate (currentUser.ts) and reasons.ts keep working.
+        pref_cuisine_ids: favorites,
+        pref_cuisine_id: favorites[0] ?? null,
         disliked_cuisine_ids: [...disliked],
         disliked_ingredients: ingredients,
         pref_effort: effort,

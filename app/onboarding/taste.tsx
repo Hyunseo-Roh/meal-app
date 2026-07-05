@@ -17,7 +17,7 @@ type Cuisine = { id: string; display_label: string; emoji: string };
 // onboarding draft and are written once at the end of Page 3 (Constraints).
 export default function TasteSetup() {
   const router = useRouter();
-  const { favorite, setFavorite, setDisliked } = useOnboarding();
+  const { favorites, setFavorites, setDisliked } = useOnboarding();
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
 
@@ -35,10 +35,16 @@ export default function TasteSetup() {
     };
   }, []);
 
-  // Favorite and never-suggest (Page 2) are mutually exclusive — picking a
-  // favorite clears it from the skip list.
+  // Ranked favorites by tap order (max 3): tapping an unpicked cuisine appends it
+  // as the next rank; tapping a picked one removes it and the rest keep their
+  // relative order; a 4th tap is ignored. Favorite and never-suggest (Page 2)
+  // are mutually exclusive — picking a favorite clears it from the skip list.
   function pickFavorite(id: string) {
-    setFavorite((prev) => (prev === id ? null : id));
+    setFavorites((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
     setDisliked((prev) => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
@@ -47,7 +53,7 @@ export default function TasteSetup() {
     });
   }
 
-  const canContinue = favorite !== null;
+  const canContinue = favorites.length > 0;
 
   return (
     <Screen>
@@ -73,15 +79,25 @@ export default function TasteSetup() {
           <Text variant="caption" color="textSecondary">
             Favorite cuisine
           </Text>
+          <Text variant="body" color="textSecondary">
+            Tap up to 3 in order.
+          </Text>
           <View style={styles.chipRow}>
-            {cuisines.map((c) => (
-              <Chip
-                key={c.id}
-                label={`${c.emoji} ${c.display_label}`}
-                selected={favorite === c.id}
-                onPress={() => pickFavorite(c.id)}
-              />
-            ))}
+            {cuisines.map((c) => {
+              const rank = favorites.indexOf(c.id);
+              return (
+                <Chip
+                  key={c.id}
+                  label={
+                    rank >= 0
+                      ? `${rank + 1}. ${c.emoji} ${c.display_label}`
+                      : `${c.emoji} ${c.display_label}`
+                  }
+                  selected={rank >= 0}
+                  onPress={() => pickFavorite(c.id)}
+                />
+              );
+            })}
           </View>
         </View>
       </ScrollView>

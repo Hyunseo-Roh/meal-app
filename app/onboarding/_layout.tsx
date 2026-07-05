@@ -95,8 +95,8 @@ const sharedStyles = StyleSheet.create({
  * `users` save still happens once, at the end of Page 2 (Constraints).
  */
 type OnboardingDraft = {
-  favorite: string | null;
-  setFavorite: Dispatch<SetStateAction<string | null>>;
+  favorites: string[]; // ordered, max 3; [0] = top favorite
+  setFavorites: Dispatch<SetStateAction<string[]>>;
   disliked: Set<string>;
   setDisliked: Dispatch<SetStateAction<Set<string>>>;
   ingredients: string[];
@@ -120,7 +120,7 @@ export function useOnboarding(): OnboardingDraft {
 }
 
 export default function OnboardingLayout() {
-  const [favorite, setFavorite] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [disliked, setDisliked] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [effort, setEffort] = useState<number | null>(null);
@@ -128,8 +128,8 @@ export default function OnboardingLayout() {
   const [pantry, setPantry] = useState<Set<string>>(new Set());
 
   const value: OnboardingDraft = {
-    favorite,
-    setFavorite,
+    favorites,
+    setFavorites,
     disliked,
     setDisliked,
     ingredients,
