@@ -17,11 +17,13 @@ export type WhyData = {
 type BudgetLevel = 'low' | 'medium' | 'high';
 
 // Per-serving dollar ceilings used only to phrase the budget reason (display
-// logic, not the RPC's scoring). Derived from the seeded cost spread
-// (min 0.92 / median 2.62 / max 10.51).
+// logic, NOT the recommend_meals RPC's budget scoring, which stays as-is — so
+// the two can diverge at the margins). Tiers (per user survey + reseeded
+// $1.2–$7.8 spread): low < 3, medium 3–6, high > 6. These are ceilings for the
+// user's SELECTED budget, so high stays Infinity (accepts every meal).
 const BUDGET_CEILING: Record<BudgetLevel, number> = {
   low: 3,
-  medium: 5,
+  medium: 6,
   high: Infinity,
 };
 

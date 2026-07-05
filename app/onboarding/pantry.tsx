@@ -12,7 +12,7 @@ import { colors, spacing, typography } from '../../theme/tokens';
 import { CheckRow, RemovableTag, useOnboarding } from './_layout';
 
 // UI suggestion list only — not schema.
-const QUICK_ADD = ['olive oil', 'garlic', 'eggs', 'tuna', 'lemon', 'spinach', 'onion', 'chicken'];
+const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'canned tomatoes', 'chicken'];
 
 // Page 3 of 3 — Pantry (optional). Staged in the shared draft; written to
 // pantry_items on Done. Prominent "Skip for now" keeps it low-pressure.
