@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 
 /**
- * Bottom tab navigation — Home / History / Taste.
+ * Bottom tab navigation — Home / History / Pantry / Taste.
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
  * no shadow/elevation. Active = Cool Slate accent, inactive = Warm Gray Deep.
  *
@@ -75,6 +75,16 @@ export default function TabsLayout() {
           tabBarLabel: tabLabel('History'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="pantry"
+        options={{
+          title: 'Pantry',
+          tabBarLabel: tabLabel('Pantry'),
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons name={focused ? 'basket' : 'basket-outline'} size={size} color={color} />
           ),
         }}
       />
