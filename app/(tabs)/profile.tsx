@@ -17,7 +17,7 @@ const ONBOARDED_KEY = 'app_onboarded';
 
 type Account = { email: string | null; isAnonymous: boolean } | null;
 type TasteSummary = {
-  favoriteCuisine: string | null;
+  favoriteCuisines: string[];
   avoidsCount: number;
   effortLabel: string | null;
   budgetLabel: string | null;
@@ -114,7 +114,11 @@ export default function Profile() {
                 <Text variant="body" color="textSecondary">
                   Favorite
                 </Text>
-                <Text variant="body">{taste?.favoriteCuisine ?? 'Not set'}</Text>
+                <Text variant="body">
+                  {taste && taste.favoriteCuisines.length > 0
+                    ? taste.favoriteCuisines.map((name, i) => `${i + 1}. ${name}`).join(' · ')
+                    : 'Not set'}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text variant="body" color="textSecondary">

@@ -10,7 +10,7 @@ import { supabase } from './supabase';
 export type BudgetLevel = 'low' | 'medium' | 'high';
 
 export type TasteProfile = {
-  favoriteCuisineId: string | null; // pref_cuisine_id
+  favoriteCuisineIds: string[]; // ordered, max 3; [0] = top favorite (pref_cuisine_ids; mirrors pref_cuisine_id)
   dislikedCuisineIds: string[]; // disliked_cuisine_ids
   dislikedIngredients: string[]; // disliked_ingredients
   effort: number | null; // pref_effort 1–3
@@ -28,14 +28,24 @@ export async function loadTasteProfile(): Promise<TasteProfile> {
     supabase
       .from('users')
       .select(
-        'pref_cuisine_id, disliked_cuisine_ids, disliked_ingredients, pref_effort, default_budget',
+        'pref_cuisine_id, pref_cuisine_ids, disliked_cuisine_ids, disliked_ingredients, pref_effort, default_budget',
       )
       .eq('id', userId)
       .single(),
   );
   if (error || !data) throw new Error('taste_load_failed');
+
+  // Ranked favorites: prefer the ordered array (nulls filtered, capped to 3);
+  // fall back to the legacy scalar so pre-migration single-favorite users load
+  // as a 1-element list.
+  const rankedIds = ((data.pref_cuisine_ids as (string | null)[] | null) ?? [])
+    .filter((id): id is string => !!id)
+    .slice(0, 3);
+  const scalarId = (data.pref_cuisine_id as string | null) ?? null;
+  const favoriteCuisineIds = rankedIds.length > 0 ? rankedIds : scalarId ? [scalarId] : [];
+
   return {
-    favoriteCuisineId: (data.pref_cuisine_id as string | null) ?? null,
+    favoriteCuisineIds,
     dislikedCuisineIds: (data.disliked_cuisine_ids as string[] | null) ?? [],
     dislikedIngredients: (data.disliked_ingredients as string[] | null) ?? [],
     effort: (data.pref_effort as number | null) ?? null,
@@ -43,27 +53,36 @@ export async function loadTasteProfile(): Promise<TasteProfile> {
   };
 }
 
-/** Display-ready summary for the Profile screen (resolves the cuisine name). */
+/** Display-ready summary for the Profile screen (resolves cuisine names, in rank order). */
 export async function loadTasteSummary(): Promise<{
-  favoriteCuisine: string | null;
+  favoriteCuisines: string[];
   avoidsCount: number;
   effortLabel: string | null;
   budgetLabel: string | null;
 }> {
   const p = await loadTasteProfile();
 
-  // Resolve the favorite cuisine's display name (second small query — avoids
-  // guessing the users→cuisines FK-embed constraint name).
-  let favoriteCuisine: string | null = null;
-  if (p.favoriteCuisineId) {
+  // Resolve the favorites' display names (second small query — avoids guessing
+  // the users→cuisines FK-embed constraint name). The DB won't honor our order,
+  // so reorder client-side to match favoriteCuisineIds; unresolved ids drop out.
+  let favoriteCuisines: string[] = [];
+  if (p.favoriteCuisineIds.length > 0) {
     const { data } = await withTimeout(
-      supabase.from('cuisines').select('display_label').eq('id', p.favoriteCuisineId).single(),
+      supabase.from('cuisines').select('id, display_label').in('id', p.favoriteCuisineIds),
     );
-    favoriteCuisine = (data?.display_label as string | undefined) ?? null;
+    const labelById = new Map(
+      ((data as { id: string; display_label: string }[] | null) ?? []).map((c) => [
+        c.id,
+        c.display_label,
+      ]),
+    );
+    favoriteCuisines = p.favoriteCuisineIds
+      .map((id) => labelById.get(id))
+      .filter((label): label is string => !!label);
   }
 
   return {
-    favoriteCuisine,
+    favoriteCuisines,
     avoidsCount: p.dislikedCuisineIds.length + p.dislikedIngredients.length,
     effortLabel: p.effort != null ? (EFFORT_LABEL[p.effort] ?? null) : null,
     budgetLabel: p.budget ? (BUDGET_LABEL[p.budget] ?? null) : null,
@@ -77,7 +96,10 @@ export async function saveTasteProfile(p: TasteProfile): Promise<void> {
     supabase
       .from('users')
       .update({
-        pref_cuisine_id: p.favoriteCuisineId,
+        // Ordered ranked favorites, plus the legacy scalar mirrored to position 1
+        // so the onboarding gate (currentUser.ts) and reasons.ts keep working.
+        pref_cuisine_ids: p.favoriteCuisineIds,
+        pref_cuisine_id: p.favoriteCuisineIds[0] ?? null,
         disliked_cuisine_ids: p.dislikedCuisineIds,
         disliked_ingredients: p.dislikedIngredients,
         pref_effort: p.effort,

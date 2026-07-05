@@ -77,7 +77,7 @@ export default function TasteEdit() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>('loading');
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
-  const [favorite, setFavorite] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]); // ordered, max 3
   const [disliked, setDisliked] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
@@ -97,7 +97,7 @@ export default function TasteEdit() {
         if (cErr) throw cErr;
         if (!active) return;
         setCuisines((cuisineRows ?? []) as Cuisine[]);
-        setFavorite(profile.favoriteCuisineId);
+        setFavorites(profile.favoriteCuisineIds);
         setDisliked(new Set(profile.dislikedCuisineIds));
         setIngredients(profile.dislikedIngredients);
         setEffort(profile.effort);
@@ -112,10 +112,16 @@ export default function TasteEdit() {
     };
   }, []);
 
-  // Mutual exclusion: a favorite cuisine can't also be a "never suggest" — pick a
-  // favorite removes it from the avoid set.
+  // Ranked favorites by tap order (max 3): tapping an unpicked cuisine appends it
+  // as the next rank; tapping a picked one removes it and the rest keep their
+  // relative order; a 4th tap is ignored. Mutual exclusion: becoming a favorite
+  // removes the cuisine from the "never suggest" avoid set.
   function pickFavorite(id: string) {
-    setFavorite((prev) => (prev === id ? null : id));
+    setFavorites((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
     setDisliked((prev) => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
@@ -149,7 +155,7 @@ export default function TasteEdit() {
     setError(null);
     try {
       await saveTasteProfile({
-        favoriteCuisineId: favorite,
+        favoriteCuisineIds: favorites,
         dislikedCuisineIds: [...disliked],
         dislikedIngredients: ingredients,
         effort,
@@ -207,15 +213,25 @@ export default function TasteEdit() {
           <Text variant="caption" color="textSecondary">
             Favorite cuisine
           </Text>
+          <Text variant="body" color="textSecondary">
+            Tap up to 3 in order.
+          </Text>
           <View style={styles.chipRow}>
-            {cuisines.map((c) => (
-              <Chip
-                key={c.id}
-                label={`${c.emoji} ${c.display_label}`}
-                selected={favorite === c.id}
-                onPress={() => pickFavorite(c.id)}
-              />
-            ))}
+            {cuisines.map((c) => {
+              const rank = favorites.indexOf(c.id);
+              return (
+                <Chip
+                  key={c.id}
+                  label={
+                    rank >= 0
+                      ? `${rank + 1}. ${c.emoji} ${c.display_label}`
+                      : `${c.emoji} ${c.display_label}`
+                  }
+                  selected={rank >= 0}
+                  onPress={() => pickFavorite(c.id)}
+                />
+              );
+            })}
           </View>
         </View>
 
@@ -224,14 +240,15 @@ export default function TasteEdit() {
             Never suggest
           </Text>
           <View style={styles.checkList}>
-            {cuisines.map((c) =>
-              c.id === favorite ? (
+            {cuisines.map((c) => {
+              const favRank = favorites.indexOf(c.id); // >= 0 when this row is a ranked favorite
+              return favRank >= 0 ? (
                 // Favorite can't also be a "never suggest" — greyed, non-tappable.
                 <View key={c.id} style={styles.disabledRow}>
                   <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
                   <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
                   <Text variant="caption" color="textSecondary">
-                    Your favorite
+                    {`Your ${['1st', '2nd', '3rd'][favRank] ?? `${favRank + 1}th`} favorite`}
                   </Text>
                 </View>
               ) : (
@@ -241,8 +258,8 @@ export default function TasteEdit() {
                   checked={disliked.has(c.id)}
                   onPress={() => toggleDisliked(c.id)}
                 />
-              ),
-            )}
+              );
+            })}
           </View>
         </View>
 
