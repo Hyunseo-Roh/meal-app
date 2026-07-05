@@ -20,10 +20,10 @@ const EFFORT_OPTIONS: { label: string; description: string; value: number }[] = 
   { label: 'Involved', description: 'Worth the extra time', value: 3 },
 ];
 
-const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
-  { label: 'Low', value: 'low' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'High', value: 'high' },
+const BUDGET_OPTIONS: { label: string; description: string; value: BudgetLevel }[] = [
+  { label: 'Low', description: 'Under $3 a serving', value: 'low' },
+  { label: 'Medium', description: '$3–6 a serving', value: 'medium' },
+  { label: 'High', description: 'No limit', value: 'high' },
 ];
 
 // Page 2 of 3 — Constraints. Collects effort + budget, then writes the whole
@@ -39,6 +39,7 @@ export default function ConstraintsSetup() {
 
   const canContinue = effort !== null && budget !== null && !saving;
   const effortDescription = EFFORT_OPTIONS.find((o) => o.value === effort)?.description ?? '';
+  const budgetDescription = BUDGET_OPTIONS.find((o) => o.value === budget)?.description ?? '';
 
   async function handleContinue() {
     if (favorite === null || effort === null || budget === null) return;
@@ -146,6 +147,11 @@ export default function ConstraintsSetup() {
               />
             ))}
           </View>
+          {budgetDescription ? (
+            <Text variant="body" color="textSecondary">
+              {budgetDescription}
+            </Text>
+          ) : null}
         </View>
 
         {error ? (

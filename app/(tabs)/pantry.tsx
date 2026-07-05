@@ -11,7 +11,7 @@ import { addPantryItem, deletePantryItem, listPantry, type PantryItem } from '..
 import { colors, spacing, typography } from '../../theme/tokens';
 
 // Local staple list (decoupled — not imported from the onboarding pantry screen).
-const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'canned tomatoes', 'chicken'];
+const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
 
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
