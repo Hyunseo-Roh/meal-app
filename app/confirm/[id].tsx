@@ -57,11 +57,11 @@ export default function Handled() {
   return (
     <Screen style={styles.screen}>
       <View style={styles.block}>
-        <Text variant="display">Handled.</Text>
+        <Text variant="display">You&apos;re set</Text>
         {meal ? (
           <>
             <Text variant="title" style={styles.meal}>
-              {`You’re making ${meal.name}.`}
+              {`You’re making ${meal.name}`}
             </Text>
             <Text variant="caption" color="textSecondary">
               {`${meal.cook_time_min} min`} · {formatCost(meal.est_cost)}

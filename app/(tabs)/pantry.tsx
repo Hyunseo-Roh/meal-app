@@ -106,7 +106,7 @@ export default function Pantry() {
         <View style={styles.header}>
           <Text variant="title">Pantry</Text>
           <Text variant="body" color="textSecondary">
-            What&apos;s in your kitchen — we track the gaps.
+            What&apos;s in your kitchen — Sate tracks the gaps.
           </Text>
         </View>
 
@@ -221,7 +221,7 @@ export default function Pantry() {
                 </Text>
                 {tappedPremium === card.key ? (
                   <Text variant="body" color="textSecondary">
-                    Coming soon.
+                    Coming soon
                   </Text>
                 ) : null}
               </View>

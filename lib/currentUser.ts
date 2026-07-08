@@ -3,15 +3,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
 /**
- * Per-device anonymous identity via Supabase built-in anonymous auth. On first
- * run we create an anonymous auth user (`supabase.auth.signInAnonymously`); a DB
- * trigger (`on_auth_user_created`) inserts the matching `public.users` row, so
- * this module never writes to the users table. Supabase's own auth storage (see
- * lib/supabase.ts) persists the session across reloads — no login wall, no
- * sign-up screen (CLAUDE.md decision #5).
+ * Real-account identity. The app requires sign-up before onboarding (no
+ * anonymous entry): `supabase.auth.signUp` creates the auth user and the DB
+ * trigger (`on_auth_user_created`) inserts the matching `public.users` row —
+ * so this module never writes to the users table. Supabase's own auth storage
+ * (see lib/supabase.ts) persists the session across reloads.
  *
- * This module never runs at import time; `getCurrentUserId()` is only awaited
- * from client effects / event handlers, so it is web-SSR safe.
+ * `getCurrentUserId()` reads the existing session and NEVER creates one; with
+ * no session it rejects, and callers behind the sign-up gate surface a calm
+ * error. This module never runs at import time — it is only awaited from client
+ * effects / event handlers, so it is web-SSR safe.
  */
 
 const ONBOARDED_KEY = 'app_onboarded';
@@ -83,7 +84,7 @@ export async function getCurrentUserId(): Promise<string> {
   if (inflight) return inflight;
 
   inflight = (async () => {
-    // Prefer an existing Supabase session — persisted by the auth storage
+    // Read the existing Supabase session — persisted by the auth storage
     // configured in lib/supabase.ts, so no network round-trip when one exists.
     // Timeout-guarded so a stalled network call can never hang startup.
     const {
@@ -94,18 +95,11 @@ export async function getCurrentUserId(): Promise<string> {
       return cachedId;
     }
 
-    // No session yet: create a built-in ANONYMOUS auth user. The
-    // on_auth_user_created trigger inserts the matching public.users row, so we
-    // do NOT touch the users table here. Timeout-guarded for the same reason.
-    const { data, error } = await withTimeout(supabase.auth.signInAnonymously());
-    if (error || !data.user) {
-      inflight = null; // allow a later retry
-      console.error('[auth] anonymous sign-in failed:', error?.message);
-      throw error ?? new Error('anonymous_sign_in_failed');
-    }
-
-    cachedId = data.user.id;
-    return cachedId;
+    // No session: sign-up is required before any screen that needs an identity,
+    // so we NEVER create one here. Reject cleanly — callers behind the gate show
+    // a calm error. (The splash routes a no-session user to /welcome first.)
+    inflight = null; // allow a later retry once a session exists
+    throw new Error('no_session');
   })();
 
   // Reset the memo on rejection (incl. timeout) so a retry actually re-attempts
@@ -119,8 +113,8 @@ export async function getCurrentUserId(): Promise<string> {
 
 /**
  * Clear the in-memory identity memo so the next getCurrentUserId() re-derives
- * identity from Supabase. Pair with supabase.auth.signOut() (the "Start over"
- * reset) so a fresh anonymous user is minted.
+ * identity from Supabase. Pair with supabase.auth.signOut() (the "Start over" /
+ * "Log out" reset) so the next entry resolves the new (or absent) session.
  */
 export function resetCurrentUser(): void {
   cachedId = null;
@@ -128,10 +122,10 @@ export function resetCurrentUser(): void {
 }
 
 /**
- * Read the current auth user, or null if there's no session. `isAnonymous`
- * distinguishes a built-in anonymous user from a promoted/permanent
- * (email + password) account — used by the Taste tab to switch between the
- * "save your account" and "log out" states. Timeout-guarded like the rest.
+ * Read the current auth user, or null if there's no session. `isAnonymous` is
+ * retained so the splash can detect and evict a LEGACY anonymous session left
+ * over from before the required-sign-up gate (new accounts are never anon).
+ * Timeout-guarded like the rest.
  */
 export async function getAuthUser(): Promise<
   { id: string; email: string | null; isAnonymous: boolean } | null

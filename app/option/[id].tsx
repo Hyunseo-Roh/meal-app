@@ -7,7 +7,6 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost, upsizeImageUrl } from '../../lib/format';
-import { TIER_LABEL } from '../../lib/recommend';
 import { loadWhy, type WhyData } from '../../lib/reasons';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -88,9 +87,7 @@ export default function WhyWeChose() {
 
   const { why } = state;
   const reasons = why.reasons.slice(0, 4);
-  const subtitle = why.cuisineLabel
-    ? `${why.cuisineLabel} · ${TIER_LABEL[why.tier]}`
-    : TIER_LABEL[why.tier];
+  const subtitle = why.cuisineLabel;
 
   return (
     <Screen>
@@ -113,7 +110,7 @@ export default function WhyWeChose() {
         ) : null}
 
         <View style={styles.header}>
-          <Text variant="display">Picked for you — here&apos;s why.</Text>
+          <Text variant="display">Here&apos;s why</Text>
           <View style={styles.nameBlock}>
             <Text variant="title">{why.name}</Text>
             <Text variant="body" color="textSecondary">
@@ -143,7 +140,7 @@ export default function WhyWeChose() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="See what's in it."
+          label="See what's in it"
           onPress={() =>
             router.push({
               pathname: '/meal/[id]',

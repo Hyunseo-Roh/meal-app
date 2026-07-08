@@ -69,18 +69,12 @@ export default function TasteSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="title">What sounds good?</Text>
-          <Text variant="body" color="textSecondary">
-            Your taste, once — so every night picks itself.
-          </Text>
+          <Text variant="display">What do you like to eat?</Text>
         </View>
 
         <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Favorite cuisine
-          </Text>
           <Text variant="body" color="textSecondary">
-            Tap up to 3 in order.
+            Pick up to three, in order
           </Text>
           <View style={styles.chipRow}>
             {cuisines.map((c) => {
@@ -104,7 +98,7 @@ export default function TasteSetup() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="Continue."
+          label="Continue"
           onPress={() => router.replace('/onboarding/avoid')}
           disabled={!canContinue}
         />

@@ -136,7 +136,7 @@ export default function MealDetail() {
         </View>
 
         {/* Pantry-memory payoff, one calm line. */}
-        <Text variant="title">{`You have ${haveCount} of ${gap.m}.`}</Text>
+        <Text variant="title">{`You have ${haveCount} of ${gap.m}`}</Text>
 
         {!gap.consistent ? (
           <Text variant="body" color="textSecondary">
@@ -206,7 +206,7 @@ export default function MealDetail() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="Make this."
+          label="Make this"
           onPress={() =>
             router.push({
               pathname: '/confirm/[id]',

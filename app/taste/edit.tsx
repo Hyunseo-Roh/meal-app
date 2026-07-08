@@ -214,7 +214,7 @@ export default function TasteEdit() {
             Favorite cuisine
           </Text>
           <Text variant="body" color="textSecondary">
-            Tap up to 3 in order.
+            Pick up to three, in order
           </Text>
           <View style={styles.chipRow}>
             {cuisines.map((c) => {
@@ -237,7 +237,7 @@ export default function TasteEdit() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Never suggest
+            Cuisines to skip
           </Text>
           <View style={styles.checkList}>
             {cuisines.map((c) => {
@@ -265,7 +265,7 @@ export default function TasteEdit() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Skip ingredients
+            Ingredients to skip
           </Text>
           <TextInput
             value={ingredientDraft}

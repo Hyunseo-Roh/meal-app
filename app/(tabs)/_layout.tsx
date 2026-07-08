@@ -1,8 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Platform, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Screen } from '../../components/Screen';
+import { Text as AppText } from '../../components/Text';
+import { getAuthUser, isOnboarded, withTimeout } from '../../lib/currentUser';
 import { colors } from '../../theme/tokens';
 
 /**
@@ -21,9 +25,9 @@ function tabLabel(text: string) {
       style={{
         color,
         fontSize: 13,
-        lineHeight: 18,
+        lineHeight: 16,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.78,
         textAlign: 'center',
         includeFontPadding: false,
         paddingBottom: 2,
@@ -34,13 +38,61 @@ function tabLabel(text: string) {
   );
 }
 
+/**
+ * Defense-in-depth guard for direct (web/deep-link) access to a tab that
+ * bypassed the splash. Allow only a signed-in, onboarded account; any bad state
+ * is sent to '/', which resolves to a NON-tab terminal (Welcome / Onboarding) —
+ * so this can never ping-pong with the splash. We never redirect while state is
+ * still `checking`. (No anon branch: sign-up is required, and the splash evicts
+ * any legacy anonymous session before the tabs are ever reached.)
+ */
+function useTabGuard(): 'checking' | 'ok' | 'redirect' {
+  const [state, setState] = useState<'checking' | 'ok' | 'redirect'>('checking');
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const user = await withTimeout(getAuthUser());
+        if (!user) return active && setState('redirect');
+        const done = await withTimeout(isOnboarded());
+        return active && setState(done ? 'ok' : 'redirect');
+      } catch {
+        // Unknown state — send to the splash to re-resolve rather than risk
+        // rendering the tabs for a non-onboarded user.
+        return active && setState('redirect');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return state;
+}
+
 export default function TabsLayout() {
   // Native uses the bottom safe-area inset (reads 0 on web).
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === 'web';
+  const guard = useTabGuard();
+
+  if (guard === 'checking') {
+    return (
+      <Screen style={{ justifyContent: 'center' }}>
+        <AppText variant="body" color="textSecondary">
+          One moment…
+        </AppText>
+      </Screen>
+    );
+  }
+  if (guard === 'redirect') {
+    return <Redirect href="/" />;
+  }
 
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
@@ -59,7 +111,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarLabel: tabLabel('Home'),

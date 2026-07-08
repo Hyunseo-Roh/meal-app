@@ -6,13 +6,7 @@ import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import {
-  getCurrentUserId,
-  getLocalOnboarded,
-  isOnboarded,
-  setLocalOnboarded,
-  withTimeout,
-} from '../../lib/currentUser';
+import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
 import { getMealGreeting } from '../../lib/greeting';
 import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
@@ -45,49 +39,15 @@ export default function HowsTonight() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Gate: routed purely from the LOCAL onboarded flag — no network round-trip —
-  // so Screen 3 becomes interactive instantly on every entry (cold mount AND
-  // back-navigation / re-focus) and can never hang on "One moment…".
-  const [gate, setGate] = useState<'checking' | 'ready'>('checking');
-
+  // The onboarding decision now lives in the splash router (app/index.tsx); this
+  // screen is purely the form. On (re-)focus, clear any leftover submitting/error
+  // from a prior navigation — native keeps the screen mounted, so that transient
+  // state would otherwise persist and leave the button stuck disabled.
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      // Re-entering the screen must always show an interactive form: clear any
-      // leftover submitting state from a prior navigation (native keeps the
-      // screen mounted, so this state otherwise persists and disables the button).
       setSubmitting(false);
       setError(null);
-
-      (async () => {
-        const localDone = await getLocalOnboarded();
-        if (!active) return;
-        if (localDone) {
-          setGate('ready');
-          return;
-        }
-        // No local proof of onboarding. Back-fill quietly with a timeout-guarded
-        // DB check so a pre-existing (DB-onboarded) user isn't sent through
-        // onboarding again — but never block: on not-onboarded / failure /
-        // timeout, route to onboarding (the safe default for a fresh user).
-        try {
-          const dbDone = await withTimeout(isOnboarded());
-          if (!active) return;
-          if (dbDone) {
-            setLocalOnboarded(true);
-            setGate('ready');
-            return;
-          }
-        } catch {
-          // fall through to onboarding
-        }
-        if (active) router.replace('/onboarding/taste');
-      })();
-
-      return () => {
-        active = false;
-      };
-    }, [router]),
+    }, []),
   );
 
   const canSubmit = time !== null && budget !== null && !submitting;
@@ -139,16 +99,6 @@ export default function HowsTonight() {
     }
   }
 
-  if (gate === 'checking') {
-    return (
-      <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          One moment…
-        </Text>
-      </Screen>
-    );
-  }
-
   return (
     <Screen>
       <ScrollView
@@ -159,7 +109,7 @@ export default function HowsTonight() {
           {getMealGreeting(new Date())}
         </Text>
         <Text variant="body" color="textSecondary" style={styles.subhead}>
-          Set the scene. We&apos;ll pick three.
+          Set the scene — you&apos;ll get three.
         </Text>
 
         <View style={styles.section}>
@@ -220,7 +170,7 @@ export default function HowsTonight() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={submitting ? 'One moment…' : 'See your three.'}
+          label={submitting ? 'One moment…' : 'See your three'}
           onPress={handleSubmit}
           disabled={!canSubmit}
         />
@@ -255,8 +205,5 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
-  },
-  centered: {
-    justifyContent: 'center',
   },
 });

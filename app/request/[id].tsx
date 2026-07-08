@@ -6,9 +6,9 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { formatCost, upsizeImageUrl } from '../../lib/format';
+import { upsizeImageUrl } from '../../lib/format';
 import { getMealBucket } from '../../lib/greeting';
-import { loadOptions, TIER_LABEL, type OptionCard } from '../../lib/recommend';
+import { loadOptions, type OptionCard } from '../../lib/recommend';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
 
@@ -41,20 +41,14 @@ function RecCard({
       ) : null}
       <View style={styles.cardBody}>
         <Text variant="caption" color="textSecondary">
-          {TIER_LABEL[opt.tier]}
+          {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)} · ${
+            opt.cuisine.charAt(0).toUpperCase() + opt.cuisine.slice(1)
+          }`}
         </Text>
         <Text variant="title">{opt.meal}</Text>
         <Text variant="body" color="textSecondary" numberOfLines={2}>
           {opt.explanation}
         </Text>
-        <View style={styles.cardMeta}>
-          <Text variant="caption" color="textSecondary">
-            {`${opt.cook_time_min} min`}
-          </Text>
-          <Text variant="caption" color="textSecondary">
-            {formatCost(opt.est_cost)}
-          </Text>
-        </View>
         {opt.over_time ? (
           <Text variant="caption" color="textSecondary">
             A little longer than usual
@@ -144,9 +138,9 @@ export default function ThreeOptions() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text variant="title">{`${bucketLabel}: three suggestions.`}</Text>
+          <Text variant="title">{`${bucketLabel}: three suggestions`}</Text>
           <Text variant="body" color="textSecondary">
-            Picked for you — tap one to see why.
+            Tap one to see why
           </Text>
         </View>
 
@@ -212,11 +206,6 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: spacing.lg,
     gap: spacing.sm,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-    marginTop: spacing.xs,
   },
   centered: {
     justifyContent: 'center',

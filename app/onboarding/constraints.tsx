@@ -26,6 +26,15 @@ const BUDGET_OPTIONS: { label: string; description: string; value: BudgetLevel }
   { label: 'High', description: 'No limit', value: 'high' },
 ];
 
+// Visual-only cook-time preference. Local state, intentionally NOT persisted —
+// no DB column, no write. Mirrors the Home screen's time chips for parity.
+const COOK_TIME_OPTIONS: { label: string; value: number }[] = [
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '60+ min', value: 60 },
+];
+
 // Page 2 of 3 — Constraints. Collects effort + budget, then writes the whole
 // draft to `users` in a single UPDATE (same save as before), marks the user
 // onboarded, and moves on to the optional Pantry step.
@@ -36,6 +45,8 @@ export default function ConstraintsSetup() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Visual-only: cook-time selection lives here and is never written to the DB.
+  const [cookTime, setCookTime] = useState<number | null>(null);
 
   const canContinue = effort !== null && budget !== null && !saving;
   const effortDescription = EFFORT_OPTIONS.find((o) => o.value === effort)?.description ?? '';
@@ -82,7 +93,9 @@ export default function ConstraintsSetup() {
     // is onboarded here with an empty pantry.
     await setLocalOnboarded(true);
 
-    router.replace('/');
+    // Onboarding (3 steps) is complete. Hand off to the post-onboarding premium
+    // intro — a separate, skippable soft-sell, not a 4th step.
+    router.replace('/premium');
   }
 
   return (
@@ -107,32 +120,24 @@ export default function ConstraintsSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="title">Your limits.</Text>
-          <Text variant="body" color="textSecondary">
-            How much effort, and what you&apos;re spending.
-          </Text>
+          <Text variant="display">How much are you up for?</Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Effort
+            Cook time
           </Text>
           <View style={styles.chipRow}>
-            {EFFORT_OPTIONS.map((opt) => (
+            {COOK_TIME_OPTIONS.map((opt) => (
               <Chip
                 key={opt.value}
                 label={opt.label}
-                selected={effort === opt.value}
-                // Tap again to deselect.
-                onPress={() => setEffort((prev) => (prev === opt.value ? null : opt.value))}
+                selected={cookTime === opt.value}
+                // Visual-only: local state, persists nothing.
+                onPress={() => setCookTime((prev) => (prev === opt.value ? null : opt.value))}
               />
             ))}
           </View>
-          {effortDescription ? (
-            <Text variant="body" color="textSecondary">
-              {effortDescription}
-            </Text>
-          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -157,6 +162,28 @@ export default function ConstraintsSetup() {
           ) : null}
         </View>
 
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Cooking
+          </Text>
+          <View style={styles.chipRow}>
+            {EFFORT_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.value}
+                label={opt.label}
+                selected={effort === opt.value}
+                // Tap again to deselect.
+                onPress={() => setEffort((prev) => (prev === opt.value ? null : opt.value))}
+              />
+            ))}
+          </View>
+          {effortDescription ? (
+            <Text variant="body" color="textSecondary">
+              {effortDescription}
+            </Text>
+          ) : null}
+        </View>
+
         {error ? (
           <Text variant="body" color="text">
             {error}
@@ -166,7 +193,7 @@ export default function ConstraintsSetup() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={saving ? 'Saving…' : 'Continue.'}
+          label={saving ? 'Saving…' : 'Continue'}
           onPress={handleContinue}
           disabled={!canContinue}
         />

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
@@ -11,6 +12,10 @@ import { colors, spacing, typography } from '../../theme/tokens';
 import { CheckRow, RemovableTag, useOnboarding } from './_layout';
 
 type Cuisine = { id: string; display_label: string; emoji: string };
+
+// Visual-only dietary preferences. Local component state, intentionally NOT
+// persisted — no DB column, no write to users. Presentation parity only.
+const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free'];
 
 // Page 2 of 3 — Never suggest / skip. Multi-select cuisines to avoid + a
 // free-text list of ingredients to skip. Both optional; selections live in the
@@ -22,6 +27,17 @@ export default function AvoidSetup() {
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
+  // Visual-only: dietary selections live here and are never written to the DB.
+  const [dietary, setDietary] = useState<Set<string>>(new Set());
+
+  function toggleDietary(name: string) {
+    setDietary((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let active = true;
@@ -81,15 +97,15 @@ export default function AvoidSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="title">Anything to avoid?</Text>
+          <Text variant="display">Anything you&apos;d rather skip?</Text>
           <Text variant="body" color="textSecondary">
-            Optional — skip cuisines or ingredients you don&apos;t want.
+            Optional — skip any cuisine or ingredient you&apos;d rather not see.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Never suggest
+            Cuisines to skip
           </Text>
           <Text variant="body" color="textSecondary">
             Optional. Pick any.
@@ -121,7 +137,7 @@ export default function AvoidSetup() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Skip ingredients
+            Ingredients to skip
           </Text>
           <TextInput
             value={ingredientDraft}
@@ -140,11 +156,27 @@ export default function AvoidSetup() {
             </View>
           ) : null}
         </View>
+
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Dietary
+          </Text>
+          <View style={styles.chipRow}>
+            {DIETARY_OPTIONS.map((d) => (
+              <Chip
+                key={d}
+                label={d}
+                selected={dietary.has(d)}
+                onPress={() => toggleDietary(d)}
+              />
+            ))}
+          </View>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="Continue."
+          label="Continue"
           onPress={() => router.replace('/onboarding/constraints')}
         />
       </View>

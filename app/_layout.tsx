@@ -9,7 +9,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import { getCurrentUserId, resetCurrentUser } from '../lib/currentUser';
+import { resetCurrentUser } from '../lib/currentUser';
 // Named import also runs the module side effect: validates Supabase env vars and
 // throws loudly if they are missing/blank, so we never boot a broken client.
 import { supabase } from '../lib/supabase';
@@ -30,12 +30,9 @@ export default function RootLayout() {
     Inter_600SemiBold,
   });
 
-  // Silently establish the per-device anonymous identity on first load (client
-  // only — runs after mount, never during web SSR). Failures here are
-  // non-fatal; screens resolve the id again when they need it.
-  useEffect(() => {
-    getCurrentUserId().catch(() => {});
-  }, []);
+  // No eager anonymous sign-in here: a brand-new visitor must reach the Welcome
+  // screen with NO session. The anonymous identity is minted on "Get started"
+  // (welcome.tsx) or lazily by getCurrentUserId() when a screen first needs it.
 
   // Keep the in-memory identity memo in sync with the auth session: on any
   // identity-changing event (login / logout / promote-in-place), drop the memo

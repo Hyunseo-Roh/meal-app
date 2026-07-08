@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { setLocalOnboarded } from '../../lib/currentUser';
+import { isOnboarded, resetCurrentUser, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
 
@@ -47,11 +47,20 @@ export default function Login() {
       setError(err.message || 'Couldn’t log in. Try again.');
       return;
     }
-    // New account session — clear the local onboarded flag so the Home gate
-    // re-checks THIS account's prefs via the DB, instead of trusting the anon
-    // device flag. resetCurrentUser() runs via the _layout auth listener.
-    await setLocalOnboarded(false);
-    router.replace('/');
+    // Identity just changed. Reset the memo NOW (don't wait for the async
+    // onAuthStateChange) so isOnboarded() resolves against the NEW account, then
+    // set the device flag to the DB truth and route accordingly. An already-
+    // onboarded account must NEVER be pushed back through onboarding.
+    resetCurrentUser();
+    try {
+      const done = await isOnboarded();
+      await setLocalOnboarded(done);
+      router.replace(done ? '/(tabs)/home' : '/onboarding/taste');
+    } catch {
+      // Couldn't confirm onboarded state — let the splash resolve it (for a
+      // logged-in account the splash defaults to Home, never a forced re-onboard).
+      router.replace('/');
+    }
   }
 
   return (
@@ -70,7 +79,7 @@ export default function Login() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text variant="title">Log in.</Text>
+          <Text variant="title">Log in</Text>
           <Text variant="body" color="textSecondary">
             Welcome back.
           </Text>

@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
@@ -15,7 +14,7 @@ import { spacing } from '../../theme/tokens';
 // the Supabase auth session, not AsyncStorage.
 const ONBOARDED_KEY = 'app_onboarded';
 
-type Account = { email: string | null; isAnonymous: boolean } | null;
+type Account = { email: string | null } | null;
 type TasteSummary = {
   favoriteCuisines: string[];
   avoidsCount: number;
@@ -40,7 +39,7 @@ export default function Profile() {
           loadTasteSummary().catch(() => null),
         ]);
         if (!active) return;
-        setAccount(u ? { email: u.email, isAnonymous: u.isAnonymous } : null);
+        setAccount(u ? { email: u.email } : null);
         setTaste(summary);
         setLoaded(true);
       })();
@@ -50,20 +49,18 @@ export default function Profile() {
     }, []),
   );
 
-  // Sign out of the current session (anon or permanent), clear the memo + onboarded
-  // flag, and return to onboarding — a fresh anonymous user is minted on next entry.
+  // Sign out, clear the memo + onboarded flag, and return to the splash, which
+  // resolves a no-session user to Welcome. Sign-up is required to re-enter.
   async function signOutToStart() {
     try {
       await supabase.auth.signOut();
       resetCurrentUser();
       await AsyncStorage.removeItem(ONBOARDED_KEY);
     } catch {
-      // best-effort; still route to onboarding
+      // best-effort; still route to the splash
     }
-    router.replace('/onboarding/taste');
+    router.replace('/');
   }
-
-  const isPermanent = loaded && account !== null && !account.isAnonymous;
 
   return (
     <Screen style={styles.screen}>
@@ -72,37 +69,17 @@ export default function Profile() {
 
         {loaded ? (
           <>
-            {/* Account */}
+            {/* Account — every user is a real, signed-in account. */}
             <View style={styles.section}>
               <Text variant="caption" color="textSecondary">
                 Account
               </Text>
-              {isPermanent ? (
-                <>
-                  <Text variant="body">{account?.email}</Text>
-                  <Pressable onPress={signOutToStart} accessibilityRole="button" style={styles.link}>
-                    <Text variant="body" color="accent">
-                      Log out
-                    </Text>
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <PrimaryButton
-                    label="Save your account"
-                    onPress={() => router.push('/auth/register')}
-                  />
-                  <Pressable
-                    onPress={() => router.push('/auth/login')}
-                    accessibilityRole="button"
-                    style={styles.link}
-                  >
-                    <Text variant="body" color="accent">
-                      Already have an account? Log in
-                    </Text>
-                  </Pressable>
-                </>
-              )}
+              {account?.email ? <Text variant="body">{account.email}</Text> : null}
+              <Pressable onPress={signOutToStart} accessibilityRole="button" style={styles.link}>
+                <Text variant="body" color="accent">
+                  Log out
+                </Text>
+              </Pressable>
             </View>
 
             {/* Taste summary */}

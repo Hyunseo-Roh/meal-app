@@ -18,6 +18,9 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailInUse, setEmailInUse] = useState(false);
+  // Non-functional social sign-in: tapping shows a calm "coming soon" note,
+  // same pattern as the Pantry premium cards. No OAuth is wired.
+  const [comingSoon, setComingSoon] = useState(false);
 
   async function handleSave() {
     setError(null);
@@ -38,10 +41,12 @@ export default function Register() {
     }
 
     setSubmitting(true);
-    // Promote the CURRENT anonymous user in place — same user.id, so all their
-    // prefs / pantry / feedback stay attached. NOT a new account (that would be
-    // signUp). Email confirmation is off, so this is usable immediately.
-    const { error: err } = await supabase.auth.updateUser({ email: email.trim(), password });
+    // Create a real account. signUp inserts one row into auth.users, which fires
+    // the on_auth_user_created trigger to insert the matching public.users row —
+    // so the client never INSERTs into users (exactly one row per account, no
+    // 409). Email confirmation is OFF, so signUp returns an active session and
+    // onboarding can proceed immediately.
+    const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
     if (err) {
       setSubmitting(false);
       const msg = err.message ?? '';
@@ -51,16 +56,16 @@ export default function Register() {
       } else {
         // Surface the server's actual reason (incl. password rules); generic only
         // if the server gave no message.
-        setError(msg || 'Couldn’t save your account. Try again.');
+        setError(msg || 'Couldn’t create your account. Try again.');
       }
       return;
     }
-    // Promotion keeps the same id, so this user is already onboarded — assert the
-    // local flag so the Home gate never bounces them into onboarding. No race:
-    // the _layout onAuthStateChange → resetCurrentUser only clears the id memo,
-    // not this flag.
-    await setLocalOnboarded(true);
-    router.replace('/');
+    // New account is not onboarded yet — clear the flag so the splash/onboarding
+    // gate takes them through taste → avoid → constraints. The _layout
+    // onAuthStateChange (SIGNED_IN) clears the id memo; getCurrentUserId then
+    // resolves this new session on demand in constraints.
+    await setLocalOnboarded(false);
+    router.replace('/onboarding/taste');
   }
 
   return (
@@ -79,9 +84,9 @@ export default function Register() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text variant="title">Save your account.</Text>
+          <Text variant="title">Create your account</Text>
           <Text variant="body" color="textSecondary">
-            Keep your taste and pantry across devices.
+            We&apos;ll send a link to confirm your email — you can start right away.
           </Text>
         </View>
 
@@ -147,11 +152,34 @@ export default function Register() {
             ) : null}
           </View>
         ) : null}
+
+        {/* Social sign-in — visual only, not wired. Tap shows a calm note. */}
+        <View style={styles.social}>
+          <Pressable
+            onPress={() => setComingSoon(true)}
+            accessibilityRole="button"
+            style={styles.ghost}
+          >
+            <Text variant="body">Continue with Google</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setComingSoon(true)}
+            accessibilityRole="button"
+            style={styles.ghost}
+          >
+            <Text variant="body">Continue with Apple</Text>
+          </Pressable>
+          {comingSoon ? (
+            <Text variant="body" color="textSecondary">
+              Coming soon
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={submitting ? 'One moment…' : 'Save account'}
+          label={submitting ? 'One moment…' : 'Create account'}
           onPress={handleSave}
           disabled={submitting}
         />
@@ -192,6 +220,17 @@ const styles = StyleSheet.create({
   },
   errorBlock: {
     gap: spacing.xs,
+  },
+  social: {
+    gap: spacing.md,
+  },
+  ghost: {
+    height: 52,
+    borderRadius: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   link: {
     minHeight: 44,
