@@ -20,7 +20,7 @@ export default function Welcome() {
       <View style={styles.block}>
         <Text variant="display">Sate</Text>
         <Text variant="body" color="textSecondary">
-          Three dinners, picked for your taste — decide in seconds.
+          Three meals, picked for your taste — decide in seconds.
         </Text>
       </View>
 

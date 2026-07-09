@@ -21,6 +21,9 @@ export default function Register() {
   // Non-functional social sign-in: tapping shows a calm "coming soon" note,
   // same pattern as the Pantry premium cards. No OAuth is wired.
   const [comingSoon, setComingSoon] = useState(false);
+  // Per-field password visibility (display only — no auth logic).
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function handleSave() {
     setError(null);
@@ -28,15 +31,15 @@ export default function Register() {
     // Fast client-side pre-checks. The <6 check is only a pre-check; server
     // password errors are surfaced verbatim below (never overwritten).
     if (!email.trim()) {
-      setError('Enter your email.');
+      setError('Enter your email');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError('Password must be at least 6 characters');
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError("Passwords don't match");
       return;
     }
 
@@ -52,7 +55,7 @@ export default function Register() {
       const msg = err.message ?? '';
       if (/already|registered|exists/i.test(msg)) {
         setEmailInUse(true);
-        setError('That email is already registered.');
+        setError('That email is already registered');
       } else {
         // Surface the server's actual reason (incl. password rules); generic only
         // if the server gave no message.
@@ -110,30 +113,60 @@ export default function Register() {
           <Text variant="caption" color="textSecondary">
             Password
           </Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="At least 6 characters"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-            autoCapitalize="none"
-            style={styles.input}
-          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              style={[styles.input, styles.inputWithIcon]}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              hitSlop={8}
+              style={styles.eye}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.field}>
           <Text variant="caption" color="textSecondary">
             Confirm password
           </Text>
-          <TextInput
-            value={confirm}
-            onChangeText={setConfirm}
-            placeholder="Re-enter password"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-            autoCapitalize="none"
-            style={styles.input}
-          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              value={confirm}
+              onChangeText={setConfirm}
+              placeholder="Re-enter password"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry={!showConfirm}
+              autoCapitalize="none"
+              style={[styles.input, styles.inputWithIcon]}
+            />
+            <Pressable
+              onPress={() => setShowConfirm((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
+              hitSlop={8}
+              style={styles.eye}
+            >
+              <Ionicons
+                name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {error ? (
@@ -217,6 +250,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
+  },
+  passwordWrap: {
+    justifyContent: 'center',
+  },
+  inputWithIcon: {
+    // Leave room for the eye toggle at the right edge.
+    paddingRight: spacing.xl + spacing.lg,
+  },
+  eye: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
   },
   errorBlock: {
     gap: spacing.xs,

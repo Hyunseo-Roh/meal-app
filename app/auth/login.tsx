@@ -19,15 +19,17 @@ export default function Login() {
   // Inline confirm (NOT Alert.alert — unreliable on react-native-web): logging in
   // switches accounts and the current device's anonymous data is not carried over.
   const [confirming, setConfirming] = useState(false);
+  // Password visibility toggle (display only — no auth logic).
+  const [showPassword, setShowPassword] = useState(false);
 
   function requestLogin() {
     setError(null);
     if (!email.trim()) {
-      setError('Enter your email.');
+      setError('Enter your email');
       return;
     }
     if (!password) {
-      setError('Enter your password.');
+      setError('Enter your password');
       return;
     }
     setConfirming(true);
@@ -106,16 +108,31 @@ export default function Login() {
           <Text variant="caption" color="textSecondary">
             Password
           </Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Your password"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-            autoCapitalize="none"
-            editable={!confirming}
-            style={styles.input}
-          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              editable={!confirming}
+              style={[styles.input, styles.inputWithIcon]}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              hitSlop={8}
+              style={styles.eye}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {confirming ? (
@@ -196,6 +213,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
+  },
+  passwordWrap: {
+    justifyContent: 'center',
+  },
+  inputWithIcon: {
+    // Leave room for the eye toggle at the right edge.
+    paddingRight: spacing.xl + spacing.lg,
+  },
+  eye: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
   },
   confirmBlock: {
     gap: spacing.xs,
