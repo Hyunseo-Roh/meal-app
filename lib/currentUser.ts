@@ -79,6 +79,19 @@ export async function isOnboarded(): Promise<boolean> {
   return !!data?.pref_cuisine_id;
 }
 
+/**
+ * Does the current session's public.users row still exist? Distinguishes a
+ * DELETED account (auth session lingers, but delete_user_data removed the row)
+ * from a normal user. Uses maybeSingle so a missing row returns null, not an
+ * error. The splash uses this to send a deleted account to Welcome instead of
+ * looping it through onboarding (constraints.tsx UPDATEs a non-existent row).
+ */
+export async function userRowExists(): Promise<boolean> {
+  const id = await getCurrentUserId();
+  const { data } = await supabase.from('users').select('id').eq('id', id).maybeSingle();
+  return !!data;
+}
+
 export async function getCurrentUserId(): Promise<string> {
   if (cachedId) return cachedId;
   if (inflight) return inflight;

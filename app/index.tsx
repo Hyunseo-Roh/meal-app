@@ -3,7 +3,13 @@ import { useEffect, useState } from 'react';
 
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { getAuthUser, isOnboarded, resetCurrentUser, withTimeout } from '../lib/currentUser';
+import {
+  getAuthUser,
+  isOnboarded,
+  resetCurrentUser,
+  userRowExists,
+  withTimeout,
+} from '../lib/currentUser';
 import { supabase } from '../lib/supabase';
 import { StyleSheet } from 'react-native';
 
@@ -77,12 +83,25 @@ async function decide(): Promise<Dest> {
     return '/welcome';
   }
 
-  // Real account: the DB is the source of truth for onboarded status. On
-  // failure, keep a signed-in user out of a re-onboarding loop.
+  // Real account. Guard the deleted-account edge FIRST: a lingering session
+  // whose public.users row was removed (delete_user_data) must go to Welcome —
+  // NOT onboarding, which would loop (constraints.tsx UPDATEs a missing row).
+  // A normal user always has a row, so this branch never fires for them.
   try {
+    if (!(await withTimeout(userRowExists()))) {
+      try {
+        await withTimeout(supabase.auth.signOut());
+      } catch {
+        // best-effort; still route to Welcome
+      }
+      resetCurrentUser();
+      return '/welcome';
+    }
+    // Row exists → the DB is the source of truth for onboarded status.
     const done = await withTimeout(isOnboarded());
     return done ? '/(tabs)/home' : '/onboarding/taste';
   } catch {
+    // Transient error — keep a signed-in user out of a re-onboarding loop.
     return '/(tabs)/home';
   }
 }

@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { loadTasteSummary } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
@@ -27,6 +28,10 @@ export default function Profile() {
   const [account, setAccount] = useState<Account>(null);
   const [taste, setTaste] = useState<TasteSummary | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Delete account — inline two-step confirm (Alert.alert is unreliable on web).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Re-read account + taste on every focus so both reflect the latest state
   // after returning from register / login / logout / the taste editor.
@@ -62,6 +67,20 @@ export default function Profile() {
     router.replace('/');
   }
 
+  // Permanently remove the user's data (atomic RPC) then tear down the session.
+  // On failure we surface a note and stay put — never half-deleted + locked out.
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+      router.replace('/');
+    } catch {
+      setDeleting(false);
+      setDeleteError('Couldn’t delete your account. Try again.');
+    }
+  }
+
   return (
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -80,6 +99,45 @@ export default function Profile() {
                   Log out
                 </Text>
               </Pressable>
+
+              {!confirmingDelete ? (
+                <Pressable
+                  onPress={() => setConfirmingDelete(true)}
+                  accessibilityRole="button"
+                  style={styles.link}
+                >
+                  <Text variant="body" color="textSecondary">
+                    Delete account
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={styles.deleteConfirm}>
+                  <Text variant="body" color="textSecondary">
+                    This permanently removes your taste and pantry. You can&apos;t undo this.
+                  </Text>
+                  <Pressable
+                    onPress={handleDelete}
+                    disabled={deleting}
+                    accessibilityRole="button"
+                    style={styles.link}
+                  >
+                    <Text variant="body" color="accent">
+                      {deleting ? 'Deleting…' : 'Delete account'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setConfirmingDelete(false)}
+                    disabled={deleting}
+                    accessibilityRole="button"
+                    style={styles.link}
+                  >
+                    <Text variant="body" color="textSecondary">
+                      Cancel
+                    </Text>
+                  </Pressable>
+                  {deleteError ? <Text variant="body">{deleteError}</Text> : null}
+                </View>
+              )}
             </View>
 
             {/* Taste summary */}
@@ -158,6 +216,9 @@ const styles = StyleSheet.create({
   link: {
     minHeight: 44,
     justifyContent: 'center',
+  },
+  deleteConfirm: {
+    gap: spacing.sm,
   },
   reset: {
     alignItems: 'center',
