@@ -93,7 +93,7 @@ export default function Profile() {
                 </Text>
                 <Text variant="body">
                   {taste && taste.favoriteCuisines.length > 0
-                    ? taste.favoriteCuisines.map((name, i) => `${i + 1}. ${name}`).join(' · ')
+                    ? taste.favoriteCuisines.join(' · ')
                     : 'Not set'}
                 </Text>
               </View>

@@ -111,16 +111,15 @@ export default function AvoidSetup() {
             Optional. Pick any.
           </Text>
           <View style={styles.checkList}>
-            {cuisines.map((c) => {
-              const favRank = favorites.indexOf(c.id); // >= 0 when this row is a ranked favorite
-              return favRank >= 0 ? (
-                // Your favorite can't also be a "never suggest" — show it
-                // disabled with a small note instead of a tappable checkbox.
+            {cuisines.map((c) =>
+              favorites.includes(c.id) ? (
+                // A favorite can't also be a "never suggest" — show it disabled
+                // with a small note instead of a tappable checkbox.
                 <View key={c.id} style={styles.disabledRow}>
                   <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
                   <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
                   <Text variant="caption" color="textSecondary">
-                    {`Your ${['1st', '2nd', '3rd'][favRank] ?? `${favRank + 1}th`} favorite`}
+                    Your favorite
                   </Text>
                 </View>
               ) : (
@@ -130,8 +129,8 @@ export default function AvoidSetup() {
                   checked={disliked.has(c.id)}
                   onPress={() => toggleDisliked(c.id)}
                 />
-              );
-            })}
+              ),
+            )}
           </View>
         </View>
 

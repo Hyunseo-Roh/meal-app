@@ -10,7 +10,7 @@ import { supabase } from './supabase';
 export type BudgetLevel = 'low' | 'medium' | 'high';
 
 export type TasteProfile = {
-  favoriteCuisineIds: string[]; // ordered, max 3; [0] = top favorite (pref_cuisine_ids; mirrors pref_cuisine_id)
+  favoriteCuisineIds: string[]; // chosen favorites (UNORDERED, max 3); pref_cuisine_ids. [0] mirrors pref_cuisine_id for the gate
   dislikedCuisineIds: string[]; // disliked_cuisine_ids
   dislikedIngredients: string[]; // disliked_ingredients
   effort: number | null; // pref_effort 1–3
@@ -53,7 +53,7 @@ export async function loadTasteProfile(): Promise<TasteProfile> {
   };
 }
 
-/** Display-ready summary for the Profile screen (resolves cuisine names, in rank order). */
+/** Display-ready summary for the Profile screen (resolves cuisine names; no rank). */
 export async function loadTasteSummary(): Promise<{
   favoriteCuisines: string[];
   avoidsCount: number;
@@ -63,8 +63,8 @@ export async function loadTasteSummary(): Promise<{
   const p = await loadTasteProfile();
 
   // Resolve the favorites' display names (second small query — avoids guessing
-  // the users→cuisines FK-embed constraint name). The DB won't honor our order,
-  // so reorder client-side to match favoriteCuisineIds; unresolved ids drop out.
+  // the users→cuisines FK-embed constraint name). Favorites are unordered; we
+  // keep the stored insertion order for a stable display. Unresolved ids drop out.
   let favoriteCuisines: string[] = [];
   if (p.favoriteCuisineIds.length > 0) {
     const { data } = await withTimeout(
@@ -96,8 +96,9 @@ export async function saveTasteProfile(p: TasteProfile): Promise<void> {
     supabase
       .from('users')
       .update({
-        // Ordered ranked favorites, plus the legacy scalar mirrored to position 1
-        // so the onboarding gate (currentUser.ts) and reasons.ts keep working.
+        // Chosen favorites (unordered). The scalar mirrors any one of them so the
+        // onboarding gate (currentUser.ts isOnboarded) stays non-null; the array
+        // is what recommend_meals + reasons.ts read.
         pref_cuisine_ids: p.favoriteCuisineIds,
         pref_cuisine_id: p.favoriteCuisineIds[0] ?? null,
         disliked_cuisine_ids: p.dislikedCuisineIds,

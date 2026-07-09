@@ -1,3 +1,15 @@
+-- Rankless favorites (professor feedback: do not force users to rank cuisines).
+--
+-- Flattens the recommend_meals cuisine term from the 30/20/10 rank weighting to
+-- a single +30 for ANY chosen favorite (per-meal membership, so the Taste
+-- ceiling stays +30 — overall balance vs. the other terms is unchanged). Mood
+-- comfort/adventurous are made rankless too (was keyed off fav_ids[1], the old
+-- rank-1 element). The Familiar/Adjacent/Stretch selection CTEs are unchanged.
+--
+-- Reads pref_cuisine_ids (array) as an UNORDERED set; pref_cuisine_id (scalar)
+-- is still written by the app as "any one chosen" so isOnboarded() and the
+-- reasons text keep working. Kept in lockstep with supabase/recommend_meals.sql.
+
 CREATE OR REPLACE FUNCTION public.recommend_meals(p_user_id uuid, p_time_available integer DEFAULT NULL::integer, p_budget budget_level DEFAULT NULL::budget_level, p_mood text DEFAULT NULL::text)
  RETURNS TABLE(tier text, meal_id uuid, meal text, cuisine text, effort_level bigint, est_cost numeric, cook_time_min bigint, over_time boolean, score integer)
  LANGUAGE sql
@@ -110,4 +122,4 @@ AS $function$
   union all
   select 'stretch', meal_id, meal, cuisine, effort_level, est_cost,
          cook_time_min, not within_time, score::int from stretch;
-$function$
+$function$;

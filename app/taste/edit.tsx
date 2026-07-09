@@ -112,9 +112,8 @@ export default function TasteEdit() {
     };
   }, []);
 
-  // Ranked favorites by tap order (max 3): tapping an unpicked cuisine appends it
-  // as the next rank; tapping a picked one removes it and the rest keep their
-  // relative order; a 4th tap is ignored. Mutual exclusion: becoming a favorite
+  // Chosen favorites — an unordered set, max 3 (no rank): tapping toggles a
+  // cuisine in/out; a 4th tap is ignored. Mutual exclusion: becoming a favorite
   // removes the cuisine from the "never suggest" avoid set.
   function pickFavorite(id: string) {
     setFavorites((prev) => {
@@ -214,24 +213,17 @@ export default function TasteEdit() {
             Favorite cuisine
           </Text>
           <Text variant="body" color="textSecondary">
-            Pick up to three, in order
+            Pick up to three
           </Text>
           <View style={styles.chipRow}>
-            {cuisines.map((c) => {
-              const rank = favorites.indexOf(c.id);
-              return (
-                <Chip
-                  key={c.id}
-                  label={
-                    rank >= 0
-                      ? `${rank + 1}. ${c.emoji} ${c.display_label}`
-                      : `${c.emoji} ${c.display_label}`
-                  }
-                  selected={rank >= 0}
-                  onPress={() => pickFavorite(c.id)}
-                />
-              );
-            })}
+            {cuisines.map((c) => (
+              <Chip
+                key={c.id}
+                label={`${c.emoji} ${c.display_label}`}
+                selected={favorites.includes(c.id)}
+                onPress={() => pickFavorite(c.id)}
+              />
+            ))}
           </View>
         </View>
 
@@ -240,15 +232,14 @@ export default function TasteEdit() {
             Cuisines to skip
           </Text>
           <View style={styles.checkList}>
-            {cuisines.map((c) => {
-              const favRank = favorites.indexOf(c.id); // >= 0 when this row is a ranked favorite
-              return favRank >= 0 ? (
-                // Favorite can't also be a "never suggest" — greyed, non-tappable.
+            {cuisines.map((c) =>
+              favorites.includes(c.id) ? (
+                // A favorite can't also be a "never suggest" — greyed, non-tappable.
                 <View key={c.id} style={styles.disabledRow}>
                   <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
                   <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
                   <Text variant="caption" color="textSecondary">
-                    {`Your ${['1st', '2nd', '3rd'][favRank] ?? `${favRank + 1}th`} favorite`}
+                    Your favorite
                   </Text>
                 </View>
               ) : (
@@ -258,8 +249,8 @@ export default function TasteEdit() {
                   checked={disliked.has(c.id)}
                   onPress={() => toggleDisliked(c.id)}
                 />
-              );
-            })}
+              ),
+            )}
           </View>
         </View>
 

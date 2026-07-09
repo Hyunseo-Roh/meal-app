@@ -69,8 +69,9 @@ export default function ConstraintsSetup() {
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        // Ordered ranked favorites, plus the legacy scalar mirrored to position 1
-        // so the onboarding gate (currentUser.ts) and reasons.ts keep working.
+        // Chosen favorites (unordered). The scalar mirrors any one of them so the
+        // onboarding gate (currentUser.ts isOnboarded) stays non-null; the array
+        // is what recommend_meals + reasons.ts read.
         pref_cuisine_ids: favorites,
         pref_cuisine_id: favorites[0] ?? null,
         disliked_cuisine_ids: [...disliked],

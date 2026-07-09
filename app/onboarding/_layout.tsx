@@ -95,7 +95,7 @@ const sharedStyles = StyleSheet.create({
  * `users` save still happens once, at the end of Page 2 (Constraints).
  */
 type OnboardingDraft = {
-  favorites: string[]; // ordered, max 3; [0] = top favorite
+  favorites: string[]; // chosen favorites (unordered), max 3 — no rank
   setFavorites: Dispatch<SetStateAction<string[]>>;
   disliked: Set<string>;
   setDisliked: Dispatch<SetStateAction<Set<string>>>;

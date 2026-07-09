@@ -65,11 +65,12 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
     .single();
   if (reqErr || !request) throw new Error('request_not_found');
 
-  // 4. Current anonymous user's prefs.
+  // 4. Current user's prefs. Read the favorites ARRAY (rankless) so the cuisine
+  // reason fires for ANY chosen favorite, not just the scalar mirror.
   const userId = await getCurrentUserId();
   const { data: user, error: userErr } = await supabase
     .from('users')
-    .select('pref_cuisine_id, pref_effort')
+    .select('pref_cuisine_ids, pref_effort')
     .eq('id', userId)
     .single();
   if (userErr || !user) throw new Error('user_not_found');
@@ -87,8 +88,9 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
   // tier — always holds
   reasons.push(TIER_REASON[tier]);
 
-  // cuisine match
-  if (meal.cuisine_id && meal.cuisine_id === user.pref_cuisine_id && cuisineLabel) {
+  // cuisine match — fires when the meal's cuisine is one of the user's favorites
+  const favoriteIds = (user.pref_cuisine_ids as string[] | null) ?? [];
+  if (meal.cuisine_id && favoriteIds.includes(meal.cuisine_id) && cuisineLabel) {
     reasons.push(`You tend to like ${cuisineLabel}.`);
   }
 
