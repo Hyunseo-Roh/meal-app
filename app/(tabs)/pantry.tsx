@@ -13,6 +13,27 @@ import { colors, spacing, typography } from '../../theme/tokens';
 // Local staple list (decoupled — not imported from the onboarding pantry screen).
 const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
 
+// Front-end pantry grouping — DISPLAY ONLY. The category is derived from the
+// item name (first keyword match wins); nothing is stored (no category column).
+// Unmatched items fall into "Other".
+const CATEGORIES: { label: string; keywords: string[] }[] = [
+  { label: 'Proteins', keywords: ['chicken', 'beef', 'pork', 'shrimp', 'prawn', 'fish', 'salmon', 'tuna', 'egg', 'tofu', 'bean', 'lentil', 'turkey', 'bacon', 'sausage', 'ham', 'meat'] },
+  { label: 'Vegetables', keywords: ['onion', 'garlic', 'tomato', 'carrot', 'broccoli', 'spinach', 'lettuce', 'potato', 'mushroom', 'cucumber', 'celery', 'zucchini', 'cabbage', 'kale', 'corn', 'pea', 'pepper', 'bell'] },
+  { label: 'Fruit', keywords: ['apple', 'banana', 'lemon', 'lime', 'orange', 'berry', 'grape', 'mango', 'avocado', 'peach', 'pear'] },
+  { label: 'Dairy', keywords: ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'parmesan'] },
+  { label: 'Grains', keywords: ['rice', 'pasta', 'noodle', 'bread', 'flour', 'oat', 'quinoa', 'tortilla', 'cereal', 'couscous', 'barley', 'bagel', 'cracker'] },
+  { label: 'Seasonings', keywords: ['salt', 'oil', 'sauce', 'soy', 'vinegar', 'spice', 'cumin', 'paprika', 'oregano', 'basil', 'ginger', 'honey', 'sugar', 'sesame', 'chili', 'curry', 'stock', 'broth'] },
+];
+const CATEGORY_ORDER = [...CATEGORIES.map((c) => c.label), 'Other'];
+
+function categorize(name: string): string {
+  const n = name.toLowerCase();
+  for (const c of CATEGORIES) {
+    if (c.keywords.some((k) => n.includes(k))) return c.label;
+  }
+  return 'Other';
+}
+
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
   { key: 'scan', title: 'Barcode scan', subtitle: 'Scan packages to add them instantly.' },
@@ -171,23 +192,36 @@ export default function Pantry() {
               Nothing here yet — add a staple above.
             </Text>
           ) : (
-            <View style={styles.chipRow}>
-              {items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => remove(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${item.name}`}
-                  style={styles.tag}
-                >
-                  <Text variant="body" color="bg">
-                    {item.name}
-                  </Text>
-                  <Text variant="body" color="bg">
-                    ×
-                  </Text>
-                </Pressable>
-              ))}
+            <View style={styles.groups}>
+              {CATEGORY_ORDER.map((cat) => {
+                const groupItems = items.filter((it) => categorize(it.name) === cat);
+                if (groupItems.length === 0) return null;
+                return (
+                  <View key={cat} style={styles.group}>
+                    <Text variant="caption" color="textSecondary">
+                      {cat}
+                    </Text>
+                    <View style={styles.chipRow}>
+                      {groupItems.map((item) => (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => remove(item)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove ${item.name}`}
+                          style={styles.tag}
+                        >
+                          <Text variant="body" color="bg">
+                            {item.name}
+                          </Text>
+                          <Text variant="body" color="bg">
+                            ×
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -254,6 +288,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
+  },
+  groups: {
+    gap: spacing.lg,
+  },
+  group: {
+    gap: spacing.sm,
   },
   chipRow: {
     flexDirection: 'row',

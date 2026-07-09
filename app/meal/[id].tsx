@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { FeedbackControl } from '../../components/FeedbackControl';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
@@ -192,16 +191,6 @@ export default function MealDetail() {
             ) : null}
           </View>
         ) : null}
-
-        {/* Taste feedback (free tier) — feeds recommend_meals' ±20 term.
-            Keyed per option, so only shown when we arrived with one.
-            Extra bottom margin detaches it from the fixed "Make this." footer so
-            it reads as a taste signal, not a post-cook rating on that action. */}
-        {option_id ? (
-          <View style={styles.feedbackBlock}>
-            <FeedbackControl optionId={option_id} />
-          </View>
-        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -250,10 +239,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.md,
-  },
-  feedbackBlock: {
-    // Detach the taste feedback from the fixed "Make this." footer.
-    marginBottom: spacing.xl,
   },
   row: {
     flexDirection: 'row',

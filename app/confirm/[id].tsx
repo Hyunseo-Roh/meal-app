@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { FeedbackControl } from '../../components/FeedbackControl';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
@@ -74,6 +75,12 @@ export default function Handled() {
           </Text>
         ) : null}
       </View>
+
+      {/* Taste feedback (free tier) — a POST-cook signal, so it lives here on
+          Handled. FeedbackControl renders its own "Your take" caption and writes
+          the same feedback row (loved_it / not_for_me), keyed per option. Shown
+          only when we arrived with an option_id (absent on a deep link). */}
+      {option_id ? <FeedbackControl optionId={option_id} /> : null}
 
       <Pressable
         onPress={() => router.replace('/')}
