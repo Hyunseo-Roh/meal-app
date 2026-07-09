@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Everyday Meal Decisions",
+    "name": "Sate",
     "slug": "meal-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -40,7 +40,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Everyday Meal Decisions to use the camera to scan pantry barcodes."
+          "cameraPermission": "Allow Sate to access your camera to scan product barcodes"
         }
       ]
     ],
