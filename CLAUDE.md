@@ -15,7 +15,7 @@ A meal-decision app for young adults that reduces decision fatigue. Each session
 ## DO NOT TOUCH — database schema (already built and seeded)
 8 tables, 4 enums. Do not alter columns, types, or enums. Read/write only.
 
-- **users**: id, first_name, last_name, email, pref_effort(1–3), pref_budget, default_budget, default_effort, disliked_ingredients(text[]), dietary_tags(text[]), created_at, last_active, updated_at, pref_cuisine_id(FK→cuisines), disliked_cuisine_ids(uuid[])
+- **users**: id, first_name, last_name, email, pref_effort(1–3), pref_budget, default_budget, default_effort, disliked_ingredients(text[]), dietary_tags(text[]), created_at, updated_at, pref_cuisine_id(FK→cuisines), pref_cuisine_ids(uuid[]), disliked_cuisine_ids(uuid[])
 - **cuisines**: id, name(unique), display_label, emoji
 - **meals**: id, name, cuisine_id(FK), effort_level(1–3), cook_time_min, est_cost, image_url, source, external_id(unique), dietary_tags(text[]), description
 - **meal_ingredients**: id, meal_id(FK), name
