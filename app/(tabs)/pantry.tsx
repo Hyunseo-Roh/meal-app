@@ -13,18 +13,20 @@ import { colors, spacing, typography } from '../../theme/tokens';
 // Local staple list (decoupled — not imported from the onboarding pantry screen).
 const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
 
-// Front-end pantry grouping — DISPLAY ONLY. The category is derived from the
-// item name (first keyword match wins); nothing is stored (no category column).
-// Unmatched items fall into "Other".
+// Client-side pantry grouping FALLBACK. Category is `item.category ?? categorize(name)`
+// (a stored override wins; NULL → this name-keyword heuristic). CATEGORIES order
+// is PRECEDENCE (first keyword hit wins); CATEGORY_ORDER is the DISPLAY order
+// (decoupled). Unmatched items fall into "Other".
 const CATEGORIES: { label: string; keywords: string[] }[] = [
-  { label: 'Proteins', keywords: ['chicken', 'beef', 'pork', 'shrimp', 'prawn', 'fish', 'salmon', 'tuna', 'egg', 'tofu', 'bean', 'lentil', 'turkey', 'bacon', 'sausage', 'ham', 'meat'] },
-  { label: 'Vegetables', keywords: ['onion', 'garlic', 'tomato', 'carrot', 'broccoli', 'spinach', 'lettuce', 'potato', 'mushroom', 'cucumber', 'celery', 'zucchini', 'cabbage', 'kale', 'corn', 'pea', 'pepper', 'bell'] },
-  { label: 'Fruit', keywords: ['apple', 'banana', 'lemon', 'lime', 'orange', 'berry', 'grape', 'mango', 'avocado', 'peach', 'pear'] },
-  { label: 'Dairy', keywords: ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'parmesan'] },
+  { label: 'Proteins', keywords: ['chicken', 'beef', 'pork', 'shrimp', 'prawn', 'fish', 'salmon', 'tuna', 'cod', 'egg', 'tofu', 'bean', 'lentil', 'chickpea', 'turkey', 'duck', 'lamb', 'mutton', 'bacon', 'sausage', 'ham', 'meat', 'oyster', 'clam', 'crab', 'mussel', 'scallop', 'squid'] },
+  { label: 'Dairy', keywords: ['milk', 'cheese', 'yogurt', 'cream', 'parmesan', 'mozzarella', 'feta', 'butter'] },
+  { label: 'Fats & oils', keywords: ['oil', 'ghee', 'lard', 'margarine', 'shortening'] },
   { label: 'Grains', keywords: ['rice', 'pasta', 'noodle', 'bread', 'flour', 'oat', 'quinoa', 'tortilla', 'cereal', 'couscous', 'barley', 'bagel', 'cracker'] },
-  { label: 'Seasonings', keywords: ['salt', 'oil', 'sauce', 'soy', 'vinegar', 'spice', 'cumin', 'paprika', 'oregano', 'basil', 'ginger', 'honey', 'sugar', 'sesame', 'chili', 'curry', 'stock', 'broth'] },
+  { label: 'Produce', keywords: ['onion', 'garlic', 'tomato', 'carrot', 'broccoli', 'spinach', 'lettuce', 'potato', 'mushroom', 'cucumber', 'celery', 'zucchini', 'cabbage', 'kale', 'corn', 'pea', 'pepper', 'bell', 'apple', 'banana', 'lemon', 'lime', 'orange', 'berry', 'grape', 'mango', 'avocado', 'peach', 'pear', 'herb', 'cilantro', 'parsley', 'scallion', 'ginger'] },
+  { label: 'Seasonings', keywords: ['salt', 'sauce', 'soy', 'vinegar', 'spice', 'cumin', 'paprika', 'oregano', 'basil', 'honey', 'sugar', 'sesame', 'chili', 'curry', 'stock', 'broth', 'ketchup', 'mustard', 'mayo'] },
 ];
-const CATEGORY_ORDER = [...CATEGORIES.map((c) => c.label), 'Other'];
+// Display order (independent of precedence above).
+const CATEGORY_ORDER = ['Proteins', 'Produce', 'Grains', 'Dairy', 'Fats & oils', 'Seasonings', 'Other'];
 
 function categorize(name: string): string {
   const n = name.toLowerCase();
@@ -200,7 +202,9 @@ export default function Pantry() {
           ) : (
             <View style={styles.groups}>
               {CATEGORY_ORDER.map((cat) => {
-                const groupItems = items.filter((it) => categorize(it.name) === cat);
+                const groupItems = items.filter(
+                  (it) => (it.category ?? categorize(it.name)) === cat,
+                );
                 if (groupItems.length === 0) return null;
                 return (
                   <View key={cat} style={styles.categoryRow}>

@@ -7,9 +7,16 @@ import { supabase } from './supabase';
  * data server-side at query time). Every call is timeout-guarded and throws a
  * named error on failure, matching lib/feedback.ts / lib/currentUser.ts.
  */
-export type PantryItem = { id: string; name: string; source: string; created_at: string };
+export type PantryItem = {
+  id: string;
+  name: string;
+  source: string;
+  created_at: string;
+  // Stored category override (nullable). NULL → client categorize() fallback.
+  category: string | null;
+};
 
-const COLS = 'id, name, source, created_at';
+const COLS = 'id, name, source, created_at, category';
 
 /** The current user's items, newest first. */
 export async function listPantry(): Promise<PantryItem[]> {
