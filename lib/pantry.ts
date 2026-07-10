@@ -67,6 +67,18 @@ export async function addPantryItem(
   return data as PantryItem;
 }
 
+/**
+ * Move one item to another category (P3) — writes the category column directly.
+ * RLS is disabled (anon GRANT), so this succeeds; the dormant UPDATE policy needs
+ * no change. Callers pass only labels from CATEGORY_ORDER. Throws on failure.
+ */
+export async function setPantryItemCategory(id: string, category: string): Promise<void> {
+  const { error } = await withTimeout(
+    supabase.from('pantry_items').update({ category }).eq('id', id),
+  );
+  if (error) throw new Error('pantry_move_failed');
+}
+
 /** Delete one item by id, scoped to the current user (defensive even with RLS off). */
 export async function deletePantryItem(id: string): Promise<void> {
   const userId = await getCurrentUserId();
