@@ -7,40 +7,12 @@ import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { addPantryItem, deletePantryItem, listPantry, type PantryItem } from '../../lib/pantry';
+import { addPantryItem, listPantry, type PantryItem } from '../../lib/pantry';
+import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 // Local staple list (decoupled — not imported from the onboarding pantry screen).
 const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
-
-// Client-side pantry grouping FALLBACK. Category is `item.category ?? categorize(name)`
-// (a stored override wins; NULL → this name-keyword heuristic). CATEGORIES order
-// is PRECEDENCE (first keyword hit wins); CATEGORY_ORDER is the DISPLAY order
-// (decoupled). Unmatched items fall into "Other".
-const CATEGORIES: { label: string; keywords: string[] }[] = [
-  { label: 'Proteins', keywords: ['chicken', 'beef', 'pork', 'shrimp', 'prawn', 'fish', 'salmon', 'tuna', 'cod', 'egg', 'tofu', 'bean', 'lentil', 'chickpea', 'turkey', 'duck', 'lamb', 'mutton', 'bacon', 'sausage', 'ham', 'meat', 'oyster', 'clam', 'crab', 'mussel', 'scallop', 'squid'] },
-  { label: 'Dairy', keywords: ['milk', 'cheese', 'yogurt', 'cream', 'parmesan', 'mozzarella', 'feta', 'butter'] },
-  { label: 'Fats & oils', keywords: ['oil', 'ghee', 'lard', 'margarine', 'shortening'] },
-  { label: 'Grains', keywords: ['rice', 'pasta', 'noodle', 'bread', 'flour', 'oat', 'quinoa', 'tortilla', 'cereal', 'couscous', 'barley', 'bagel', 'cracker'] },
-  { label: 'Produce', keywords: ['onion', 'garlic', 'tomato', 'carrot', 'broccoli', 'spinach', 'lettuce', 'potato', 'mushroom', 'cucumber', 'celery', 'zucchini', 'cabbage', 'kale', 'corn', 'pea', 'pepper', 'bell', 'apple', 'banana', 'lemon', 'lime', 'orange', 'berry', 'grape', 'mango', 'avocado', 'peach', 'pear', 'herb', 'cilantro', 'parsley', 'scallion', 'ginger'] },
-  { label: 'Seasonings', keywords: ['salt', 'sauce', 'soy', 'vinegar', 'spice', 'cumin', 'paprika', 'oregano', 'basil', 'honey', 'sugar', 'sesame', 'chili', 'curry', 'stock', 'broth', 'ketchup', 'mustard', 'mayo'] },
-];
-// Display order (independent of precedence above).
-const CATEGORY_ORDER = ['Proteins', 'Produce', 'Grains', 'Dairy', 'Fats & oils', 'Seasonings', 'Other'];
-
-function categorize(name: string): string {
-  const n = name.toLowerCase();
-  for (const c of CATEGORIES) {
-    if (c.keywords.some((k) => n.includes(k))) return c.label;
-  }
-  return 'Other';
-}
-
-// Display-only: sentence-case a category KEY for the inline label. The keys/
-// order constants are unchanged — this only formats the shown string.
-function toSentenceCase(label: string): string {
-  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
-}
 
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
@@ -112,18 +84,6 @@ export default function Pantry() {
     const v = draft;
     setDraft('');
     await add(v);
-  }
-
-  async function remove(item: PantryItem) {
-    const prev = items;
-    setItems((cur) => cur.filter((i) => i.id !== item.id)); // optimistic
-    setError(null);
-    try {
-      await deletePantryItem(item.id);
-    } catch {
-      setItems(prev); // rollback
-      setError('Couldn’t remove that. Try again.');
-    }
   }
 
   return (
@@ -200,36 +160,28 @@ export default function Pantry() {
               Nothing here yet — add a staple above.
             </Text>
           ) : (
-            <View style={styles.groups}>
+            <View style={styles.summaryList}>
               {CATEGORY_ORDER.map((cat) => {
-                const groupItems = items.filter(
-                  (it) => (it.category ?? categorize(it.name)) === cat,
-                );
-                if (groupItems.length === 0) return null;
+                const count = items.filter((it) => categoryOf(it) === cat).length;
+                if (count === 0) return null;
                 return (
-                  <View key={cat} style={styles.categoryRow}>
-                    <Text variant="caption" color="textSecondary" style={styles.categoryLabel}>
-                      {toSentenceCase(cat)}
-                    </Text>
-                    <View style={styles.categoryChips}>
-                      {groupItems.map((item) => (
-                        <Pressable
-                          key={item.id}
-                          onPress={() => remove(item)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Remove ${item.name}`}
-                          style={styles.tag}
-                        >
-                          <Text variant="body" color="bg">
-                            {item.name}
-                          </Text>
-                          <Text variant="body" color="bg">
-                            ×
-                          </Text>
-                        </Pressable>
-                      ))}
+                  <Pressable
+                    key={cat}
+                    onPress={() =>
+                      router.push({ pathname: '/pantry-category', params: { category: cat } })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`${toSentenceCase(cat)}, ${count} items`}
+                    style={styles.summaryRow}
+                  >
+                    <Text variant="body">{toSentenceCase(cat)}</Text>
+                    <View style={styles.summaryRight}>
+                      <Text variant="caption" color="textSecondary">
+                        {`${count}`}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>
@@ -308,25 +260,22 @@ const styles = StyleSheet.create({
     borderTopColor: colors.chipBorder,
     paddingTop: spacing.xl,
   },
-  groups: {
-    gap: spacing.lg,
+  // Tappable category summary rows: label · count · chevron, hairline separated.
+  summaryList: {
+    // Rows carry their own separators; no inter-row gap needed.
   },
-  categoryRow: {
+  summaryRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
   },
-  categoryLabel: {
-    width: 96,
-    // Optically drop the label onto the first chip row; override the caption
-    // role's uppercase + tracking so it reads sentence case at 13.
-    paddingTop: spacing.sm,
-    textTransform: 'none',
-    letterSpacing: 0,
-  },
-  categoryChips: {
-    flex: 1,
+  summaryRight: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   chipRow: {
@@ -336,22 +285,6 @@ const styles = StyleSheet.create({
   },
   dim: {
     opacity: 0.4,
-  },
-  // Local replica of onboarding's RemovableTag (NOT imported — keeps the tab
-  // decoupled from onboarding). Accent pill + × ; whole chip removes.
-  tag: {
-    // Size to content and never grow — multiple short chips share a line before
-    // wrapping. minHeight keeps the 44px touch target; padding trimmed for density.
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    minHeight: 44,
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
   },
   errorRow: {
     gap: spacing.sm,
