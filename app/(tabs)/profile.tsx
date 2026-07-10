@@ -9,7 +9,7 @@ import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { loadTasteSummary } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
-import { spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
 
 // Local onboarded flag (mirrors lib/currentUser.ts). Identity itself lives in
 // the Supabase auth session, not AsyncStorage.
@@ -99,45 +99,6 @@ export default function Profile() {
                   Log out
                 </Text>
               </Pressable>
-
-              {!confirmingDelete ? (
-                <Pressable
-                  onPress={() => setConfirmingDelete(true)}
-                  accessibilityRole="button"
-                  style={styles.link}
-                >
-                  <Text variant="body" color="textSecondary">
-                    Delete account
-                  </Text>
-                </Pressable>
-              ) : (
-                <View style={styles.deleteConfirm}>
-                  <Text variant="body" color="textSecondary">
-                    This permanently removes your taste and pantry. You can&apos;t undo this.
-                  </Text>
-                  <Pressable
-                    onPress={handleDelete}
-                    disabled={deleting}
-                    accessibilityRole="button"
-                    style={styles.link}
-                  >
-                    <Text variant="body" color="accent">
-                      {deleting ? 'Deleting…' : 'Delete account'}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setConfirmingDelete(false)}
-                    disabled={deleting}
-                    accessibilityRole="button"
-                    style={styles.link}
-                  >
-                    <Text variant="body" color="textSecondary">
-                      Cancel
-                    </Text>
-                  </Pressable>
-                  {deleteError ? <Text variant="body">{deleteError}</Text> : null}
-                </View>
-              )}
             </View>
 
             {/* Taste summary */}
@@ -183,6 +144,51 @@ export default function Profile() {
                 </Text>
               </Pressable>
             </View>
+
+            {/* Delete account — low-emphasis, at the bottom, its own quiet zone. */}
+            <View style={styles.deleteZone}>
+              {!confirmingDelete ? (
+                <Pressable
+                  onPress={() => setConfirmingDelete(true)}
+                  accessibilityRole="button"
+                  style={styles.link}
+                >
+                  <Text variant="body" color="textSecondary">
+                    Delete account
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={styles.deleteConfirm}>
+                  <Text variant="caption" color="textSecondary" style={styles.warning}>
+                    This permanently removes your taste and pantry. You can&apos;t undo this.
+                  </Text>
+                  {/* Destructive action kept quiet (muted, no accent/blue). We can't
+                      use a warning color; the explicit confirm tap is the safeguard. */}
+                  <Pressable
+                    onPress={handleDelete}
+                    disabled={deleting}
+                    accessibilityRole="button"
+                    style={styles.link}
+                  >
+                    <Text variant="body" color="textSecondary">
+                      {deleting ? 'Deleting' : 'Delete account'}
+                    </Text>
+                  </Pressable>
+                  {/* Cancel is the safe default — the present (accent) action. */}
+                  <Pressable
+                    onPress={() => setConfirmingDelete(false)}
+                    disabled={deleting}
+                    accessibilityRole="button"
+                    style={styles.link}
+                  >
+                    <Text variant="body" color="accent">
+                      Cancel
+                    </Text>
+                  </Pressable>
+                  {deleteError ? <Text variant="body">{deleteError}</Text> : null}
+                </View>
+              )}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -217,8 +223,20 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  // Quiet bottom zone for the destructive delete flow — a hairline + padding
+  // separate it from the Taste section above.
+  deleteZone: {
+    borderTopWidth: 1,
+    borderTopColor: colors.chipBorder,
+    paddingTop: spacing.md,
+  },
   deleteConfirm: {
     gap: spacing.sm,
+  },
+  warning: {
+    // Supporting sentence at 13/secondary — drop the caption role's uppercase + tracking.
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   reset: {
     alignItems: 'center',
