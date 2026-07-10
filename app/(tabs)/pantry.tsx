@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -43,6 +43,7 @@ const PREMIUM = [
 type Status = 'loading' | 'ready' | 'error';
 
 export default function Pantry() {
+  const router = useRouter();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -236,7 +237,9 @@ export default function Pantry() {
           {PREMIUM.map((card) => (
             <Pressable
               key={card.key}
-              onPress={() => setTappedPremium(card.key)}
+              onPress={() =>
+                card.key === 'scan' ? router.push('/scanner') : setTappedPremium(card.key)
+              }
               accessibilityRole="button"
               style={styles.premiumCard}
             >
