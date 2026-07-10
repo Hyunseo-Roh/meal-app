@@ -34,6 +34,12 @@ function categorize(name: string): string {
   return 'Other';
 }
 
+// Display-only: sentence-case a category KEY for the inline label. The keys/
+// order constants are unchanged — this only formats the shown string.
+function toSentenceCase(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+}
+
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
   { key: 'scan', title: 'Barcode scan', subtitle: 'Scan packages to add them instantly.' },
@@ -168,11 +174,10 @@ export default function Pantry() {
           </View>
         </View>
 
-        {/* Current pantry — removal is the ONLY delete path (tap the × chip). */}
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            In your pantry
-          </Text>
+        {/* Current pantry — removal is the ONLY delete path (tap the × chip).
+            Header intentionally omitted: the intro copy + tab name set the zone,
+            and a hairline divider marks the shift from the "add" zone. */}
+        <View style={[styles.section, styles.pantryZone]}>
           {status === 'loading' ? (
             <Text variant="body" color="textSecondary">
               Loading…
@@ -198,11 +203,11 @@ export default function Pantry() {
                 const groupItems = items.filter((it) => categorize(it.name) === cat);
                 if (groupItems.length === 0) return null;
                 return (
-                  <View key={cat} style={styles.group}>
-                    <Text variant="caption" color="textSecondary">
-                      {cat}
+                  <View key={cat} style={styles.categoryRow}>
+                    <Text variant="caption" color="textSecondary" style={styles.categoryLabel}>
+                      {toSentenceCase(cat)}
                     </Text>
-                    <View style={styles.chipRow}>
+                    <View style={styles.categoryChips}>
                       {groupItems.map((item) => (
                         <Pressable
                           key={item.id}
@@ -292,10 +297,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
   },
+  // Hairline divider + breathing room marking the start of the "your pantry"
+  // zone now that the header is gone.
+  pantryZone: {
+    borderTopWidth: 1,
+    borderTopColor: colors.chipBorder,
+    paddingTop: spacing.xl,
+  },
   groups: {
     gap: spacing.lg,
   },
-  group: {
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  categoryLabel: {
+    width: 96,
+    // Optically drop the label onto the first chip row; override the caption
+    // role's uppercase + tracking so it reads sentence case at 13.
+    paddingTop: spacing.sm,
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
+  categoryChips: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   chipRow: {
@@ -309,15 +336,18 @@ const styles = StyleSheet.create({
   // Local replica of onboarding's RemovableTag (NOT imported — keeps the tab
   // decoupled from onboarding). Accent pill + × ; whole chip removes.
   tag: {
+    // Size to content and never grow — multiple short chips share a line before
+    // wrapping. minHeight keeps the 44px touch target; padding trimmed for density.
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     minHeight: 44,
     backgroundColor: colors.accent,
     borderRadius: 999,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   errorRow: {
     gap: spacing.sm,
