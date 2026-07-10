@@ -26,12 +26,17 @@ export async function listPantry(): Promise<PantryItem[]> {
 }
 
 /**
- * Add one manual item. Names are trimmed + lowercased; empty is ignored (returns
- * null). There's no DB unique constraint on (user_id, name), so we dedupe
- * client-side: if the name already exists, return that row rather than inserting
- * a duplicate. Otherwise insert and return the new row.
+ * Add one item. Names are trimmed + lowercased; empty is ignored (returns null).
+ * There's no DB unique constraint on (user_id, name), so we dedupe client-side:
+ * if the name already exists, return that row rather than inserting a duplicate.
+ * Otherwise insert and return the new row. `source` records origin — 'manual'
+ * (default, typed/quick-add) or 'scanned' (barcode); both are the existing
+ * app-convention values for the text column (no new schema).
  */
-export async function addPantryItem(name: string): Promise<PantryItem | null> {
+export async function addPantryItem(
+  name: string,
+  source: 'manual' | 'scanned' = 'manual',
+): Promise<PantryItem | null> {
   const v = name.trim().toLowerCase();
   if (!v) return null;
   const userId = await getCurrentUserId();
@@ -47,7 +52,7 @@ export async function addPantryItem(name: string): Promise<PantryItem | null> {
   const { data, error } = await withTimeout(
     supabase
       .from('pantry_items')
-      .insert({ user_id: userId, name: v, source: 'manual', created_at: now, updated_at: now })
+      .insert({ user_id: userId, name: v, source, created_at: now, updated_at: now })
       .select(COLS)
       .single(),
   );

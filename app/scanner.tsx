@@ -2,25 +2,39 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { lookupProduct, type OFFResult } from '../lib/openfoodfacts';
-import { colors, spacing } from '../theme/tokens';
+import { addPantryItem } from '../lib/pantry';
+import { colors, spacing, typography } from '../theme/tokens';
 
 // Barcode formats used on packaged grocery products.
 const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e'] as const;
 
-type Phase = 'scanning' | 'looking_up' | 'found' | 'not_found' | 'error';
+type Phase = 'scanning' | 'looking_up' | 'found' | 'confirm' | 'not_found' | 'error';
 type FoundProduct = Extract<OFFResult, { status: 'found' }>;
+
+// Display-only sentence case for the name prefill (local equivalent of the
+// pantry screen's helper, which isn't exported). Storage still lowercases.
+function toSentenceCase(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+}
+
+// Brand is usually the better pantry label than OFF's marketing product_name
+// ("ZERO SUGAR LEMON-LIME SODA" vs "Sprite"); fall back to the name.
+function prefillName(p: FoundProduct): string {
+  return toSentenceCase((p.brand?.trim() || p.name?.trim() || ''));
+}
 
 /**
  * Full-screen barcode scanner (pushed route at /scanner). Detects a barcode,
- * looks it up in Open Food Facts, and shows a product card. NO Supabase write
- * yet — "Add to pantry" is a logging stub (Step 4 wires the insert).
+ * looks it up in Open Food Facts, shows a product card, then a prefilled edit
+ * step to confirm the name and add it to the pantry (reusing the manual-add
+ * insert path). No schema change; category stays derived at render time.
  */
 export default function Scanner() {
   const router = useRouter();
@@ -31,6 +45,10 @@ export default function Scanner() {
   const [phase, setPhase] = useState<Phase>('scanning');
   const [barcode, setBarcode] = useState<string | null>(null);
   const [product, setProduct] = useState<FoundProduct | null>(null);
+  // Prefilled edit step (phase 'confirm').
+  const [nameDraft, setNameDraft] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   async function runLookup(code: string) {
     setPhase('looking_up');
@@ -56,20 +74,36 @@ export default function Scanner() {
   function scanAgain() {
     setProduct(null);
     setBarcode(null);
+    setNameDraft('');
+    setAddError(null);
+    setAdding(false);
     setPhase('scanning');
     setScanned(false);
   }
 
-  function addStub() {
+  // Open the prefilled edit step from the found card.
+  function openConfirm() {
     if (!product) return;
-    // TODO Step 4: insert into pantry, then confirm + return
-    console.log('add stub', {
-      barcode: product.barcode,
-      name: product.name,
-      brand: product.brand,
-      imageUrl: product.imageUrl,
-      categoriesEn: product.categoriesEn,
-    });
+    setNameDraft(prefillName(product));
+    setAddError(null);
+    setPhase('confirm');
+  }
+
+  // Insert via the SAME path as manual add (dedupe + lowercase live there),
+  // tagged source 'scanned', then return to the Pantry tab (which refetches on
+  // focus). On failure, keep the edit card open with an inline note.
+  async function confirmAdd() {
+    const v = nameDraft.trim();
+    if (!v || adding) return;
+    setAdding(true);
+    setAddError(null);
+    try {
+      await addPantryItem(v, 'scanned');
+      router.back();
+    } catch {
+      setAdding(false);
+      setAddError('Could not add, try again');
+    }
   }
 
   // Permission still resolving — minimal blank placeholder.
@@ -164,7 +198,38 @@ export default function Scanner() {
                 </View>
               </View>
               <View style={styles.actions}>
-                <PrimaryButton label="Add to pantry" onPress={addStub} />
+                <PrimaryButton label="Add to pantry" onPress={openConfirm} />
+                <Pressable onPress={scanAgain} accessibilityRole="button" style={styles.ghost}>
+                  <Text variant="body">Scan again</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
+
+          {phase === 'confirm' && product ? (
+            <>
+              <Text variant="title">Add to pantry</Text>
+              <TextInput
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                onSubmitEditing={confirmAdd}
+                autoFocus
+                autoCapitalize="none"
+                returnKeyType="done"
+                placeholder="Item name"
+                placeholderTextColor={colors.textSecondary}
+                style={styles.input}
+              />
+              <Text variant="caption" color="textSecondary" style={styles.refLine}>
+                {product.brand ? `${product.name} · ${product.brand}` : product.name}
+              </Text>
+              {addError ? <Text variant="body">{addError}</Text> : null}
+              <View style={styles.actions}>
+                <PrimaryButton
+                  label={adding ? 'Adding' : 'Add'}
+                  onPress={confirmAdd}
+                  disabled={adding || nameDraft.trim().length === 0}
+                />
                 <Pressable onPress={scanAgain} accessibilityRole="button" style={styles.ghost}>
                   <Text variant="body">Scan again</Text>
                 </Pressable>
@@ -279,6 +344,22 @@ const styles = StyleSheet.create({
     borderRadius: spacing.lg,
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  input: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    // Bone against the Greige card so the field reads as editable.
+    backgroundColor: colors.bg,
+  },
+  refLine: {
+    // Show the scanned product string as-is (override the caption uppercase).
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   lookingRow: {
     flexDirection: 'row',
