@@ -108,7 +108,7 @@ export default function HowsTonight() {
           {getMealGreeting(new Date())}
         </Text>
         <Text variant="body" color="textSecondary" style={styles.subhead}>
-          Set the scene — you&apos;ll get three.
+          A few quick things — get three meals
         </Text>
 
         <View style={styles.section}>
@@ -169,7 +169,7 @@ export default function HowsTonight() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={submitting ? 'One moment…' : 'See your three'}
+          label={submitting ? 'One moment…' : 'See three meals'}
           onPress={handleSubmit}
           disabled={!canSubmit}
         />

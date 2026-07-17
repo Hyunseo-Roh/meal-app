@@ -138,7 +138,7 @@ export default function ThreeOptions() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text variant="title">{`${bucketLabel}: three suggestions`}</Text>
+          <Text variant="title">{`${bucketLabel}: three meals`}</Text>
           <Text variant="body" color="textSecondary">
             Tap one to see why
           </Text>
