@@ -102,7 +102,7 @@ export default function Scanner() {
       router.back();
     } catch {
       setAdding(false);
-      setAddError('Could not add, try again');
+      setAddError('Couldn’t add that. Try again.');
     }
   }
 
@@ -176,7 +176,7 @@ export default function Scanner() {
           {phase === 'looking_up' ? (
             <View style={styles.lookingRow}>
               <ActivityIndicator color={colors.accent} />
-              <Text variant="body">Looking up</Text>
+              <Text variant="body">Looking up…</Text>
             </View>
           ) : null}
 
@@ -226,7 +226,7 @@ export default function Scanner() {
               {addError ? <Text variant="body">{addError}</Text> : null}
               <View style={styles.actions}>
                 <PrimaryButton
-                  label={adding ? 'Adding' : 'Add'}
+                  label={adding ? 'Adding…' : 'Add'}
                   onPress={confirmAdd}
                   disabled={adding || nameDraft.trim().length === 0}
                 />
@@ -241,7 +241,7 @@ export default function Scanner() {
             <>
               <Text variant="title">Not in database</Text>
               <Text variant="body" color="textSecondary">
-                Sate could not find this product
+                Sate couldn’t find this product.
               </Text>
               {barcode ? (
                 <Text variant="caption" color="textSecondary">
@@ -265,7 +265,7 @@ export default function Scanner() {
             <>
               <Text variant="title">Lookup failed</Text>
               <Text variant="body" color="textSecondary">
-                Check your connection and try again
+                Check your connection and try again.
               </Text>
               <View style={styles.actions}>
                 <PrimaryButton

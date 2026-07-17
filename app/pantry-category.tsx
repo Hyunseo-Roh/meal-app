@@ -82,7 +82,7 @@ export default function PantryCategory() {
       closeSheet();
     } catch {
       setItems(prev); // rollback
-      setSheetError('Could not move, try again');
+      setSheetError('Couldn’t move that. Try again.');
     }
   }
 
@@ -95,7 +95,7 @@ export default function PantryCategory() {
       closeSheet();
     } catch {
       setItems(prev); // rollback
-      setSheetError('Could not remove, try again');
+      setSheetError('Couldn’t remove that. Try again.');
     }
   }
 
@@ -115,11 +115,11 @@ export default function PantryCategory() {
 
         {status === 'loading' ? (
           <Text variant="body" color="textSecondary">
-            Loading
+            Loading…
           </Text>
         ) : status === 'error' ? (
           <Text variant="body" color="textSecondary">
-            Couldn&apos;t load your pantry
+            Couldn&apos;t load your pantry.
           </Text>
         ) : catItems.length === 0 ? (
           <Text variant="body" color="textSecondary">
