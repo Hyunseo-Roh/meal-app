@@ -11,8 +11,8 @@ import { colors, spacing } from '../theme/tokens';
 // Locked premium placeholders — same pattern/tokens as the Pantry cards. No
 // entitlement check, no payment; purely a soft introduction.
 const PREMIUM = [
-  { key: 'ai', title: 'AI Chef', subtitle: 'Turn what you have into new ideas.' },
-  { key: 'scan', title: 'Barcode scan', subtitle: 'Scan packages to add them instantly.' },
+  { key: 'ai', title: 'AI Chef', subtitle: "Turn what's in your pantry into new recipes." },
+  { key: 'scan', title: 'Barcode scan', subtitle: 'Skip the typing — scan to fill your pantry.' },
 ] as const;
 
 /**
@@ -31,7 +31,8 @@ export default function PremiumIntro() {
         <View style={styles.header}>
           <Text variant="display">One more thing</Text>
           <Text variant="body" color="textSecondary">
-            Premium adds a little more, when you want it. You&apos;re all set without it.
+            Scan a barcode instead of typing, and AI Chef turns what you have into new
+            recipes. Both are optional — the app works free without them.
           </Text>
         </View>
 

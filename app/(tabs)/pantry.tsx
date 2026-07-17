@@ -16,8 +16,8 @@ const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shr
 
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
-  { key: 'scan', title: 'Barcode scan', subtitle: 'Scan packages to add them instantly.' },
-  { key: 'ai', title: 'AI Chef', subtitle: 'Turn what you have into new ideas.' },
+  { key: 'scan', title: 'Barcode scan', subtitle: 'Skip the typing — scan to fill your pantry.' },
+  { key: 'ai', title: 'AI Chef', subtitle: "Turn what's in your pantry into new recipes." },
 ] as const;
 
 type Status = 'loading' | 'ready' | 'error';
