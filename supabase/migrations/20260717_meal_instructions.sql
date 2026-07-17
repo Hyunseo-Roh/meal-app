@@ -1,0 +1,26 @@
+-- Cooking instructions for the meal-detail screen.
+--
+-- Adds a nullable `instructions text[]` to meals: one array element per step,
+-- in order, parsed from Spoonacular analyzedInstructions[].steps[].step at seed
+-- time (scripts/instructions.ts). Three states, and the distinction matters:
+--
+--   NULL  = not yet fetched. This IS the seeder's work queue (`.is('instructions',
+--           null)`), which is what makes the 2-day / 50-points-per-day split
+--           resumable: re-running the seeder picks up exactly the remaining rows.
+--   '{}'  = fetched, but Spoonacular genuinely has no steps for this recipe.
+--           A TERMINAL state — excluded from the queue, so it never burns a
+--           second API point. (Using NULL here would retry it forever.)
+--   [...] = the ordered steps.
+--
+-- Existing rows stay NULL; no backfill here — the seeder does that incrementally
+-- and persists each meal immediately after fetching it.
+--
+-- Additive only. No existing column, type, enum, constraint, index, or function
+-- is touched: this adds one column to one table. `recommend_meals` and
+-- `get_ingredient_gap` both return explicit column lists (never `select *`), so
+-- a new column cannot perturb them. Idempotent via IF NOT EXISTS.
+--
+-- text[] (not jsonb) matches the existing `dietary_tags text[]` precedent on this
+-- same table, gives step count via array_length, and needs no client parsing.
+
+alter table public.meals add column if not exists instructions text[];
