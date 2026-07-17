@@ -57,7 +57,6 @@ export default function HowsTonight() {
     setSubmitting(true);
     setError(null);
 
-    // Resolve the per-device anonymous user (created on first run).
     let userId: string;
     try {
       userId = await getCurrentUserId();

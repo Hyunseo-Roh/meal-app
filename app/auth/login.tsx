@@ -16,13 +16,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Inline confirm (NOT Alert.alert — unreliable on react-native-web): logging in
-  // switches accounts and the current device's anonymous data is not carried over.
-  const [confirming, setConfirming] = useState(false);
   // Password visibility toggle (display only — no auth logic).
   const [showPassword, setShowPassword] = useState(false);
 
-  function requestLogin() {
+  async function handleLogin() {
     setError(null);
     if (!email.trim()) {
       setError('Enter your email');
@@ -32,19 +29,13 @@ export default function Login() {
       setError('Enter your password');
       return;
     }
-    setConfirming(true);
-  }
-
-  async function confirmLogin() {
     setSubmitting(true);
-    setError(null);
     const { error: err } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
     if (err) {
       setSubmitting(false);
-      setConfirming(false);
       // Surface the server's actual reason (e.g. invalid credentials / password).
       setError(err.message || 'Couldn’t log in. Try again.');
       return;
@@ -99,7 +90,7 @@ export default function Login() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            editable={!confirming}
+            editable={!submitting}
             style={styles.input}
           />
         </View>
@@ -116,7 +107,7 @@ export default function Login() {
               placeholderTextColor={colors.textSecondary}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              editable={!confirming}
+              editable={!submitting}
               style={[styles.input, styles.inputWithIcon]}
             />
             <Pressable
@@ -135,50 +126,25 @@ export default function Login() {
           </View>
         </View>
 
-        {confirming ? (
-          <View style={styles.confirmBlock}>
-            <Text variant="body">
-              Logging in switches to that account. This device&apos;s unsaved data won&apos;t be
-              carried over.
-            </Text>
-          </View>
-        ) : null}
-
         {error ? <Text variant="body">{error}</Text> : null}
 
-        {!confirming ? (
-          <Pressable
-            onPress={() => router.replace('/auth/register')}
-            accessibilityRole="button"
-            style={styles.link}
-          >
-            <Text variant="body" color="accent">
-              New here? Sign up
-            </Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() => router.replace('/auth/register')}
+          accessibilityRole="button"
+          style={styles.link}
+        >
+          <Text variant="body" color="accent">
+            New here? Sign up
+          </Text>
+        </Pressable>
       </ScrollView>
 
       <View style={styles.footer}>
-        {confirming ? (
-          <>
-            <PrimaryButton
-              label={submitting ? 'One moment…' : 'Log in anyway'}
-              onPress={confirmLogin}
-              disabled={submitting}
-            />
-            <Pressable
-              onPress={() => setConfirming(false)}
-              accessibilityRole="button"
-              disabled={submitting}
-              style={styles.ghost}
-            >
-              <Text variant="body">Cancel</Text>
-            </Pressable>
-          </>
-        ) : (
-          <PrimaryButton label="Log in" onPress={requestLogin} disabled={submitting} />
-        )}
+        <PrimaryButton
+          label={submitting ? 'One moment…' : 'Log in'}
+          onPress={handleLogin}
+          disabled={submitting}
+        />
       </View>
     </Screen>
   );
@@ -229,9 +195,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  confirmBlock: {
-    gap: spacing.xs,
-  },
   link: {
     minHeight: 44,
     justifyContent: 'center',
@@ -240,13 +203,5 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
     gap: spacing.md,
-  },
-  ghost: {
-    height: 52,
-    borderRadius: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
