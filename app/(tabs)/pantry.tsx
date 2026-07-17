@@ -40,6 +40,10 @@ export default function Pantry() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
+  // Serializes the Quick Add toggle: without it, the optimistic remove flips the
+  // chip to "tap to add" instantly, so a fast second tap could re-add the row
+  // while the DELETE is still in flight.
+  const [removing, setRemoving] = useState(false);
   const [tappedPremium, setTappedPremium] = useState<string | null>(null);
   // The item whose move sheet is open (null = closed), plus a sheet-local error.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
@@ -93,7 +97,7 @@ export default function Pantry() {
 
   async function add(name: string) {
     const v = name.trim().toLowerCase();
-    if (!v || adding || has(v)) return;
+    if (!v || adding || removing || has(v)) return;
     setAdding(true);
     setError(null);
     try {
@@ -142,16 +146,47 @@ export default function Pantry() {
     }
   }
 
-  async function removeItem(item: PantryItem) {
-    setSheetError(null);
+  /**
+   * The shared remove: optimistic drop + rollback on failure. Returns false if it
+   * failed (already rolled back) so each caller can surface the error where its
+   * user is actually looking — the sheet's inline note vs the screen-level one.
+   * Both the sheet row and the Quick Add ✓ chip go through this.
+   */
+  async function removeItemCore(item: PantryItem): Promise<boolean> {
     const prev = items;
     setItems((cur) => cur.filter((i) => i.id !== item.id)); // optimistic
+    // An item can't be "just added" once it's gone — drop the notice with it.
+    if (justAdded?.id === item.id) setJustAdded(null);
     try {
       await deletePantryItem(item.id);
-      closeSheet();
+      return true;
     } catch {
       setItems(prev); // rollback
-      setSheetError('Couldn’t remove that. Try again.');
+      return false;
+    }
+  }
+
+  async function removeItem(item: PantryItem) {
+    setSheetError(null);
+    if (await removeItemCore(item)) closeSheet();
+    else setSheetError('Couldn’t remove that. Try again.');
+  }
+
+  /**
+   * Quick Add toggle, remove half: tapping "✓ rice" takes rice back out. Matches
+   * the staple to its row by the SAME normalization add() uses (trim+lowercase —
+   * which is also how lib/pantry stores names), then reuses removeItemCore.
+   */
+  async function removeStaple(name: string) {
+    const v = name.trim().toLowerCase();
+    const item = items.find((i) => i.name === v);
+    if (!item || adding || removing) return;
+    setRemoving(true);
+    setError(null);
+    try {
+      if (!(await removeItemCore(item))) setError('Couldn’t remove that. Try again.');
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -194,11 +229,11 @@ export default function Pantry() {
           ) : null}
         </View>
 
-        {/* Quick add — ADD-ONLY. A staple you already own renders at full opacity
-            with a ✓: it reads as OWNED, not disabled (dimming it said "broken").
-            Still non-interactive — there's nothing to do to something you have.
-            The ✓ inherits Chip's unselected Charcoal (never accent fill, and never
-            Sage — Sage is the Gap Tracker's alone). */}
+        {/* Quick add — a TOGGLE. Tap a staple to add it; tap the "✓" version to
+            take it back out. Owned renders full-opacity with a ✓ so it reads as
+            OWNED, not disabled (dimming it said "broken"). The ✓ inherits Chip's
+            unselected Charcoal (never accent fill, and never Sage — Sage is the
+            Gap Tracker's alone). */}
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
             Quick add
@@ -206,9 +241,12 @@ export default function Pantry() {
           <View style={styles.chipRow}>
             {QUICK_ADD.map((name) =>
               has(name) ? (
-                <View key={name} pointerEvents="none">
-                  <Chip label={`✓ ${name}`} selected={false} onPress={() => {}} />
-                </View>
+                <Chip
+                  key={name}
+                  label={`✓ ${name}`}
+                  selected={false}
+                  onPress={() => removeStaple(name)}
+                />
               ) : (
                 <Chip key={name} label={name} selected={false} onPress={() => add(name)} />
               ),
