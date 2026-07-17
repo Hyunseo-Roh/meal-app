@@ -8,6 +8,8 @@ export type GapData = {
   cookTimeMin: number;
   estCost: number;
   description: string | null;
+  /** Ordered cooking steps. NULL = not yet seeded; [] = seeded, no steps upstream. */
+  instructions: string[] | null;
   have: string[];
   toBuy: string[];
   n: number; // count the user has
@@ -33,7 +35,7 @@ export async function loadGap(mealId: string): Promise<GapData> {
   const { data: meal, error: mealErr } = await supabase
     .from('meals')
     .select(
-      'name, effort_level, cook_time_min, est_cost, description, cuisines!fk_meals_cuisine(display_label)',
+      'name, effort_level, cook_time_min, est_cost, description, instructions, cuisines!fk_meals_cuisine(display_label)',
     )
     .eq('id', mealId)
     .single();
@@ -65,6 +67,7 @@ export async function loadGap(mealId: string): Promise<GapData> {
     cookTimeMin: meal.cook_time_min,
     estCost: meal.est_cost,
     description: meal.description,
+    instructions: meal.instructions,
     have,
     toBuy,
     n,

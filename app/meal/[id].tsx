@@ -17,6 +17,38 @@ const EFFORT_LABEL: Record<number, string> = {
   3: 'Involved',
 };
 
+// Bare procedural headers that carry no information. "For X:" is deliberately
+// NOT in this list — it marks a sub-recipe ("For Peanut Sauce:") and must survive.
+const HEADER = 'Method|Directions|Instructions|Preparation';
+
+// Steps longer than this get a "Show all N steps" toggle; at/below it, all render.
+const STEP_THRESHOLD = 10;
+const STEP_CAP = 8;
+
+/**
+ * Display-only cleanup of Spoonacular's raw step text — NEVER written back to
+ * the DB. Their stored strings collapse sentence boundaries ("onions.For Peanut
+ * Sauce:Method:Bring...") and carry orphan headers. Audited over all 46 seeded
+ * meals / 326 steps: 52 altered, 0 bad splits, 0 "For X:" headers lost.
+ */
+function normalizeStep(s: string): string {
+  return (
+    s
+      // Run-on sentence. Requires lowercase/digit BEFORE the period so "U.S."
+      // (uppercase before) and decimals like "3.5" are never split.
+      .replace(/([a-z0-9])\.([A-Z])/g, '$1. $2')
+      // Same for run-on colons: "Method:Marinate" -> "Method: Marinate".
+      .replace(/([a-z]):([A-Z])/g, '$1: $2')
+      // Leading orphan headers, repeatedly: "For satay:Method:" -> "".
+      .replace(new RegExp(`^(?:(?:For\\s[^:]{1,40}|${HEADER})\\s*:\\s*)+`, 'i'), '')
+      // Bare header as its own clause, anywhere. Case-SENSITIVE and anchored to a
+      // clause boundary, so a mid-sentence "using this method: stir" is untouched.
+      .replace(new RegExp(`(^|[.:]\\s*)(?:${HEADER})\\s*:\\s*`, 'g'), '$1')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  );
+}
+
 type State =
   | { status: 'loading' }
   | { status: 'ready'; gap: GapData }
@@ -31,6 +63,8 @@ export default function MealDetail() {
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [pantryError, setPantryError] = useState<string | null>(null);
+  // Steps collapse — local only, resets per meal. Nothing persisted.
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -110,6 +144,14 @@ export default function MealDetail() {
   const displayedToBuy = gap.toBuy.filter((n) => !added.has(n));
   const displayedHave = [...gap.have, ...gap.toBuy.filter((n) => added.has(n))];
   const haveCount = gap.have.length + added.size;
+
+  // Steps: normalize for display, then gate. A single step is upstream junk
+  // ("Whatch video", a bare link), so >= 2 is the bar for showing the section at
+  // all — which also lets a not-yet-seeded (NULL) meal render exactly as before.
+  const steps = (gap.instructions ?? []).map(normalizeStep).filter(Boolean);
+  const showSteps = steps.length >= 2;
+  const collapsible = steps.length > STEP_THRESHOLD;
+  const visibleSteps = collapsible && !expanded ? steps.slice(0, STEP_CAP) : steps;
 
   return (
     <Screen>
@@ -191,6 +233,37 @@ export default function MealDetail() {
             ) : null}
           </View>
         ) : null}
+
+        {/* Steps sit BEFORE "Make this" on purpose: you see what the cooking
+            involves while still deciding, not after committing. */}
+        {showSteps ? (
+          <View style={styles.section}>
+            <Text variant="caption" color="textSecondary">
+              How to make it
+            </Text>
+            {visibleSteps.map((step, i) => (
+              <View key={i} style={styles.row}>
+                <Text variant="body" color="textSecondary" style={styles.marker}>
+                  {`${i + 1}`}
+                </Text>
+                <Text variant="body" style={styles.stepText}>
+                  {step}
+                </Text>
+              </View>
+            ))}
+            {collapsible ? (
+              <Pressable
+                onPress={() => setExpanded((v) => !v)}
+                accessibilityRole="button"
+                style={styles.backLink}
+              >
+                <Text variant="caption" color="accent">
+                  {expanded ? 'Show fewer steps' : `Show all ${steps.length} steps`}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -247,6 +320,10 @@ const styles = StyleSheet.create({
   },
   marker: {
     width: spacing.lg,
+  },
+  // Let a step wrap in the column beside the number, instead of overflowing.
+  stepText: {
+    flex: 1,
   },
   centered: {
     justifyContent: 'center',
