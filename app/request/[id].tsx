@@ -101,7 +101,7 @@ export default function ThreeOptions() {
     return (
       <Screen style={styles.centered}>
         <Text variant="body" color="textSecondary">
-          Picking your three…
+          Picking three meals…
         </Text>
       </Screen>
     );
@@ -112,7 +112,7 @@ export default function ThreeOptions() {
       <Screen style={styles.centered}>
         <Text variant="title">That slipped away.</Text>
         <Text variant="body" color="textSecondary" style={styles.errorBody}>
-          We couldn&apos;t pull your three just now. Try once more.
+          We couldn&apos;t pull three meals just now. Try once more.
         </Text>
         <View style={styles.retry}>
           <PrimaryButton label="Try again" onPress={load} />
