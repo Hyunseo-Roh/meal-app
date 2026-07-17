@@ -65,7 +65,7 @@ export default function WhyWeChose() {
     return (
       <Screen style={styles.centered}>
         <Text variant="body" color="textSecondary">
-          Here&apos;s why…
+          Working out why…
         </Text>
       </Screen>
     );
@@ -154,7 +154,7 @@ export default function WhyWeChose() {
           style={styles.backLink}
         >
           <Text variant="caption" color="accent">
-            Back to your three
+            Back to three meals
           </Text>
         </Pressable>
       </View>
