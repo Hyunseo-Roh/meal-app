@@ -1,13 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { addPantryItem, listPantry, type PantryItem } from '../../lib/pantry';
+import {
+  addPantryItem,
+  deletePantryItem,
+  listPantry,
+  setPantryItemCategory,
+  type PantryItem,
+} from '../../lib/pantry';
 import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
 import { colors, spacing, typography } from '../../theme/tokens';
 
@@ -24,12 +31,16 @@ type Status = 'loading' | 'ready' | 'error';
 
 export default function Pantry() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [tappedPremium, setTappedPremium] = useState<string | null>(null);
+  // The item whose move sheet is open (null = closed), plus a sheet-local error.
+  const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   // Manual retry (from the error state): show the loading line while refetching.
   const load = useCallback(async () => {
@@ -84,6 +95,44 @@ export default function Pantry() {
     const v = draft;
     setDraft('');
     await add(v);
+  }
+
+  function openSheet(item: PantryItem) {
+    setSheetError(null);
+    setSheetItem(item);
+  }
+  function closeSheet() {
+    setSheetItem(null);
+    setSheetError(null);
+  }
+
+  // Move: write the new category (only labels from CATEGORY_ORDER reach here).
+  // Optimistically re-tag in the shared `items`, so the item leaves one category
+  // group and joins another — and both headers recount — in the same frame.
+  async function moveTo(item: PantryItem, target: string) {
+    setSheetError(null);
+    const prev = items;
+    setItems((cur) => cur.map((i) => (i.id === item.id ? { ...i, category: target } : i)));
+    try {
+      await setPantryItemCategory(item.id, target);
+      closeSheet();
+    } catch {
+      setItems(prev); // rollback
+      setSheetError('Couldn’t move that. Try again.');
+    }
+  }
+
+  async function removeItem(item: PantryItem) {
+    setSheetError(null);
+    const prev = items;
+    setItems((cur) => cur.filter((i) => i.id !== item.id)); // optimistic
+    try {
+      await deletePantryItem(item.id);
+      closeSheet();
+    } catch {
+      setItems(prev); // rollback
+      setSheetError('Couldn’t remove that. Try again.');
+    }
   }
 
   return (
@@ -160,31 +209,35 @@ export default function Pantry() {
               Nothing here yet — add a staple above.
             </Text>
           ) : (
-            <View style={styles.summaryList}>
-              {CATEGORY_ORDER.map((cat) => {
-                const count = items.filter((it) => categoryOf(it) === cat).length;
-                if (count === 0) return null;
-                return (
-                  <Pressable
-                    key={cat}
-                    onPress={() =>
-                      router.push({ pathname: '/pantry-category', params: { category: cat } })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={`${toSentenceCase(cat)}, ${count} items`}
-                    style={styles.summaryRow}
-                  >
-                    <Text variant="body">{toSentenceCase(cat)}</Text>
-                    <View style={styles.summaryRight}>
-                      <Text variant="caption" color="textSecondary">
-                        {`${count}`}
-                      </Text>
+            // Everything inline: each non-empty category renders its header and
+            // ALL its items. No detail page, no accordion — you scroll and see
+            // the whole pantry. Tapping an item opens the move/remove sheet.
+            CATEGORY_ORDER.map((cat) => {
+              // .filter returns a fresh array, so sorting it never mutates `items`.
+              const catItems = items
+                .filter((it) => categoryOf(it) === cat)
+                .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+              if (catItems.length === 0) return null;
+              return (
+                <View key={cat} style={styles.categoryGroup}>
+                  <Text variant="caption" color="textSecondary">
+                    {toSentenceCase(cat)}
+                  </Text>
+                  {catItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => openSheet(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Options for ${item.name}`}
+                      style={styles.itemRow}
+                    >
+                      <Text variant="body">{item.name}</Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
+                    </Pressable>
+                  ))}
+                </View>
+              );
+            })
           )}
         </View>
 
@@ -227,6 +280,54 @@ export default function Pantry() {
           ))}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={sheetItem !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeSheet}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Dismiss" />
+          {sheetItem ? (
+            <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+              <Text variant="title" style={styles.sheetTitle}>
+                {sheetItem.name}
+              </Text>
+              <Text variant="caption" color="textSecondary" style={styles.moveToLabel}>
+                Move to
+              </Text>
+              <View>
+                {/* Targets exclude THIS item's own category — derived per item now
+                    that one screen hosts every category at once. */}
+                {CATEGORY_ORDER.filter((c) => c !== categoryOf(sheetItem)).map((target) => (
+                  <Pressable
+                    key={target}
+                    onPress={() => moveTo(sheetItem, target)}
+                    accessibilityRole="button"
+                    style={styles.sheetRow}
+                  >
+                    <Text variant="body">{toSentenceCase(target)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                onPress={() => removeItem(sheetItem)}
+                accessibilityRole="button"
+                style={[styles.sheetRow, styles.removeRow]}
+              >
+                <Text variant="body">Remove</Text>
+              </Pressable>
+              {sheetError ? <Text variant="body">{sheetError}</Text> : null}
+              <Pressable onPress={closeSheet} accessibilityRole="button" style={styles.sheetRow}>
+                <Text variant="body" color="textSecondary">
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -260,11 +361,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.chipBorder,
     paddingTop: spacing.xl,
   },
-  // Tappable category summary rows: label · count · chevron, hairline separated.
-  summaryList: {
-    // Rows carry their own separators; no inter-row gap needed.
+  // One inline category: its caption header, then its item rows. The gap sits
+  // between header and rows; the rows carry their own hairline separators.
+  categoryGroup: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
-  summaryRow: {
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -273,10 +376,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
   },
-  summaryRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  // Charcoal token at low opacity — no new color. Separate view so its opacity
+  // never dims the sheet.
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.text,
+    opacity: 0.4,
+  },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: spacing.lg,
+    borderTopRightRadius: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     gap: spacing.sm,
+  },
+  sheetTitle: {
+    // 8 here + the sheet's 8 gap = ~16 of separation, so the 24 title reads as
+    // its own block above the eyebrow (the eyebrow→first row stays the 8 gap).
+    marginBottom: spacing.sm,
+  },
+  moveToLabel: {
+    // Quiet eyebrow: 13 / secondary, sentence case — drop the caption role's
+    // uppercase + tracking (same treatment as the pantry category labels).
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
+  sheetRow: {
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  removeRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.chipBorder,
+    marginTop: spacing.sm,
   },
   chipRow: {
     flexDirection: 'row',
