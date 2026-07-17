@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,6 +20,9 @@ import { colors, spacing, typography } from '../../theme/tokens';
 
 // Local staple list (decoupled — not imported from the onboarding pantry screen).
 const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
+
+// How long the "Added to X" line + row tint stay up after an add.
+const ADDED_NOTICE_MS = 2500;
 
 // Non-functional premium placeholders. No entitlement check — pure UI.
 const PREMIUM = [
@@ -41,6 +44,9 @@ export default function Pantry() {
   // The item whose move sheet is open (null = closed), plus a sheet-local error.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
+  // The just-added item: answers "where did it go?" with a line by the add field
+  // AND by tinting its row. Transient — cleared after ADDED_NOTICE_MS.
+  const [justAdded, setJustAdded] = useState<{ id: string; category: string } | null>(null);
 
   // Manual retry (from the error state): show the loading line while refetching.
   const load = useCallback(async () => {
@@ -74,6 +80,15 @@ export default function Pantry() {
     }, []),
   );
 
+  // Retire the add notice on its own. Keyed on justAdded, so a second add before
+  // the first expires clears the old timer (cleanup) and starts a fresh one —
+  // no stacked timers, and nothing fires after unmount.
+  useEffect(() => {
+    if (!justAdded) return;
+    const t = setTimeout(() => setJustAdded(null), ADDED_NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [justAdded]);
+
   const has = (name: string) => items.some((i) => i.name === name.trim().toLowerCase());
 
   async function add(name: string) {
@@ -83,7 +98,12 @@ export default function Pantry() {
     setError(null);
     try {
       const row = await addPantryItem(v);
-      if (row) setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
+      if (row) {
+        setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
+        // Categorization is implicit (addPantryItem never sets `category`; it's
+        // derived at render). Say where it landed rather than making the user hunt.
+        setJustAdded({ id: row.id, category: categoryOf(row) });
+      }
     } catch {
       setError('Couldn’t add that. Try again.');
     } finally {
@@ -165,6 +185,13 @@ export default function Pantry() {
             style={styles.input}
           />
           <PrimaryButton label={adding ? 'Adding…' : 'Add'} onPress={addDraft} disabled={adding} />
+          {/* Answers "where did it go?" right here, so the category can stay
+              below the fold without the user hunting for it. */}
+          {justAdded ? (
+            <Text variant="body" color="textSecondary">
+              {`Added to ${toSentenceCase(justAdded.category)}`}
+            </Text>
+          ) : null}
         </View>
 
         {/* Quick add — ADD-ONLY. Already-added staples render dimmed + non-interactive. */}
@@ -231,7 +258,9 @@ export default function Pantry() {
                       accessibilityLabel={`Options for ${item.name}`}
                       style={styles.itemRow}
                     >
-                      <Text variant="body">{item.name}</Text>
+                      <Text variant="body" color={justAdded?.id === item.id ? 'accent' : 'text'}>
+                        {item.name}
+                      </Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </Pressable>
                   ))}
