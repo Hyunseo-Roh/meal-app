@@ -229,7 +229,7 @@ export default function TasteEdit() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Cuisines to skip
+            Cuisines to avoid
           </Text>
           <View style={styles.checkList}>
             {cuisines.map((c) =>
@@ -256,7 +256,7 @@ export default function TasteEdit() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Ingredients to skip
+            Ingredients to avoid
           </Text>
           <TextInput
             value={ingredientDraft}
