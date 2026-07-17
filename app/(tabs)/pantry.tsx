@@ -194,7 +194,11 @@ export default function Pantry() {
           ) : null}
         </View>
 
-        {/* Quick add — ADD-ONLY. Already-added staples render dimmed + non-interactive. */}
+        {/* Quick add — ADD-ONLY. A staple you already own renders at full opacity
+            with a ✓: it reads as OWNED, not disabled (dimming it said "broken").
+            Still non-interactive — there's nothing to do to something you have.
+            The ✓ inherits Chip's unselected Charcoal (never accent fill, and never
+            Sage — Sage is the Gap Tracker's alone). */}
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
             Quick add
@@ -202,8 +206,8 @@ export default function Pantry() {
           <View style={styles.chipRow}>
             {QUICK_ADD.map((name) =>
               has(name) ? (
-                <View key={name} style={styles.dim} pointerEvents="none">
-                  <Chip label={name} selected={false} onPress={() => {}} />
+                <View key={name} pointerEvents="none">
+                  <Chip label={`✓ ${name}`} selected={false} onPress={() => {}} />
                 </View>
               ) : (
                 <Chip key={name} label={name} selected={false} onPress={() => add(name)} />
@@ -448,9 +452,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  dim: {
-    opacity: 0.4,
   },
   errorRow: {
     gap: spacing.sm,
