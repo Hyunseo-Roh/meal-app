@@ -83,7 +83,7 @@ export default function Login() {
         <View style={styles.header}>
           <Text variant="title">Log in</Text>
           <Text variant="body" color="textSecondary">
-            Welcome back.
+            Welcome back
           </Text>
         </View>
 
@@ -153,7 +153,7 @@ export default function Login() {
             style={styles.link}
           >
             <Text variant="body" color="accent">
-              New here? Save an account
+              New here? Sign up
             </Text>
           </Pressable>
         ) : null}

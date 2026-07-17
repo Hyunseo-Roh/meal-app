@@ -89,7 +89,7 @@ export default function Register() {
         <View style={styles.header}>
           <Text variant="title">Create your account</Text>
           <Text variant="body" color="textSecondary">
-            We&apos;ll send a link to confirm your email — you can start right away.
+            You can start right away.
           </Text>
         </View>
 

@@ -97,18 +97,15 @@ export default function AvoidSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="display">Anything you&apos;d rather skip?</Text>
+          <Text variant="display">Anything to avoid?</Text>
           <Text variant="body" color="textSecondary">
-            Optional — skip any cuisine or ingredient you&apos;d rather not see.
+            Optional — leave out anything you&apos;d rather not see.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Cuisines to skip
-          </Text>
-          <Text variant="body" color="textSecondary">
-            Optional. Pick any.
+            Cuisines
           </Text>
           <View style={styles.checkList}>
             {cuisines.map((c) =>
@@ -136,7 +133,7 @@ export default function AvoidSetup() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Ingredients to skip
+            Ingredients
           </Text>
           <TextInput
             value={ingredientDraft}

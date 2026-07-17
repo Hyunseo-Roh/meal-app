@@ -121,7 +121,7 @@ export default function ConstraintsSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="display">How much are you up for?</Text>
+          <Text variant="display">What works for you most nights?</Text>
         </View>
 
         <View style={styles.section}>
@@ -165,7 +165,7 @@ export default function ConstraintsSetup() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Cooking
+            Effort
           </Text>
           <View style={styles.chipRow}>
             {EFFORT_OPTIONS.map((opt) => (
