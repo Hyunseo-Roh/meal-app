@@ -40,7 +40,7 @@ function RecCard({
         />
       ) : null}
       <View style={styles.cardBody}>
-        <Text variant="caption" color="textSecondary">
+        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
           {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)} · ${
             opt.cuisine.charAt(0).toUpperCase() + opt.cuisine.slice(1)
           }`}
@@ -50,7 +50,7 @@ function RecCard({
           {opt.explanation}
         </Text>
         {opt.over_time ? (
-          <Text variant="caption" color="textSecondary">
+          <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
             A little longer than usual
           </Text>
         ) : null}
@@ -206,6 +206,13 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: spacing.lg,
     gap: spacing.sm,
+  },
+  // Card meta + over-time note are DATA/PROSE, not labels — drop the caption
+  // role's uppercase + tracking so they read "30 min · ≈$1.50 · Japanese", not
+  // shouted caps. Section-label captions (e.g. "COOK TIME") keep the uppercase.
+  dataCaption: {
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   centered: {
     justifyContent: 'center',
