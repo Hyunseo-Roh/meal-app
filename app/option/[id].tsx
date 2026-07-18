@@ -101,9 +101,8 @@ export default function WhyWeChose() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text variant="display">Here&apos;s why</Text>
           <View style={styles.nameBlock}>
-            <Text variant="title">{why.name}</Text>
+            <Text variant="display">{why.name}</Text>
             <Text variant="body" color="textSecondary">
               {subtitle}
             </Text>
