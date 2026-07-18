@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import {
   createContext,
@@ -13,37 +12,6 @@ import { Text } from '../../components/Text';
 import { colors, spacing } from '../../theme/tokens';
 
 export type BudgetLevel = 'low' | 'medium' | 'high';
-
-/**
- * Multi-select row with a checkbox indicator — makes "pick as many as you like"
- * obvious. Whole row is tappable; 44px min height for the accessibility target.
- * Checked = accent filled checkbox; unchecked = muted outline square.
- */
-export function CheckRow({
-  label,
-  checked,
-  onPress,
-}: {
-  label: string;
-  checked: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      style={sharedStyles.checkRow}
-    >
-      <Ionicons
-        name={checked ? 'checkbox' : 'square-outline'}
-        size={24}
-        color={checked ? colors.accent : colors.textSecondary}
-      />
-      <Text variant="body">{label}</Text>
-    </Pressable>
-  );
-}
 
 /**
  * An added free-text item, shown as an accent pill with a trailing × so it's
@@ -68,13 +36,6 @@ export function RemovableTag({ label, onRemove }: { label: string; onRemove: () 
 }
 
 const sharedStyles = StyleSheet.create({
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 44,
-    paddingVertical: spacing.sm,
-  },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',

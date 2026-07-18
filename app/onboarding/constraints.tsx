@@ -40,8 +40,7 @@ const COOK_TIME_OPTIONS: { label: string; value: number }[] = [
 // onboarded, and moves on to the optional Pantry step.
 export default function ConstraintsSetup() {
   const router = useRouter();
-  const { favorites, disliked, ingredients, effort, setEffort, budget, setBudget } =
-    useOnboarding();
+  const { favorites, ingredients, effort, setEffort, budget, setBudget } = useOnboarding();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +73,10 @@ export default function ConstraintsSetup() {
         // is what recommend_meals + reasons.ts read.
         pref_cuisine_ids: favorites,
         pref_cuisine_id: favorites[0] ?? null,
-        disliked_cuisine_ids: [...disliked],
+        // Onboarding no longer collects cuisine-avoids (the avoid screen dropped
+        // that section); write an explicit empty set. Engine-independent — the
+        // recommend RPC treats an empty disliked_cuisine_ids as "skip nothing".
+        disliked_cuisine_ids: [],
         disliked_ingredients: ingredients,
         pref_effort: effort,
         default_budget: budget,

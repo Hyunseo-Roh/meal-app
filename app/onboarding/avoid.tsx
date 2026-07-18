@@ -1,31 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
-import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { CheckRow, RemovableTag, useOnboarding } from './_layout';
-
-type Cuisine = { id: string; display_label: string; emoji: string };
+import { RemovableTag, useOnboarding } from './_layout';
 
 // Visual-only dietary preferences. Local component state, intentionally NOT
 // persisted — no DB column, no write to users. Presentation parity only.
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free'];
 
-// Page 2 of 3 — Never suggest / skip. Multi-select cuisines to avoid + a
-// free-text list of ingredients to skip. Both optional; selections live in the
-// shared draft and are saved at the end of Page 3 (Constraints).
+// Page 2 of 3 — Avoid. A free-text list of ingredients to skip (the only signal
+// saved here) plus visual-only dietary tags. Cuisine-level avoids were removed:
+// people don't skip whole cuisines, and it overlapped the favorite signal.
 export default function AvoidSetup() {
   const router = useRouter();
-  const { favorites, setFavorites, disliked, setDisliked, ingredients, setIngredients } =
-    useOnboarding();
+  const { ingredients, setIngredients } = useOnboarding();
 
-  const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
   // Visual-only: dietary selections live here and are never written to the DB.
   const [dietary, setDietary] = useState<Set<string>>(new Set());
@@ -37,31 +32,6 @@ export default function AvoidSetup() {
       else next.add(name);
       return next;
     });
-  }
-
-  useEffect(() => {
-    let active = true;
-    supabase
-      .from('cuisines')
-      .select('id, display_label, emoji')
-      .order('display_label')
-      .then(({ data }) => {
-        if (active && data) setCuisines(data as Cuisine[]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Mutually exclusive with the favorite chosen on Page 1.
-  function toggleDisliked(id: string) {
-    setDisliked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setFavorites((prev) => prev.filter((f) => f !== id));
   }
 
   function addIngredient() {
@@ -101,34 +71,6 @@ export default function AvoidSetup() {
           <Text variant="body" color="textSecondary">
             Optional — leave out anything you&apos;d rather not see.
           </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Cuisines
-          </Text>
-          <View style={styles.checkList}>
-            {cuisines.map((c) =>
-              favorites.includes(c.id) ? (
-                // A favorite can't also be a "never suggest" — show it disabled
-                // with a small note instead of a tappable checkbox.
-                <View key={c.id} style={styles.disabledRow}>
-                  <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
-                  <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
-                  <Text variant="caption" color="textSecondary">
-                    Your favorite
-                  </Text>
-                </View>
-              ) : (
-                <CheckRow
-                  key={c.id}
-                  label={`${c.emoji} ${c.display_label}`}
-                  checked={disliked.has(c.id)}
-                  onPress={() => toggleDisliked(c.id)}
-                />
-              ),
-            )}
-          </View>
         </View>
 
         <View style={styles.section}>
@@ -219,20 +161,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  checkList: {
-    gap: spacing.xs,
-  },
-  // Mirrors CheckRow's row layout exactly (no layout shift), but dimmed and
-  // non-tappable — the favorite can't also be a "never suggest".
-  disabledRow: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 44,
-    paddingVertical: spacing.sm,
-    opacity: 0.6,
   },
   input: {
     ...typography.body,
