@@ -10,8 +10,10 @@ type ChipProps = {
 };
 
 /**
- * Pill chip. Unselected: Greige card fill, Warm Gray border, muted text.
- * Selected: Cool Slate (accent) fill — never Sage (Sage is gap-only).
+ * Pill chip. Unselected: Greige card fill, Warm Gray border, Charcoal text.
+ * Selected: Charcoal fill + Bone text — reads as clearly active (like a mini
+ * primary button), not the muted Cool Slate that looked disabled (AA: Bone on
+ * Charcoal is 11.33:1; Bone on Cool Slate was 2.41:1). Never Sage (gap-only).
  */
 export function Chip({ label, selected, onPress }: ChipProps) {
   return (
@@ -42,7 +44,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   chipSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.text,
+    borderColor: colors.text,
   },
 });

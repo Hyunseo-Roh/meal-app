@@ -131,8 +131,10 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBorder,
   },
   pillSelected: {
-    backgroundColor: colors.accent,
+    // Charcoal fill + Bone text (see the Text color prop) — matches Chip's
+    // selected state for AA contrast; the muted Cool Slate read as disabled.
+    backgroundColor: colors.text,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: colors.text,
   },
 });
