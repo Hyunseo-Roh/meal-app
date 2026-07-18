@@ -289,7 +289,7 @@ export default function Pantry() {
               if (catItems.length === 0) return null;
               return (
                 <View key={cat} style={styles.categoryGroup}>
-                  <Text variant="caption" color="textSecondary">
+                  <Text variant="caption" color="textSecondary" style={styles.categoryHeader}>
                     {toSentenceCase(cat)}
                   </Text>
                   {catItems.map((item) => (
@@ -435,8 +435,14 @@ const styles = StyleSheet.create({
   // One inline category: its caption header, then its item rows. The gap sits
   // between header and rows; the rows carry their own hairline separators.
   categoryGroup: {
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  // Negative offset against the group's 8px gap, so the header sits ~4px above
+  // its first row (tighter than the 8px item→item gap) — the header "owns" the
+  // rows below it without a divider.
+  categoryHeader: {
+    marginBottom: -spacing.xs,
   },
   itemRow: {
     flexDirection: 'row',
