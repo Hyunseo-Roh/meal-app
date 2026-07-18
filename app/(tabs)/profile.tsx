@@ -173,7 +173,7 @@ export default function Profile() {
                     style={styles.link}
                   >
                     <Text variant="body" color="textSecondary">
-                      {deleting ? 'Deleting…' : 'Delete account'}
+                      {deleting ? 'Deleting…' : 'Delete permanently'}
                     </Text>
                   </Pressable>
                   {/* Cancel is the safe default — the present (accent) action. */}
