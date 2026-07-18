@@ -254,9 +254,10 @@ export default function Pantry() {
           </View>
         </View>
 
-        {/* Current pantry — removal is the ONLY delete path (tap the × chip).
-            Header intentionally omitted: the intro copy + tab name set the zone,
-            and a hairline divider marks the shift from the "add" zone. */}
+        {/* Current pantry — items grouped by category. Two removal paths: the
+            per-item sheet (tap a row → Remove) and tapping an owned quick-add ✓
+            chip. Header intentionally omitted: the intro copy + tab name set the
+            zone, and a hairline divider marks the shift from the "add" zone. */}
         <View style={[styles.section, styles.pantryZone]}>
           {status === 'loading' ? (
             <Text variant="body" color="textSecondary">
