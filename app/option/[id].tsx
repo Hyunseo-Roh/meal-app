@@ -100,15 +100,6 @@ export default function WhyWeChose() {
         <Ionicons name="chevron-back" size={28} color={colors.text} />
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {imageUrl && !imageFailed ? (
-          <Image
-            source={{ uri: upsizeImageUrl(imageUrl) }}
-            style={styles.image}
-            resizeMode="cover"
-            onError={() => setImageFailed(true)}
-          />
-        ) : null}
-
         <View style={styles.header}>
           <Text variant="display">Here&apos;s why</Text>
           <View style={styles.nameBlock}>
@@ -136,6 +127,15 @@ export default function WhyWeChose() {
         <Text variant="caption" color="textSecondary">
           {`${why.cookTimeMin} min`} · {formatCost(why.estCost)}
         </Text>
+
+        {imageUrl && !imageFailed ? (
+          <Image
+            source={{ uri: upsizeImageUrl(imageUrl) }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
