@@ -31,7 +31,7 @@ export default function Welcome() {
           accessibilityRole="button"
           style={styles.link}
         >
-          <Text variant="body" color="accent">
+          <Text variant="body" color="textSecondary">
             Log in
           </Text>
         </Pressable>
