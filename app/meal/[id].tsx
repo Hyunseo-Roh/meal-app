@@ -208,23 +208,26 @@ export default function MealDetail() {
               What to buy
             </Text>
             {displayedToBuy.map((name) => (
-              <View key={name} style={styles.row}>
-                <Pressable
-                  onPress={() => addToPantry(name)}
-                  disabled={adding.has(name)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Add ${name} to pantry`}
-                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                  style={styles.marker}
-                >
-                  <Text variant="body" color="textSecondary">
-                    +
-                  </Text>
-                </Pressable>
+              // Whole row is the add target (not just the "+"), so tapping the
+              // ingredient word adds it too. The "+" is now a plain visual marker.
+              <Pressable
+                key={name}
+                onPress={() => addToPantry(name)}
+                disabled={adding.has(name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${name} to pantry`}
+                // Row text is ~24px tall; pad the tap area to a ≥44px target
+                // (the "+" carried this via hitSlop before it became a marker).
+                hitSlop={{ top: 12, bottom: 12 }}
+                style={styles.row}
+              >
+                <Text variant="body" color="textSecondary" style={styles.marker}>
+                  +
+                </Text>
                 <Text variant="body" color="textSecondary">
                   {name}
                 </Text>
-              </View>
+              </Pressable>
             ))}
             {pantryError ? (
               <Text variant="body" color="textSecondary">
