@@ -25,34 +25,8 @@ const BUDGET_OPTIONS: { label: string; description: string; value: BudgetLevel }
   { label: 'High', description: 'No limit', value: 'high' },
 ];
 
-// Local replicas of onboarding's CheckRow / RemovableTag (NOT imported — keeps
-// this screen decoupled from the onboarding draft layout).
-function CheckRow({
-  label,
-  checked,
-  onPress,
-}: {
-  label: string;
-  checked: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      style={styles.checkRow}
-    >
-      <Ionicons
-        name={checked ? 'checkbox' : 'square-outline'}
-        size={24}
-        color={checked ? colors.accent : colors.textSecondary}
-      />
-      <Text variant="body">{label}</Text>
-    </Pressable>
-  );
-}
-
+// Local replica of onboarding's RemovableTag (NOT imported — keeps this screen
+// decoupled from the onboarding draft layout).
 function RemovableTag({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <Pressable
@@ -78,7 +52,6 @@ export default function TasteEdit() {
   const [status, setStatus] = useState<Status>('loading');
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]); // ordered, max 3
-  const [disliked, setDisliked] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState('');
   const [effort, setEffort] = useState<number | null>(null);
@@ -98,7 +71,6 @@ export default function TasteEdit() {
         if (!active) return;
         setCuisines((cuisineRows ?? []) as Cuisine[]);
         setFavorites(profile.favoriteCuisineIds);
-        setDisliked(new Set(profile.dislikedCuisineIds));
         setIngredients(profile.dislikedIngredients);
         setEffort(profile.effort);
         setBudget(profile.budget);
@@ -113,28 +85,12 @@ export default function TasteEdit() {
   }, []);
 
   // Chosen favorites — an unordered set, max 3 (no rank): tapping toggles a
-  // cuisine in/out; a 4th tap is ignored. Mutual exclusion: becoming a favorite
-  // removes the cuisine from the "never suggest" avoid set.
+  // cuisine in/out; a 4th tap is ignored.
   function pickFavorite(id: string) {
     setFavorites((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 3) return prev;
       return [...prev, id];
-    });
-    setDisliked((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleDisliked(id: string) {
-    setDisliked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
     });
   }
 
@@ -155,7 +111,6 @@ export default function TasteEdit() {
     try {
       await saveTasteProfile({
         favoriteCuisineIds: favorites,
-        dislikedCuisineIds: [...disliked],
         dislikedIngredients: ingredients,
         effort,
         budget,
@@ -224,33 +179,6 @@ export default function TasteEdit() {
                 onPress={() => pickFavorite(c.id)}
               />
             ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Cuisines to avoid
-          </Text>
-          <View style={styles.checkList}>
-            {cuisines.map((c) =>
-              favorites.includes(c.id) ? (
-                // A favorite can't also be a "never suggest" — greyed, non-tappable.
-                <View key={c.id} style={styles.disabledRow}>
-                  <Ionicons name="square-outline" size={24} color={colors.textSecondary} />
-                  <Text variant="body">{`${c.emoji} ${c.display_label}`}</Text>
-                  <Text variant="caption" color="textSecondary">
-                    Your favorite
-                  </Text>
-                </View>
-              ) : (
-                <CheckRow
-                  key={c.id}
-                  label={`${c.emoji} ${c.display_label}`}
-                  checked={disliked.has(c.id)}
-                  onPress={() => toggleDisliked(c.id)}
-                />
-              ),
-            )}
           </View>
         </View>
 
@@ -353,24 +281,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  checkList: {
-    gap: spacing.xs,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 44,
-    paddingVertical: spacing.sm,
-  },
-  disabledRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 44,
-    paddingVertical: spacing.sm,
-    opacity: 0.6,
   },
   tag: {
     flexDirection: 'row',

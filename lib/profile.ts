@@ -89,8 +89,16 @@ export async function loadTasteSummary(): Promise<{
   };
 }
 
-/** Single users UPDATE — exact same columns as onboarding's constraints.tsx save. */
-export async function saveTasteProfile(p: TasteProfile): Promise<void> {
+/**
+ * Single users UPDATE. The editor no longer edits cuisine-avoids, so
+ * `disliked_cuisine_ids` is intentionally OMITTED from the payload — never
+ * written — which preserves any legacy stored value instead of clearing it.
+ * The input type drops that field for the same reason. loadTasteProfile still
+ * returns it (Profile's avoids count reads it); only the write forgoes it.
+ */
+export async function saveTasteProfile(
+  p: Omit<TasteProfile, 'dislikedCuisineIds'>,
+): Promise<void> {
   const userId = await getCurrentUserId();
   const { error } = await withTimeout(
     supabase
@@ -101,7 +109,6 @@ export async function saveTasteProfile(p: TasteProfile): Promise<void> {
         // is what recommend_meals + reasons.ts read.
         pref_cuisine_ids: p.favoriteCuisineIds,
         pref_cuisine_id: p.favoriteCuisineIds[0] ?? null,
-        disliked_cuisine_ids: p.dislikedCuisineIds,
         disliked_ingredients: p.dislikedIngredients,
         pref_effort: p.effort,
         default_budget: p.budget,
