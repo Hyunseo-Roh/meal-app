@@ -40,12 +40,16 @@ function RecCard({
         />
       ) : null}
       <View style={styles.cardBody}>
-        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-          {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)} · ${
-            opt.cuisine.charAt(0).toUpperCase() + opt.cuisine.slice(1)
-          }`}
+        {/* Cuisine is now a category eyebrow above the name — ALLCAPS (no
+            dataCaption) since it reads as a label here, not crammed data. */}
+        <Text variant="caption" color="textSecondary" style={styles.cardEyebrow}>
+          {opt.cuisine.charAt(0).toUpperCase() + opt.cuisine.slice(1)}
         </Text>
         <Text variant="title">{opt.meal}</Text>
+        {/* Meta is now just time · cost (one dot); cuisine moved to the eyebrow. */}
+        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+          {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)}`}
+        </Text>
         <Text variant="body" color="textSecondary" numberOfLines={2}>
           {opt.explanation}
         </Text>
@@ -208,11 +212,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   // Card meta + over-time note are DATA/PROSE, not labels — drop the caption
-  // role's uppercase + tracking so they read "30 min · ≈$1.50 · Japanese", not
-  // shouted caps. Section-label captions (e.g. "COOK TIME") keep the uppercase.
+  // role's uppercase + tracking so they read "30 min · ≈$1.50", not shouted caps.
+  // Section-label captions (e.g. "COOK TIME") keep the uppercase.
   dataCaption: {
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  // Cuisine eyebrow keeps the caption role's uppercase (it's a category label).
+  // Negative offset against cardBody's 8px gap nets ~4px to the name, so the
+  // eyebrow reads as belonging to the name below it (same pattern as the pantry
+  // category header).
+  cardEyebrow: {
+    marginBottom: -spacing.xs,
   },
   centered: {
     justifyContent: 'center',
