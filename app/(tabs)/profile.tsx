@@ -194,12 +194,6 @@ export default function Profile() {
           </>
         ) : null}
       </ScrollView>
-
-      <Pressable onPress={signOutToStart} accessibilityLabel="Start over" style={styles.reset}>
-        <Text variant="caption" color="textSecondary">
-          Start over
-        </Text>
-      </Pressable>
     </Screen>
   );
 }
@@ -239,9 +233,5 @@ const styles = StyleSheet.create({
     // Supporting sentence at 13/secondary — drop the caption role's uppercase + tracking.
     textTransform: 'none',
     letterSpacing: 0,
-  },
-  reset: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
   },
 });
