@@ -21,6 +21,12 @@ export type TasteProfile = {
 const EFFORT_LABEL: Record<number, string> = { 1: 'Easy', 2: 'Medium', 3: 'Involved' };
 const BUDGET_LABEL: Record<BudgetLevel, string> = { low: 'Low', medium: 'Medium', high: 'High' };
 
+// Ingredient names are stored lowercase; capitalize the first letter for display
+// (same one-liner as gap.ts / recommend.ts). Cuisine labels already arrive cased.
+function capitalize(s: string): string {
+  return s.length ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
 /** Raw current values, for the editor to seed its local state. */
 export async function loadTasteProfile(): Promise<TasteProfile> {
   const userId = await getCurrentUserId();
@@ -56,34 +62,42 @@ export async function loadTasteProfile(): Promise<TasteProfile> {
 /** Display-ready summary for the Profile screen (resolves cuisine names; no rank). */
 export async function loadTasteSummary(): Promise<{
   favoriteCuisines: string[];
-  avoidsCount: number;
+  avoids: string[];
   effortLabel: string | null;
   budgetLabel: string | null;
 }> {
   const p = await loadTasteProfile();
 
-  // Resolve the favorites' display names (second small query — avoids guessing
-  // the users→cuisines FK-embed constraint name). Favorites are unordered; we
-  // keep the stored insertion order for a stable display. Unresolved ids drop out.
-  let favoriteCuisines: string[] = [];
-  if (p.favoriteCuisineIds.length > 0) {
+  // Resolve cuisine ids → display labels in ONE query covering both lists
+  // (favorites AND legacy disliked cuisines). Avoids guessing the users→cuisines
+  // FK-embed constraint name. Each list keeps its own stored order; unresolved
+  // ids (e.g. a cuisine that no longer exists) drop out of that list.
+  const cuisineIds = [...p.favoriteCuisineIds, ...p.dislikedCuisineIds];
+  let labelById = new Map<string, string>();
+  if (cuisineIds.length > 0) {
     const { data } = await withTimeout(
-      supabase.from('cuisines').select('id, display_label').in('id', p.favoriteCuisineIds),
+      supabase.from('cuisines').select('id, display_label').in('id', cuisineIds),
     );
-    const labelById = new Map(
+    labelById = new Map(
       ((data as { id: string; display_label: string }[] | null) ?? []).map((c) => [
         c.id,
         c.display_label,
       ]),
     );
-    favoriteCuisines = p.favoriteCuisineIds
-      .map((id) => labelById.get(id))
-      .filter((label): label is string => !!label);
   }
+  const resolve = (ids: string[]): string[] =>
+    ids.map((id) => labelById.get(id)).filter((label): label is string => !!label);
+
+  const favoriteCuisines = resolve(p.favoriteCuisineIds);
+
+  // "Avoids" is the user's stated avoid set, shown in full: legacy cuisine
+  // dislikes (read-only — no longer editable, but still filter recommend_meals)
+  // FIRST, then the ingredient names. Dietary is excluded (never persisted).
+  const avoids = [...resolve(p.dislikedCuisineIds), ...p.dislikedIngredients.map(capitalize)];
 
   return {
     favoriteCuisines,
-    avoidsCount: p.dislikedCuisineIds.length + p.dislikedIngredients.length,
+    avoids,
     effortLabel: p.effort != null ? (EFFORT_LABEL[p.effort] ?? null) : null,
     budgetLabel: p.budget ? (BUDGET_LABEL[p.budget] ?? null) : null,
   };

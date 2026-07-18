@@ -18,7 +18,7 @@ const ONBOARDED_KEY = 'app_onboarded';
 type Account = { email: string | null } | null;
 type TasteSummary = {
   favoriteCuisines: string[];
-  avoidsCount: number;
+  avoids: string[];
   effortLabel: string | null;
   budgetLabel: string | null;
 };
@@ -120,7 +120,9 @@ export default function Profile() {
                 <Text variant="body" color="textSecondary">
                   Avoids
                 </Text>
-                <Text variant="body">{`${taste?.avoidsCount ?? 0}`}</Text>
+                <Text variant="body">
+                  {taste && taste.avoids.length > 0 ? taste.avoids.join(' · ') : 'None'}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text variant="body" color="textSecondary">
