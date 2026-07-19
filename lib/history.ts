@@ -24,7 +24,7 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
     supabase
       .from('recommendation_options')
       .select(
-        'meal_id, recommendation_requests!inner(created_at, user_id), meals(name, cuisines!fk_meals_cuisine(display_label))',
+        'meal_id, recommendation_requests!inner(created_at, user_id), meals!fk_options_meal(name, cuisines!fk_meals_cuisine(display_label))',
       )
       .eq('was_selected', true)
       .eq('recommendation_requests.user_id', userId),
