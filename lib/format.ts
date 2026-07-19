@@ -17,3 +17,19 @@ export function formatCost(estCost: number): string {
 export function upsizeImageUrl(url: string): string {
   return url.replace('-312x231.', '-636x393.');
 }
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const;
+
+/**
+ * Terse absolute date for the History list, e.g. "Jul 10" (no year — recency
+ * reads fine without it). Manual month array rather than Intl so it's identical
+ * across Hermes/web with no locale surprises. Returns '' for a bad/empty date.
+ */
+export function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
