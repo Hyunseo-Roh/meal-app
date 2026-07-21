@@ -128,9 +128,10 @@ const styles = StyleSheet.create({
     // Rows carry their own hairline separators; no inter-row gap.
   },
   itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    // Stacked (not space-between): long meal names get their own full-width line
+    // above the date·cuisine caption, so nothing collides on the right edge.
+    gap: spacing.xs,
+    justifyContent: 'center',
     minHeight: 44,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
