@@ -130,6 +130,10 @@ const styles = StyleSheet.create({
   itemRow: {
     // Stacked (not space-between): long meal names get their own full-width line
     // above the date·cuisine caption, so nothing collides on the right edge.
+    // Column + flex-start are explicit (not relying on RN defaults) so the stack
+    // can't silently regress to a side-by-side row.
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: spacing.xs,
     justifyContent: 'center',
     minHeight: 44,
