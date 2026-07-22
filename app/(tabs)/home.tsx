@@ -12,9 +12,11 @@ import {
   buildExplanation,
   fetchRecommendations,
   materializeSelection,
+  recordSwapRejection,
   type BudgetLevel,
   type RecParams,
   type RecRow,
+  type Tier,
 } from '../../lib/recommend';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -35,7 +37,9 @@ const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
 // Mood is per-session, optional. Free-ish presets only.
 const MOOD_OPTIONS = ['Tired', 'Comfort', 'Adventurous', 'Light', 'Quick'];
 
-const TIER_ORDER: Record<RecRow['tier'], number> = { familiar: 0, adjacent: 1, stretch: 2 };
+const TIERS: Tier[] = ['familiar', 'adjacent', 'stretch'];
+// Total "Not for me" swaps allowed per session, counted across all three cards.
+const SWAP_CAP = 3;
 
 // One recommendation card: optional photo + cuisine eyebrow, name, meta, reason.
 function RecCard({
@@ -99,6 +103,20 @@ export default function Home() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [images, setImages] = useState<Record<string, string>>({});
 
+  // Which within-tier rank is currently shown per tier. Resets with each new row
+  // set (filter change) — a fresh shown trio starts at rank 0.
+  const [shownRank, setShownRank] = useState<Record<Tier, number>>({
+    familiar: 0,
+    adjacent: 0,
+    stretch: 0,
+  });
+  // Swap budget: 3 total across all three cards. PERSISTS across filter changes
+  // within the session — otherwise toggling a filter would refill the budget and
+  // defeat the cap. swapsRef is the tap-proof source of truth for the guard;
+  // swapsUsed mirrors it for rendering.
+  const swapsRef = useRef(0);
+  const [swapsUsed, setSwapsUsed] = useState(0);
+
   // Persistence seam. `matRef` memoizes the single materialize() call for the
   // current shown set; it's reset to null on every (re)fetch so the next
   // engagement persists a fresh request. The swap feature will call
@@ -111,6 +129,7 @@ export default function Home() {
   const load = useCallback(async (params: RecParams) => {
     paramsRef.current = params;
     matRef.current = null; // filters changed → any prior materialization is stale
+    setShownRank({ familiar: 0, adjacent: 0, stretch: 0 }); // new set → show rank 0
     setStatus((prev) => (prev === 'ready' ? prev : 'loading'));
     setImages({});
     try {
@@ -119,12 +138,13 @@ export default function Home() {
       setRows(recs);
       setStatus('ready');
 
-      // Photos are optional — fetch the shown three separately, degrade gracefully.
-      const shownIds = recs.filter((r) => r.tier_rank === 0).map((r) => r.meal_id);
+      // Prefetch ALL 12 photos (not just the shown three) so a swap to an
+      // alternate is instant with its image. Optional — degrades gracefully.
+      const allIds = recs.map((r) => r.meal_id);
       supabase
         .from('meals')
         .select('id, image_url')
-        .in('id', shownIds)
+        .in('id', allIds)
         .then(({ data }) => {
           const map: Record<string, string> = {};
           (data ?? []).forEach((r) => {
@@ -170,11 +190,52 @@ export default function Home() {
     [ensureMaterialized, router],
   );
 
-  const shown =
-    rows
-      ?.filter((r) => r.tier_rank === 0)
-      .slice()
-      .sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]) ?? [];
+  // Rows for one tier, in tier_rank order (0 = shown, 1..3 = alternates).
+  const tierRows = useCallback(
+    (tier: Tier) =>
+      (rows ?? []).filter((r) => r.tier === tier).sort((a, b) => a.tier_rank - b.tier_rank),
+    [rows],
+  );
+
+  // "Not for me": swap the rejected card for the next-ranked alternate in the
+  // same tier. Optimistic + in-memory (no refetch); the rejection write is
+  // best-effort in the background and never reverts the card already shown.
+  const onSwap = useCallback(
+    (tier: Tier, rejected: RecRow) => {
+      const list = tierRows(tier);
+      const cur = shownRank[tier];
+      // Tap-proof cap guard via ref; also require a next alternate to exist.
+      if (swapsRef.current >= SWAP_CAP || cur + 1 >= list.length) return;
+
+      swapsRef.current += 1;
+      setSwapsUsed(swapsRef.current);
+      setShownRank((prev) => ({ ...prev, [tier]: prev[tier] + 1 }));
+
+      void (async () => {
+        try {
+          const { optionByMeal } = await ensureMaterialized();
+          const optionId = optionByMeal.get(rejected.meal_id);
+          if (optionId) {
+            const userId = await getCurrentUserId();
+            await recordSwapRejection(userId, optionId);
+          }
+        } catch {
+          // Best-effort: the signal is nice-to-have; never revert a shown card.
+        }
+      })();
+    },
+    [tierRows, shownRank, ensureMaterialized],
+  );
+
+  // The currently shown card per tier, plus whether an alternate remains.
+  const shownCards = TIERS.map((tier) => {
+    const list = tierRows(tier);
+    const card = list[shownRank[tier]] ?? list[0];
+    return { tier, card, hasNext: shownRank[tier] + 1 < list.length };
+  }).filter((x): x is { tier: Tier; card: RecRow; hasNext: boolean } => Boolean(x.card));
+
+  const capped = swapsUsed >= SWAP_CAP;
+  const hasCards = shownCards.length > 0;
 
   return (
     <Screen>
@@ -238,7 +299,7 @@ export default function Home() {
           </View>
         </View>
 
-        {status === 'error' && shown.length === 0 ? (
+        {status === 'error' && !hasCards ? (
           <View style={styles.stateBlock}>
             <Text variant="title">That slipped away.</Text>
             <Text variant="body" color="textSecondary">
@@ -254,22 +315,48 @@ export default function Home() {
               </Text>
             </Pressable>
           </View>
-        ) : status === 'loading' && shown.length === 0 ? (
+        ) : status === 'loading' && !hasCards ? (
           <View style={styles.stateBlock}>
             <Text variant="body" color="textSecondary">
               Picking three meals…
             </Text>
           </View>
         ) : (
-          shown.map((row) => (
-            <RecCard
-              key={row.meal_id}
-              opt={row}
-              explanation={buildExplanation(row)}
-              imageUrl={images[row.meal_id] ?? null}
-              onPress={() => onSelect(row)}
-            />
-          ))
+          <>
+            {shownCards.map(({ tier, card, hasNext }) => (
+              <View key={tier} style={styles.tierBlock}>
+                <RecCard
+                  opt={card}
+                  explanation={buildExplanation(card)}
+                  imageUrl={images[card.meal_id] ?? null}
+                  onPress={() => onSelect(card)}
+                />
+                {/* Swap affordance. Hidden at the cap (the cap line covers it);
+                    muted note when this lane has no alternate left. */}
+                {capped ? null : !hasNext ? (
+                  <Text variant="caption" color="textSecondary" style={styles.swapNote}>
+                    Nothing else in this lane
+                  </Text>
+                ) : (
+                  <Pressable
+                    onPress={() => onSwap(tier, card)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Not for me — swap ${card.meal}`}
+                    style={styles.swapRow}
+                  >
+                    <Text variant="caption" color="textSecondary" style={styles.swapNote}>
+                      Not for me
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            ))}
+            {capped ? (
+              <Text variant="body" color="textSecondary">
+                That&apos;s three swaps — go with one of these
+              </Text>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </Screen>
@@ -302,6 +389,22 @@ const styles = StyleSheet.create({
   link: {
     minHeight: 44,
     justifyContent: 'center',
+  },
+  // A card plus its swap affordance below it.
+  tierBlock: {
+    gap: spacing.sm,
+  },
+  // "Not for me" tap target — low emphasis, its own row under the card.
+  swapRow: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  // Reset the caption role's uppercase/tracking so it reads as a quiet action,
+  // not a shouted label.
+  swapNote: {
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   card: {
     backgroundColor: colors.card,

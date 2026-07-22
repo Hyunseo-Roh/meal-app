@@ -123,3 +123,17 @@ export async function materializeSelection(
   for (const o of inserted) optionByMeal.set(o.meal_id as string, o.id as string);
   return { requestId, optionByMeal };
 }
+
+/**
+ * Record a "Not for me" swap rejection — the light, decaying negative signal.
+ * Kept OUT of the feedback table (that's the heavy, persistent post-cook signal);
+ * this writes to swap_rejections, keyed by the rejected shown option. created_at
+ * defaults to now() in the DB. Best-effort: callers should swallow failures and
+ * never revert a card the user has already been shown.
+ */
+export async function recordSwapRejection(userId: string, optionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('swap_rejections')
+    .insert({ user_id: userId, option_id: optionId });
+  if (error) throw new Error('swap_rejection_failed');
+}

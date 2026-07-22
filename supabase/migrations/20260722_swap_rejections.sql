@@ -1,16 +1,31 @@
--- Source-of-truth mirror of the deployed public.recommend_meals function.
--- Kept in lockstep with the supabase/migrations/20260722_*.sql set
--- (topk_avoid_budget, then time_soft_penalty, then swap_rejections).
+-- Swap rejections: the light, decaying negative signal from "Not for me" on the
+-- Home screen (skimming past a name + photo), kept SEPARATE from post-cook
+-- feedback (the heavy, persistent ±20 signal from actually cooking a meal).
 --
--- Behaviour: hard avoid exclusion (disliked_ingredients, token-subset match) +
--- budget reads default_budget then pref_budget + deterministic ordering
--- (meal_id tiebreaker) + top-K per tier (K=4) where the three tier_rank=0 shown
--- cards are resolved FIRST (familiar/adjacent/stretch, previous logic) and only
--- then tier_rank 1..3 are filled from the remaining pool. Empty-tier fallback
--- guarantees three tiers. Time is a SOFT signal: within_time is NOT in the
--- ORDER BY; instead a linear over-time penalty (-1.5 pts/min over the requested
--- time, capped -60, none when no time is requested) is folded into `score`, and
--- over_time is kept purely as a display flag. Argument signature unchanged.
+-- Additive only: a new table + a CREATE OR REPLACE of recommend_meals. Touches
+-- none of the 8 existing tables and no enum. RETURNS is unchanged, so no DROP
+-- and no client-contract break.
+--
+-- Weighting (deliberately lighter than cooked feedback's ±20, and decaying):
+--   fresh penalty -8 per rejection, linearly to 0 at 21 days (by wall-clock age
+--   of created_at), summed per meal and floored at -12. The -12 floor stays
+--   clear of the -20 cooked rejection so a stack of skims can never read like
+--   one cook-and-disappointed.
+
+begin;
+
+create table if not exists public.swap_rejections (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null,
+  option_id  uuid not null references public.recommendation_options(id),
+  created_at timestamptz not null default now()
+);
+
+-- Dev posture matches the rest of the schema (RLS disabled, anon GRANT ALL).
+grant all on public.swap_rejections to anon, authenticated, service_role;
+
+create index if not exists swap_rejections_user_idx on public.swap_rejections (user_id);
+create index if not exists swap_rejections_option_idx on public.swap_rejections (option_id);
 
 create or replace function public.recommend_meals(
   p_user_id uuid,
@@ -107,7 +122,6 @@ as $function$
           else 0
         end
       -- Soft over-time penalty: -1.5 pts/min over the requested time, capped -60.
-      -- No time requested => no penalty (greatest(0, 0)).
       - least(60, round(1.5 * greatest(0,
           case when p_time_available is null then 0 else m.cook_time_min - p_time_available end
         )))::int
@@ -144,8 +158,6 @@ as $function$
       )
   ),
   ranked as (
-    -- within_time removed from the ordering; time now lives in `score` as a
-    -- penalty. meal_id keeps ordering deterministic.
     select *,
       row_number() over (
         order by score desc, cook_time_min asc, est_cost asc, meal_id
@@ -161,8 +173,6 @@ as $function$
     order by r.rk limit 1
   ),
   a0f as (
-    -- pri sorts the primary pick (a0) ahead of the fallback; the fallback rows
-    -- only exist when a0 is empty. ORDER BY references output columns (post-UNION).
     select meal_id, meal, cuisine, cuisine_id, effort_level, est_cost,
            cook_time_min, within_time, score, rk
     from (
@@ -244,3 +254,5 @@ as $function$
     case tier when 'familiar' then 0 when 'adjacent' then 1 else 2 end,
     tier_rank;
 $function$;
+
+commit;
