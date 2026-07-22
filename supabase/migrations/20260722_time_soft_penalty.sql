@@ -1,16 +1,21 @@
--- Source-of-truth mirror of the deployed public.recommend_meals function.
--- Kept in lockstep with the supabase/migrations/20260722_*.sql pair
--- (topk_avoid_budget, then time_soft_penalty).
+-- Time becomes a soft preference instead of a hard primary sort.
 --
--- Behaviour: hard avoid exclusion (disliked_ingredients, token-subset match) +
--- budget reads default_budget then pref_budget + deterministic ordering
--- (meal_id tiebreaker) + top-K per tier (K=4) where the three tier_rank=0 shown
--- cards are resolved FIRST (familiar/adjacent/stretch, previous logic) and only
--- then tier_rank 1..3 are filled from the remaining pool. Empty-tier fallback
--- guarantees three tiers. Time is a SOFT signal: within_time is NOT in the
--- ORDER BY; instead a linear over-time penalty (-1.5 pts/min over the requested
--- time, capped -60, none when no time is requested) is folded into `score`, and
--- over_time is kept purely as a display flag. Argument signature unchanged.
+-- Previously the ranked CTE ordered by `within_time DESC` first, which made a
+-- 15-minute request pin the familiar card to the single <=15-min meal in the
+-- catalog regardless of taste/budget/score. This removes within_time from the
+-- ORDER BY entirely and instead folds a linear over-time penalty into `score`:
+--
+--   penalty = least(60, round(1.5 * minutes_over))   -- capped at -60
+--
+-- -1.5 points per minute over the requested time. The -60 cap is deliberately
+-- high (reached at 40 min over) so it does not reintroduce a binary-time cliff.
+-- When p_time_available is null there is no penalty at all. `over_time` is kept
+-- exactly as before (not within_time) as an honest display flag only.
+--
+-- RETURNS is UNCHANGED (still includes tier_rank), so this is a plain
+-- CREATE OR REPLACE: no DROP, no argument-signature change, no client change,
+-- and no window where prod runs a mismatched function/client pair. Kept in
+-- lockstep with supabase/recommend_meals.sql.
 
 create or replace function public.recommend_meals(
   p_user_id uuid,
@@ -147,8 +152,6 @@ as $function$
     order by r.rk limit 1
   ),
   a0f as (
-    -- pri sorts the primary pick (a0) ahead of the fallback; the fallback rows
-    -- only exist when a0 is empty. ORDER BY references output columns (post-UNION).
     select meal_id, meal, cuisine, cuisine_id, effort_level, est_cost,
            cook_time_min, within_time, score, rk
     from (
