@@ -243,12 +243,17 @@ export default function Pantry() {
               has(name) ? (
                 <Chip
                   key={name}
-                  label={`✓ ${name}`}
+                  label={`✓ ${toSentenceCase(name)}`}
                   selected={false}
                   onPress={() => removeStaple(name)}
                 />
               ) : (
-                <Chip key={name} label={name} selected={false} onPress={() => add(name)} />
+                <Chip
+                  key={name}
+                  label={toSentenceCase(name)}
+                  selected={false}
+                  onPress={() => add(name)}
+                />
               ),
             )}
           </View>
@@ -302,7 +307,7 @@ export default function Pantry() {
                       style={styles.itemRow}
                     >
                       <Text variant="body" color={justAdded?.id === item.id ? 'accent' : 'text'}>
-                        {item.name}
+                        {toSentenceCase(item.name)}
                       </Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </Pressable>
@@ -364,7 +369,7 @@ export default function Pantry() {
           {sheetItem ? (
             <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
               <Text variant="title" style={styles.sheetTitle}>
-                {sheetItem.name}
+                {toSentenceCase(sheetItem.name)}
               </Text>
               <Text variant="caption" color="textSecondary" style={styles.moveToLabel}>
                 Move to

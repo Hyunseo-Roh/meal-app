@@ -259,8 +259,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
+  // Each group (Account, Taste, Meals you've made) is a flat Greige card on the
+  // Bone background, so the groups read AS groups — hierarchy from surface, not
+  // from bolding. Labels stay textSecondary, values Charcoal (set on the Texts).
   section: {
     gap: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -288,12 +294,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  // Quiet bottom zone for the destructive delete flow — a hairline + padding
-  // separate it from the Taste section above.
+  // Destructive delete flow sits OUTSIDE the cards, on the Bone background, with
+  // generous space above (on top of the content gap) so it never reads at the
+  // same visual weight as a preference row.
   deleteZone: {
-    borderTopWidth: 1,
-    borderTopColor: colors.chipBorder,
-    paddingTop: spacing.md,
+    marginTop: spacing.xl,
   },
   deleteConfirm: {
     gap: spacing.sm,

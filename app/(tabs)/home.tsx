@@ -7,7 +7,7 @@ import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
 import { upsizeImageUrl } from '../../lib/format';
-import { getMealGreeting } from '../../lib/greeting';
+import { getPicksHeading } from '../../lib/greeting';
 import {
   buildExplanation,
   fetchRecommendations,
@@ -181,7 +181,7 @@ export default function Home() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="title" style={styles.heading}>
-            {getMealGreeting(new Date())}
+            {getPicksHeading(new Date())}
           </Text>
           <Text variant="body" color="textSecondary">
             Three picks — filter to narrow them
