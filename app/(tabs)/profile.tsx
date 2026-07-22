@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -95,25 +96,37 @@ export default function Profile() {
 
         {loaded ? (
           <>
-            {/* Account — every user is a real, signed-in account. */}
+            {/* Settings screen: no card surfaces. Grouping comes from whitespace
+                (large gaps between sections, tight rows within) + hairlines that
+                appear ONLY between rows inside a section, never between sections. */}
+
+            {/* ACCOUNT */}
             <View style={styles.section}>
               <Text variant="caption" color="textSecondary">
                 Account
               </Text>
-              {account?.email ? <Text variant="body">{account.email}</Text> : null}
-              <Pressable onPress={signOutToStart} accessibilityRole="button" style={styles.link}>
+              {account?.email ? (
+                <View style={styles.row}>
+                  <Text variant="body">{account.email}</Text>
+                </View>
+              ) : null}
+              <Pressable
+                onPress={signOutToStart}
+                accessibilityRole="button"
+                style={[styles.row, account?.email ? styles.divider : null]}
+              >
                 <Text variant="body" color="accent">
                   Log out
                 </Text>
               </Pressable>
             </View>
 
-            {/* Taste summary */}
+            {/* TASTE */}
             <View style={styles.section}>
               <Text variant="caption" color="textSecondary">
                 Taste
               </Text>
-              <View style={styles.summaryRow}>
+              <View style={styles.row}>
                 <Text variant="body" color="textSecondary">
                   Favorite
                 </Text>
@@ -123,7 +136,7 @@ export default function Profile() {
                     : 'Not set'}
                 </Text>
               </View>
-              <View style={styles.summaryRow}>
+              <View style={[styles.row, styles.divider]}>
                 <Text variant="body" color="textSecondary">
                   Avoids
                 </Text>
@@ -131,13 +144,13 @@ export default function Profile() {
                   {taste && taste.avoids.length > 0 ? taste.avoids.join(' · ') : 'None'}
                 </Text>
               </View>
-              <View style={styles.summaryRow}>
+              <View style={[styles.row, styles.divider]}>
                 <Text variant="body" color="textSecondary">
                   Effort
                 </Text>
                 <Text variant="body">{taste?.effortLabel ?? 'Not set'}</Text>
               </View>
-              <View style={styles.summaryRow}>
+              <View style={[styles.row, styles.divider]}>
                 <Text variant="body" color="textSecondary">
                   Budget
                 </Text>
@@ -146,60 +159,63 @@ export default function Profile() {
               <Pressable
                 onPress={() => router.push('/taste/edit')}
                 accessibilityRole="button"
-                style={styles.link}
+                style={[styles.navRow, styles.divider]}
               >
-                <Text variant="body" color="accent">
-                  Edit taste
-                </Text>
+                <Text variant="body">Edit taste</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </Pressable>
             </View>
 
-            {/* Meals you've made — inline preview of the 3 most recent; "See all"
-                pushes the full list so this section can't bury Delete account. */}
+            {/* SUBSCRIPTION seam — the next section slots in HERE, between Taste
+                and Meals you've made, using this same pattern: a caption plus a
+                chevron row (e.g. "Manage subscription ›" → /premium). No card
+                needed; the section spacing already reads correctly with it added. */}
+
+            {/* MEALS YOU'VE MADE */}
             <View style={styles.section}>
               <Text variant="caption" color="textSecondary">
                 Meals you&apos;ve made
               </Text>
               {history.length === 0 ? (
-                <Text variant="body" color="textSecondary">
-                  Nothing yet — pick a meal and it lands here
-                </Text>
+                <View style={styles.row}>
+                  <Text variant="body" color="textSecondary">
+                    Nothing yet — pick a meal and it lands here
+                  </Text>
+                </View>
               ) : (
                 <>
-                  <View>
-                    {history.slice(0, 3).map((e, i) => (
-                      <Pressable
-                        key={`${e.mealId}-${e.createdAt}-${i}`}
-                        onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
-                        style={styles.mealRow}
-                      >
-                        <Text variant="body">{e.name}</Text>
-                        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                          {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {/* Only link out when there's more to see than the 3 shown —
-                      a link to already-visible content is a dead link. */}
+                  {history.slice(0, 3).map((e, i) => (
+                    <Pressable
+                      key={`${e.mealId}-${e.createdAt}-${i}`}
+                      onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
+                      style={[styles.mealRow, i > 0 ? styles.divider : null]}
+                    >
+                      <Text variant="body">{e.name}</Text>
+                      <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                        {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  {/* Chevron nav row (pantry "pasta ›" pattern) → the full list.
+                      Gated to >3: a link to already-visible content is a dead link. */}
                   {history.length > 3 ? (
                     <Pressable
                       onPress={() => router.push('/history')}
                       accessibilityRole="button"
-                      style={styles.link}
+                      style={[styles.navRow, styles.divider]}
                     >
-                      <Text variant="body" color="accent">
-                        See all
-                      </Text>
+                      <Text variant="body">See all</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </Pressable>
                   ) : null}
                 </>
               )}
             </View>
 
-            {/* Delete account — low-emphasis, at the bottom, its own quiet zone. */}
+            {/* Delete account — outside every section, on its own, with generous
+                space above so a destructive action never sits at preference weight. */}
             <View style={styles.deleteZone}>
               {!confirmingDelete ? (
                 <Pressable
@@ -257,24 +273,31 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
+    // Large gap BETWEEN sections — this is what groups them (no card surfaces).
     gap: spacing.xl,
   },
-  // Each group (Account, Taste, Meals you've made) is a flat Greige card on the
-  // Bone background, so the groups read AS groups — hierarchy from surface, not
-  // from bolding. Labels stay textSecondary, values Charcoal (set on the Texts).
+  // Caption sits just above its rows; rows themselves are tight (see `row`).
   section: {
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: spacing.lg,
-    padding: spacing.lg,
+    gap: spacing.sm,
   },
-  summaryRow: {
+  // A label/value or action row. Tight vertical rhythm; the divider (below) is
+  // added only to rows that follow another row in the same section.
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
   },
-  // Made-meal preview row: name stacked above the date·cuisine caption, hairline
-  // separated — same treatment as the full History list.
+  // Chevron nav row — the pantry "pasta ›" pattern. Charcoal label, muted chevron.
+  navRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+  },
+  // Made-meal preview row: name stacked above the date·cuisine caption.
   mealRow: {
     flexDirection: 'column',
     alignItems: 'flex-start',
@@ -282,8 +305,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.chipBorder,
+  },
+  // Hairline BETWEEN ROWS within a section only — never between sections.
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.chipBorder,
   },
   // Meta is data, not a label — drop the caption role's uppercase + tracking.
   dataCaption: {
@@ -294,9 +320,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  // Destructive delete flow sits OUTSIDE the cards, on the Bone background, with
-  // generous space above (on top of the content gap) so it never reads at the
-  // same visual weight as a preference row.
+  // Destructive delete flow sits alone, on the Bone background, with generous
+  // space above (on top of the content gap) so it never reads at the same
+  // visual weight as a preference row.
   deleteZone: {
     marginTop: spacing.xl,
   },
