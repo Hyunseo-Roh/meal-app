@@ -1,8 +1,9 @@
 import { supabase } from './supabase';
 
 export type Tier = 'familiar' | 'adjacent' | 'stretch';
+export type BudgetLevel = 'low' | 'medium' | 'high';
 
-/** One row from the recommend_meals RPC. */
+/** One row from the recommend_meals RPC (up to 4 per tier). */
 export type RecRow = {
   tier: Tier;
   /** Within-tier rank: 0 = the shown card, 1..3 = swap alternates. */
@@ -17,10 +18,15 @@ export type RecRow = {
   score: number;
 };
 
-/** A recommendation paired with its persisted recommendation_options.id. */
-export type OptionCard = RecRow & {
-  optionId: string;
-  explanation: string;
+/**
+ * Session filters passed to the RPC. `null` means UNSET — the RPC coalesces a
+ * null budget to the user's saved default_budget, and a null time applies no
+ * over-time penalty, so first open (all null) is driven purely by saved prefs.
+ */
+export type RecParams = {
+  time: number | null;
+  budget: BudgetLevel | null;
+  mood: string | null;
 };
 
 export const TIER_LABEL: Record<Tier, string> = {
@@ -29,14 +35,14 @@ export const TIER_LABEL: Record<Tier, string> = {
   stretch: 'Stretch',
 };
 
-const TIER_RANK: Record<Tier, number> = { familiar: 0, adjacent: 1, stretch: 2 };
+export const TIER_RANK: Record<Tier, number> = { familiar: 0, adjacent: 1, stretch: 2 };
 
 function capitalize(s: string) {
   return s.length ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
 /** Short, rule-based one-liner per tier. No LLM. */
-function buildExplanation(row: RecRow): string {
+export function buildExplanation(row: RecRow): string {
   const cuisine = capitalize(row.cuisine);
   switch (row.tier) {
     case 'familiar':
@@ -49,90 +55,71 @@ function buildExplanation(row: RecRow): string {
 }
 
 /**
- * Load the three options for a request: read the request row, call the
- * rule-based RPC, persist the 3 options (idempotently), and return them in
- * tier order with their option ids. Throws on missing request / bad RPC result.
+ * Pure recommendation read: calls the rule-based RPC and returns ALL candidate
+ * rows (up to 4 per tier). Writes NOTHING — this drives the live, filter-driven
+ * preview on Home, so changing a filter is a single read with no DB churn.
+ * Throws if the RPC fails or doesn't return one shown card (tier_rank 0) per tier.
  */
-export async function loadOptions(
-  requestId: string,
-): Promise<{ options: OptionCard[]; createdAt: string | null }> {
-  // 1. The request row is the source of truth for the RPC params. created_at is
-  //    also read (display only) so the screen can phrase its heading by the
-  //    session's meal bucket — one extra column on an existing query.
+export async function fetchRecommendations(userId: string, params: RecParams): Promise<RecRow[]> {
+  const { data: recs, error } = await supabase.rpc('recommend_meals', {
+    p_user_id: userId,
+    p_time_available: params.time,
+    p_budget: params.budget,
+    p_mood: params.mood,
+  });
+  const rows = (recs as RecRow[] | null) ?? [];
+  const shownTiers = new Set(rows.filter((r) => r.tier_rank === 0).map((r) => r.tier));
+  if (error || shownTiers.size < 3) throw new Error('recommend_failed');
+  return rows;
+}
+
+/**
+ * Commit-time persistence: insert the request row for these filters and persist
+ * ALL candidate options (shown + swap alternates) so downstream screens — and the
+ * swap feature that lands next — can reference recommendation_options by id.
+ * `tier_order` carries the within-tier rank (0 = shown, 1..3 = alternates).
+ *
+ * Called on FIRST ENGAGEMENT (first card tap OR first swap), never on filter
+ * changes. Callers must guard so it runs at most once per shown set. Returns the
+ * new request id and a meal_id -> option_id map for navigation.
+ */
+export async function materializeSelection(
+  userId: string,
+  params: RecParams,
+  rows: RecRow[],
+): Promise<{ requestId: string; optionByMeal: Map<string, string> }> {
   const { data: request, error: reqError } = await supabase
     .from('recommendation_requests')
-    .select('user_id, time_available, budget, mood, created_at')
-    .eq('id', requestId)
+    .insert({
+      user_id: userId,
+      time_available: params.time,
+      budget: params.budget,
+      mood: params.mood, // null when unset
+      created_at: new Date().toISOString(), // NOT NULL, no DB default
+    })
+    .select('id')
     .single();
+  if (reqError || !request) throw new Error('persist_failed');
+  const requestId = request.id as string;
 
-  if (reqError || !request) {
-    throw new Error('request_not_found');
-  }
-
-  // 2. Rule-based recommendation. Returns up to 4 rows per tier (K=4): one shown
-  //    card (tier_rank 0) plus up to three swap alternates (tier_rank 1..3).
-  const { data: recs, error: rpcError } = await supabase.rpc('recommend_meals', {
-    p_user_id: request.user_id,
-    p_time_available: request.time_available,
-    p_budget: request.budget,
-    p_mood: request.mood,
-  });
-
-  const allRows = (recs as RecRow[] | null) ?? [];
-  // The invariant is "one shown card per tier", not a fixed row count — the avoid
-  // filter can legitimately shrink a tier's alternates below 4.
-  const shownRows = allRows
-    .filter((r) => r.tier_rank === 0)
-    .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier]);
-
-  if (rpcError || new Set(shownRows.map((r) => r.tier)).size < 3) {
-    throw new Error('recommend_failed');
-  }
-
-  // Persist EVERY candidate (shown + alternates), stably ordered, so the swap UI
-  // can later read alternates straight from recommendation_options. tier_order
-  // carries the within-tier rank (0 = shown, 1..3 = alternates).
-  const rows = allRows
+  const ordered = rows
     .slice()
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || a.tier_rank - b.tier_rank);
-
-  // 3. Persist idempotently: if options already exist for this request, reuse
-  //    them (e.g. screen reloaded) rather than duplicating.
-  const { data: existing } = await supabase
-    .from('recommendation_options')
-    .select('id, meal_id, tier')
-    .eq('request_id', requestId);
-
-  let optionByMeal = new Map<string, string>();
-
-  if (existing && existing.length > 0) {
-    for (const o of existing) optionByMeal.set(o.meal_id as string, o.id as string);
-  } else {
-    const payload = rows.map((row) => ({
-      request_id: requestId,
-      meal_id: row.meal_id,
-      tier: row.tier,
-      explanation: buildExplanation(row),
-      was_selected: false, // selection happens on a later screen; NOT NULL, no DB default
-      tier_order: row.tier_rank, // within-tier rank: 0 = shown card, 1..3 = swap alternates
-    }));
-    const { data: inserted, error: insertError } = await supabase
-      .from('recommendation_options')
-      .insert(payload)
-      .select('id, meal_id');
-    if (insertError || !inserted) {
-      throw new Error('persist_failed');
-    }
-    for (const o of inserted) optionByMeal.set(o.meal_id as string, o.id as string);
-  }
-
-  // The screen still shows exactly three cards — the tier_rank 0 picks. Alternates
-  // are persisted above but not surfaced here (no swap UI yet).
-  const options = shownRows.map((row) => ({
-    ...row,
-    optionId: optionByMeal.get(row.meal_id) ?? '',
+  const payload = ordered.map((row) => ({
+    request_id: requestId,
+    meal_id: row.meal_id,
+    tier: row.tier,
     explanation: buildExplanation(row),
+    was_selected: false, // selection happens on the Handled screen; NOT NULL, no default
+    tier_order: row.tier_rank, // within-tier rank: 0 = shown card, 1..3 = alternates
   }));
+  const { data: inserted, error: insertError } = await supabase
+    .from('recommendation_options')
+    .insert(payload)
+    .select('id, meal_id');
+  if (insertError || !inserted) throw new Error('persist_failed');
 
-  return { options, createdAt: request.created_at ?? null };
+  const optionByMeal = new Map<string, string>();
+  for (const o of inserted) optionByMeal.set(o.meal_id as string, o.id as string);
+  return { requestId, optionByMeal };
 }
