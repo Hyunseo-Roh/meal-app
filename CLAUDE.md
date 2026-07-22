@@ -20,13 +20,13 @@ A meal-decision app for young adults that reduces decision fatigue. Each session
 - **meals**: id, name, cuisine_id(FK), effort_level(1–3), cook_time_min, est_cost, image_url, source, external_id(unique), dietary_tags(text[]), description
 - **meal_ingredients**: id, meal_id(FK), name
 - **recommendation_requests**: id, user_id(FK), mood, energy, budget, time_available, ingredients_on_hand(text[]), created_at, context_source, inferred_mood
-- **recommendation_options**: id, request_id(FK), meal_id(FK), tier(tier_type), explanation, was_selected(bool), tier_order
+- **recommendation_options**: id, request_id(FK), meal_id(FK), tier(tier_type), explanation, was_selected(bool), tier_order — **tier_order = the within-tier rank: 0 = the shown card, 1..3 = swap alternates** (recommend_meals returns up to 4 candidates per tier, K=4; loadOptions persists all of them, one shown per tier)
 - **feedback**: id, user_id(FK), request_id(FK), option_id(FK), rating(rating_type), reason(reason_type), created_at
 - **pantry_items**: id, user_id(FK), name, barcode, product_name, source('scanned'|'manual'), created_at, updated_at
 
 Enums: budget_level(low/medium/high) · tier_type(familiar/adjacent/stretch) · rating_type(loved_it/fine/not_for_me) · reason_type(too_much_effort/wrong_mood/wrong_ingredient/too_expensive)
 
-Cuisine ids: italian `a0000000-...-001` 🍝 · mexican 002 🌮 · thai 003 🍜 · american 004 🍔 · japanese 005 🍱 · korean 006 🥩
+Cuisine ids (10 total; the DB emoji values below are canonical): italian `a0000000-...-001` 🍝 · mexican 002 🌮 · thai 003 🍜 · american 004 🍔 · japanese 005 🍣 · korean 006 🍲 · chinese 007 🥡 · vietnamese 008 🥖 · indian 009 🍛 · greek 010 🥙
 
 ## DO NOT TOUCH — backend functions (already built)
 - `recommend_meals(p_user_id uuid, p_time_available int default null, p_budget budget_level default null, p_mood text default null)` → returns a table of (tier, meal_id, meal, cuisine, effort_level, est_cost, cook_time_min, over_time, score). **Always returns exactly 3 rows.** Score = effort30 + cuisine30 + budget20 + feedback±20 + pantry+15. Time is a soft signal (ranking + `over_time` flag), not a hard filter. Only hard filter is disliked cuisine. Cold start: NULL prefs coalesce to effort 2 / budget medium / cuisine bonus 0 / disliked '{}'.

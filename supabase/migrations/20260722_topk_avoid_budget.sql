@@ -1,14 +1,33 @@
--- Source-of-truth mirror of the deployed public.recommend_meals function.
--- Kept in lockstep with supabase/migrations/20260722_topk_avoid_budget.sql.
--- Standalone re-runnable: DROP first because the RETURNS shape (tier_rank) makes
--- CREATE OR REPLACE illegal against the older 3-row signature.
+-- Top-K per tier + hard avoid exclusion + budget column fix.
 --
--- Behaviour: hard avoid exclusion (disliked_ingredients, token-subset match) +
--- budget reads default_budget then pref_budget + deterministic ordering
--- (meal_id tiebreaker) + top-K per tier (K=4) where the three tier_rank=0 shown
--- cards are resolved FIRST (familiar/adjacent/stretch, previous logic) and only
--- then tier_rank 1..3 are filled from the remaining pool. Empty-tier fallback
--- guarantees three tiers. Argument signature unchanged.
+-- One pass, one migration. Changes vs the rankless version:
+--   1. HARD avoid exclusion: meals whose ingredients token-match any of the
+--      user's disliked_ingredients are removed entirely (reuses the
+--      get_ingredient_gap tokenizer: lower -> split [^a-z]+ -> strip (es|s) ->
+--      subset match). Positive-only; NULL/empty avoid list = no effect.
+--   2. Budget: read default_budget (what the app writes) before pref_budget.
+--      pref_budget is kept as a last-ditch coalesce fallback (always NULL today,
+--      nothing writes it) rather than dropped.
+--   3. Deterministic ordering: meal_id appended as the final ORDER BY tiebreaker
+--      so a session never reshuffles under swap.
+--   4. Top-K per tier (K=4): the three SHOWN cards (tier_rank = 0) are resolved
+--      FIRST with exactly the previous logic (familiar = top rank; adjacent =
+--      highest rank of a different cuisine; stretch = highest score in the
+--      bottom two-thirds with a cuisine distinct from both). ONLY THEN are
+--      tier_rank 1..3 filled per tier from the remaining pool, so a would-be
+--      shown card can never be absorbed into another tier's swap pool.
+--   5. Empty-tier fallback: each shown pick re-selects without the distinct-
+--      cuisine predicate if it would otherwise be empty, so three tiers always
+--      come back.
+--   6. One cuisine relabel (data): "Pork Shoulder Tacos ... Greek Yogurt ..."
+--      greek -> mexican (unambiguous mislabel).
+--
+-- RETURNS gains tier_rank (0 = shown card, 1..3 = swap alternates within tier).
+-- The argument signature is UNCHANGED (uuid, integer, budget_level, text) so the
+-- PostgREST rpc('recommend_meals', ...) call site is unaffected. Kept in lockstep
+-- with supabase/recommend_meals.sql.
+
+begin;
 
 drop function if exists public.recommend_meals(uuid, integer, budget_level, text);
 
@@ -73,6 +92,7 @@ as $function$
       m.cuisine_id, m.effort_level, m.est_cost, m.cook_time_min,
       (p_time_available is null or m.cook_time_min <= p_time_available) as within_time,
       greatest(0, 30 - abs(m.effort_level - u.pref_effort) * 15)
+      -- Rankless favorites: every chosen favorite counts EQUALLY (+30), ceiling +30.
       + case when m.cuisine_id = any(u.fav_ids) then 30 else 0 end
       + case
           when u.eff_budget = 'high' then 20
@@ -97,6 +117,8 @@ as $function$
     join cuisines c on c.id = m.cuisine_id
     cross join u
     where not (m.cuisine_id = any(u.disliked_cuisine_ids))
+      -- HARD avoid exclusion: drop the meal if ANY avoid term's token set is a
+      -- subset of ANY ingredient's token set (same tokenizer as get_ingredient_gap).
       and not exists (
         select 1
         from unnest(u.avoid_terms) as av(term)
@@ -131,6 +153,7 @@ as $function$
       ) as rk
     from scored
   ),
+  -- ---- SHOWN picks (tier_rank = 0), resolved first with the previous logic ----
   f0 as (
     select * from ranked order by rk limit 1
   ),
@@ -180,6 +203,7 @@ as $function$
     union select meal_id from a0f
     union select meal_id from s0f
   ),
+  -- ---- Swap alternates (tier_rank 1..3), filled AFTER the shown trio is locked ----
   fam_alt as (
     select r.* from ranked r
     where r.meal_id not in (select meal_id from shown)
@@ -223,3 +247,11 @@ as $function$
     case tier when 'familiar' then 0 when 'adjacent' then 1 else 2 end,
     tier_rank;
 $function$;
+
+-- Cuisine relabel: unambiguous mislabel (guarded / idempotent).
+update public.meals
+set cuisine_id = 'a0000000-0000-0000-0000-000000000002'   -- mexican
+where name = 'Pork Shoulder Tacos with Chipotle Greek Yogurt and Coleslaw'
+  and cuisine_id = 'a0000000-0000-0000-0000-000000000010'; -- greek
+
+commit;

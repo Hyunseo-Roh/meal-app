@@ -5,6 +5,8 @@ export type Tier = 'familiar' | 'adjacent' | 'stretch';
 /** One row from the recommend_meals RPC. */
 export type RecRow = {
   tier: Tier;
+  /** Within-tier rank: 0 = the shown card, 1..3 = swap alternates. */
+  tier_rank: number;
   meal_id: string;
   meal: string;
   cuisine: string;
@@ -67,7 +69,8 @@ export async function loadOptions(
     throw new Error('request_not_found');
   }
 
-  // 2. Rule-based recommendation. Always returns exactly 3 rows.
+  // 2. Rule-based recommendation. Returns up to 4 rows per tier (K=4): one shown
+  //    card (tier_rank 0) plus up to three swap alternates (tier_rank 1..3).
   const { data: recs, error: rpcError } = await supabase.rpc('recommend_meals', {
     p_user_id: request.user_id,
     p_time_available: request.time_available,
@@ -75,11 +78,23 @@ export async function loadOptions(
     p_mood: request.mood,
   });
 
-  if (rpcError || !recs || recs.length < 3) {
+  const allRows = (recs as RecRow[] | null) ?? [];
+  // The invariant is "one shown card per tier", not a fixed row count — the avoid
+  // filter can legitimately shrink a tier's alternates below 4.
+  const shownRows = allRows
+    .filter((r) => r.tier_rank === 0)
+    .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier]);
+
+  if (rpcError || new Set(shownRows.map((r) => r.tier)).size < 3) {
     throw new Error('recommend_failed');
   }
 
-  const rows = (recs as RecRow[]).slice().sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier]);
+  // Persist EVERY candidate (shown + alternates), stably ordered, so the swap UI
+  // can later read alternates straight from recommendation_options. tier_order
+  // carries the within-tier rank (0 = shown, 1..3 = alternates).
+  const rows = allRows
+    .slice()
+    .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || a.tier_rank - b.tier_rank);
 
   // 3. Persist idempotently: if options already exist for this request, reuse
   //    them (e.g. screen reloaded) rather than duplicating.
@@ -93,13 +108,13 @@ export async function loadOptions(
   if (existing && existing.length > 0) {
     for (const o of existing) optionByMeal.set(o.meal_id as string, o.id as string);
   } else {
-    const payload = rows.map((row, i) => ({
+    const payload = rows.map((row) => ({
       request_id: requestId,
       meal_id: row.meal_id,
       tier: row.tier,
       explanation: buildExplanation(row),
       was_selected: false, // selection happens on a later screen; NOT NULL, no DB default
-      tier_order: i,
+      tier_order: row.tier_rank, // within-tier rank: 0 = shown card, 1..3 = swap alternates
     }));
     const { data: inserted, error: insertError } = await supabase
       .from('recommendation_options')
@@ -111,7 +126,9 @@ export async function loadOptions(
     for (const o of inserted) optionByMeal.set(o.meal_id as string, o.id as string);
   }
 
-  const options = rows.map((row) => ({
+  // The screen still shows exactly three cards — the tier_rank 0 picks. Alternates
+  // are persisted above but not surfaced here (no swap UI yet).
+  const options = shownRows.map((row) => ({
     ...row,
     optionId: optionByMeal.get(row.meal_id) ?? '',
     explanation: buildExplanation(row),

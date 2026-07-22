@@ -35,13 +35,13 @@ export default function TasteSetup() {
     };
   }, []);
 
-  // Chosen favorites — an UNORDERED set, max 3 (no rank). Tapping toggles a
-  // cuisine in/out; a 4th tap is ignored. Favorite and never-suggest (Page 2)
-  // are mutually exclusive — picking a favorite clears it from the skip list.
+  // Chosen favorites — an UNORDERED set, no cap. Tapping toggles a cuisine
+  // in/out. Favorite and never-suggest (Page 2) are mutually exclusive —
+  // picking a favorite clears it from the skip list. (Favorites score a flat
+  // +30 each, rankless, so lifting the cap can't out-weight the other terms.)
   function pickFavorite(id: string) {
     setFavorites((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 3) return prev;
       return [...prev, id];
     });
     setDisliked((prev) => {
