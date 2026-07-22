@@ -162,7 +162,7 @@ export default function Profile() {
               </Text>
               {history.length === 0 ? (
                 <Text variant="body" color="textSecondary">
-                  Nothing here yet — meals you make show up here
+                  Nothing yet — pick a meal and it lands here
                 </Text>
               ) : (
                 <>
@@ -182,15 +182,19 @@ export default function Profile() {
                       </Pressable>
                     ))}
                   </View>
-                  <Pressable
-                    onPress={() => router.push('/history')}
-                    accessibilityRole="button"
-                    style={styles.link}
-                  >
-                    <Text variant="body" color="accent">
-                      See all
-                    </Text>
-                  </Pressable>
+                  {/* Only link out when there's more to see than the 3 shown —
+                      a link to already-visible content is a dead link. */}
+                  {history.length > 3 ? (
+                    <Pressable
+                      onPress={() => router.push('/history')}
+                      accessibilityRole="button"
+                      style={styles.link}
+                    >
+                      <Text variant="body" color="accent">
+                        See all
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </>
               )}
             </View>

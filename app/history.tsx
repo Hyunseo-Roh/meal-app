@@ -83,7 +83,7 @@ export default function History() {
     return (
       <Screen style={styles.centered}>
         <Text variant="body" color="textSecondary" style={styles.emptyText}>
-          Nothing here yet — meals you make show up here
+          Nothing yet — pick a meal and it lands here
         </Text>
       </Screen>
     );
