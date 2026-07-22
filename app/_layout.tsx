@@ -4,6 +4,7 @@ import {
   Inter_600SemiBold,
   useFonts,
 } from '@expo-google-fonts/inter';
+import { Literata_500Medium } from '@expo-google-fonts/literata';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -28,6 +29,7 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    Literata_500Medium,
   });
 
   // No eager anonymous sign-in here: a brand-new visitor must reach the Welcome
