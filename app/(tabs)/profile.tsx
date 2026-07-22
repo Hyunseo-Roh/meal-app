@@ -7,6 +7,8 @@ import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
+import { formatDate } from '../../lib/format';
+import { loadHistory, type HistoryEntry } from '../../lib/history';
 import { loadTasteSummary } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -27,6 +29,9 @@ export default function Profile() {
   const router = useRouter();
   const [account, setAccount] = useState<Account>(null);
   const [taste, setTaste] = useState<TasteSummary | null>(null);
+  // Inline preview of the meals you've made — the 3 most recent; the full list
+  // lives on the pushed /history route via "See all". Reuses lib/history.ts.
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   // Delete account — inline two-step confirm (Alert.alert is unreliable on web).
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -39,13 +44,15 @@ export default function Profile() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [u, summary] = await Promise.all([
+        const [u, summary, made] = await Promise.all([
           getAuthUser().catch(() => null),
           loadTasteSummary().catch(() => null),
+          loadHistory().catch(() => [] as HistoryEntry[]),
         ]);
         if (!active) return;
         setAccount(u ? { email: u.email } : null);
         setTaste(summary);
+        setHistory(made);
         setLoaded(true);
       })();
       return () => {
@@ -147,6 +154,47 @@ export default function Profile() {
               </Pressable>
             </View>
 
+            {/* Meals you've made — inline preview of the 3 most recent; "See all"
+                pushes the full list so this section can't bury Delete account. */}
+            <View style={styles.section}>
+              <Text variant="caption" color="textSecondary">
+                Meals you&apos;ve made
+              </Text>
+              {history.length === 0 ? (
+                <Text variant="body" color="textSecondary">
+                  Nothing here yet — meals you make show up here
+                </Text>
+              ) : (
+                <>
+                  <View>
+                    {history.slice(0, 3).map((e, i) => (
+                      <Pressable
+                        key={`${e.mealId}-${e.createdAt}-${i}`}
+                        onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
+                        style={styles.mealRow}
+                      >
+                        <Text variant="body">{e.name}</Text>
+                        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                          {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable
+                    onPress={() => router.push('/history')}
+                    accessibilityRole="button"
+                    style={styles.link}
+                  >
+                    <Text variant="body" color="accent">
+                      See all
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+
             {/* Delete account — low-emphasis, at the bottom, its own quiet zone. */}
             <View style={styles.deleteZone}>
               {!confirmingDelete ? (
@@ -214,6 +262,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  // Made-meal preview row: name stacked above the date·cuisine caption, hairline
+  // separated — same treatment as the full History list.
+  mealRow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
+  },
+  // Meta is data, not a label — drop the caption role's uppercase + tracking.
+  dataCaption: {
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   link: {
     minHeight: 44,

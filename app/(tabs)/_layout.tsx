@@ -10,7 +10,7 @@ import { getAuthUser, isOnboarded, withTimeout } from '../../lib/currentUser';
 import { colors } from '../../theme/tokens';
 
 /**
- * Bottom tab navigation — Home / History / Pantry / Profile.
+ * Bottom tab navigation — Home / Pantry / Profile (History merged into Profile).
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
  * no shadow/elevation. Active = Cool Slate accent, inactive = Warm Gray Deep.
  *
@@ -117,16 +117,6 @@ export default function TabsLayout() {
           tabBarLabel: tabLabel('Home'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarLabel: tabLabel('History'),
-          tabBarIcon: ({ color, focused, size }) => (
-            <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
           ),
         }}
       />
