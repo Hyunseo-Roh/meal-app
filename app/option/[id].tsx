@@ -75,7 +75,7 @@ export default function WhyWeChose() {
       <Screen style={styles.centered}>
         <ErrorState
           title="Lost the thread"
-          message="We couldn't pull this one up"
+          message="The reasons didn't come through"
           onRetry={load}
         />
       </Screen>

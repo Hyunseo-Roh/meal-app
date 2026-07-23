@@ -31,7 +31,7 @@ export default function Handled() {
     // gracefully if option_id is absent (e.g. deep link).
     async function recordSelection() {
       if (!option_id) {
-        if (active) setWriteNote('We couldn’t link this to your three meals, but it’s yours to make.');
+        if (active) setWriteNote('Not linked to your three meals, but it’s yours to make');
         return;
       }
       const { error } = await supabase
@@ -39,7 +39,7 @@ export default function Handled() {
         .update({ was_selected: true })
         .eq('id', option_id);
       if (error && active) {
-        setWriteNote('We couldn’t save the pick just now — no matter, go make it.');
+        setWriteNote('The pick didn’t save — no matter, go make it');
       }
     }
 

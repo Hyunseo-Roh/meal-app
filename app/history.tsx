@@ -66,7 +66,7 @@ export default function History() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <ErrorState message="We couldn't pull up what you've made" onRetry={load} />
+        <ErrorState message="Your meals didn't come through" onRetry={load} />
       </Screen>
     );
   }

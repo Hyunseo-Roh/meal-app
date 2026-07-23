@@ -84,7 +84,7 @@ export default function TasteSetup() {
           {status === 'loading' ? (
             <LoadingState message="Getting the cuisines…" />
           ) : status === 'error' ? (
-            <ErrorState message="We couldn't load the cuisines" onRetry={load} />
+            <ErrorState message="The cuisines didn't load" onRetry={load} />
           ) : (
             <>
               <Text variant="body" color="textSecondary">

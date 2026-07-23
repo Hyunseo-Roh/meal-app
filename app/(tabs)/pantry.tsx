@@ -110,7 +110,7 @@ export default function Pantry() {
         setJustAdded({ id: row.id, category: categoryOf(row) });
       }
     } catch {
-      setError('Couldn’t add that. Try again.');
+      setError('That didn’t make it in');
     } finally {
       setAdding(false);
     }
@@ -143,7 +143,7 @@ export default function Pantry() {
       closeSheet();
     } catch {
       setItems(prev); // rollback
-      setSheetError('Couldn’t move that. Try again.');
+      setSheetError('That didn’t move');
     }
   }
 
@@ -170,7 +170,7 @@ export default function Pantry() {
   async function removeItem(item: PantryItem) {
     setSheetError(null);
     if (await removeItemCore(item)) closeSheet();
-    else setSheetError('Couldn’t remove that. Try again.');
+    else setSheetError('That didn’t come off');
   }
 
   /**
@@ -185,7 +185,7 @@ export default function Pantry() {
     setRemoving(true);
     setError(null);
     try {
-      if (!(await removeItemCore(item))) setError('Couldn’t remove that. Try again.');
+      if (!(await removeItemCore(item))) setError('That didn’t come off');
     } finally {
       setRemoving(false);
     }
@@ -268,7 +268,7 @@ export default function Pantry() {
           {status === 'loading' ? (
             <LoadingState message="Opening your pantry…" />
           ) : status === 'error' ? (
-            <ErrorState message="We couldn't open your pantry" onRetry={load} />
+            <ErrorState message="Your pantry didn't open" onRetry={load} />
           ) : items.length === 0 ? (
             <EmptyState message="Nothing here yet — add a staple above" />
           ) : (

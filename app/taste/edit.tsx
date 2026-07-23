@@ -116,7 +116,7 @@ export default function TasteEdit() {
       router.back();
     } catch {
       setSaving(false);
-      setError('Couldn’t save your taste. Try once more.');
+      setError('Your taste didn’t save');
     }
   }
 

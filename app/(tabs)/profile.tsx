@@ -102,7 +102,7 @@ export default function Profile() {
       router.replace('/');
     } catch {
       setDeleting(false);
-      setDeleteError('Couldn’t delete your account. Try again.');
+      setDeleteError('Your account didn’t delete');
     }
   }
 
@@ -124,7 +124,7 @@ export default function Profile() {
           {account.status === 'loading' ? (
             <LoadingState message="Getting your account…" />
           ) : account.status === 'error' ? (
-            <ErrorState message="We couldn't load your account" onRetry={loadAccount} />
+            <ErrorState message="Your account didn't load" onRetry={loadAccount} />
           ) : (
             <>
               {account.data?.email ? (
@@ -153,7 +153,7 @@ export default function Profile() {
           {taste.status === 'loading' ? (
             <LoadingState message="Getting your taste…" />
           ) : taste.status === 'error' ? (
-            <ErrorState message="We couldn't load your taste" onRetry={loadTaste} />
+            <ErrorState message="Your taste didn't load" onRetry={loadTaste} />
           ) : (
             <>
               <View style={styles.row}>
@@ -229,7 +229,7 @@ export default function Profile() {
           {history.status === 'loading' ? (
             <LoadingState message="Gathering what you've made…" />
           ) : history.status === 'error' ? (
-            <ErrorState message="We couldn't pull up your meals" onRetry={loadMade} />
+            <ErrorState message="Your meals didn't come through" onRetry={loadMade} />
           ) : (history.data?.length ?? 0) === 0 ? (
             <View style={styles.row}>
               <EmptyState message="Nothing yet — pick a meal and it lands here" />

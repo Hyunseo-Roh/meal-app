@@ -61,7 +61,7 @@ export default function ConstraintsSetup() {
       userId = await getCurrentUserId();
     } catch {
       setSaving(false);
-      setError("Couldn't save just now. Try once more.");
+      setError("That didn’t save");
       return;
     }
 
@@ -90,12 +90,12 @@ export default function ConstraintsSetup() {
 
       if (updateError) {
         setSaving(false);
-        setError("Couldn't save just now. Try once more.");
+        setError("That didn’t save");
         return;
       }
     } catch {
       setSaving(false);
-      setError("Couldn't save just now. Try once more.");
+      setError("That didn’t save");
       return;
     }
 

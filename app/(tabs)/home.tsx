@@ -401,7 +401,7 @@ export default function Home() {
         {status === 'error' && !hasCards ? (
           <ErrorState
             title="That slipped away"
-            message="We couldn't pull three meals just now"
+            message="The three meals didn't come through"
             onRetry={() => load({ time, budget, mood })}
           />
         ) : status === 'loading' && !hasCards ? (

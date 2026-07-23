@@ -60,7 +60,7 @@ export default function Index() {
       <Screen style={styles.centered}>
         <ErrorState
           title="Couldn't get you in"
-          message="It didn't load this time"
+          message="Your account didn't load"
           onRetry={run}
         />
       </Screen>

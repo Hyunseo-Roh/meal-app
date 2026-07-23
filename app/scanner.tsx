@@ -102,7 +102,7 @@ export default function Scanner() {
       router.back();
     } catch {
       setAdding(false);
-      setAddError('Couldn’t add that. Try again.');
+      setAddError('That didn’t make it in');
     }
   }
 

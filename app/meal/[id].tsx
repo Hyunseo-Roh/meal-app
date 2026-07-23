@@ -105,7 +105,7 @@ export default function MealDetail() {
         n.delete(name); // revert to original position in toBuy
         return n;
       });
-      setPantryError('Couldn’t add that. Try again.');
+      setPantryError('That didn’t make it in');
     } finally {
       setAdding((s) => {
         const n = new Set(s);
