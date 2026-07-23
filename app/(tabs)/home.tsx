@@ -11,6 +11,7 @@ import { upsizeImageUrl } from '../../lib/format';
 import { getPicksHeading } from '../../lib/greeting';
 import { consumeMealCompleted } from '../../lib/session';
 import {
+  buildExplanation,
   fetchRecommendations,
   materializeSelection,
   recordSwapRejection,
@@ -39,21 +40,28 @@ const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
 const MOOD_OPTIONS = ['Tired', 'Comfort', 'Adventurous', 'Light', 'Quick'];
 
 const TIERS: Tier[] = ['familiar', 'adjacent', 'stretch'];
+// The three-tier thesis, surfaced on each card as a short eyebrow label.
+const TIER_EYEBROW: Record<Tier, string> = {
+  familiar: 'Familiar',
+  adjacent: 'One step over',
+  stretch: 'Something new',
+};
 // Total "Not for me" swaps allowed per session, counted across all three cards.
 const SWAP_CAP = 3;
 
-// One recommendation card — a compact horizontal row: small square thumbnail on
-// the left, text block (cuisine eyebrow, name, time/cost meta) on the right. No
-// hero image, no explanation sentence (that lives on the why screen); this keeps
-// all three cards visible at once. `footer` (the swap affordance) sits small and
-// quiet on the meta line, right-aligned.
+// One recommendation card — a vertical card: image on top, text below (tier +
+// cuisine eyebrow, meal name, time/cost meta, and the one-line reason). The tier
+// eyebrow surfaces the product's three-tier thesis on the card itself. `footer`
+// (the swap affordance) sits right-aligned below the reason line.
 function RecCard({
   opt,
+  explanation,
   imageUrl,
   onPress,
   footer,
 }: {
   opt: RecRow;
+  explanation: string;
   imageUrl: string | null;
   onPress: () => void;
   footer?: ReactNode;
@@ -64,33 +72,34 @@ function RecCard({
       {imageUrl && !imageFailed ? (
         <Image
           source={{ uri: upsizeImageUrl(imageUrl) }}
-          style={styles.cardThumb}
+          style={styles.cardImage}
           resizeMode="cover"
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
-          <Ionicons name="restaurant-outline" size={24} color={colors.textSecondary} />
+        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+          <Ionicons name="restaurant-outline" size={28} color={colors.textSecondary} />
         </View>
       )}
       <View style={styles.cardBody}>
         <Text variant="caption" color="textSecondary" style={styles.cardEyebrow}>
-          {opt.cuisine.charAt(0).toUpperCase() + opt.cuisine.slice(1)}
+          {`${TIER_EYEBROW[opt.tier]} · ${opt.cuisine}`}
         </Text>
         <Text variant="title" numberOfLines={2}>
           {opt.meal}
         </Text>
-        <View style={styles.metaRow}>
-          <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-            {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)}`}
-          </Text>
-          {footer}
-        </View>
+        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+          {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)}`}
+        </Text>
+        <Text variant="body" color="textSecondary" numberOfLines={2}>
+          {explanation}
+        </Text>
         {opt.over_time ? (
           <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
             A little longer than usual
           </Text>
         ) : null}
+        {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
       </View>
     </Pressable>
   );
@@ -387,6 +396,7 @@ export default function Home() {
               <RecCard
                 key={tier}
                 opt={card}
+                explanation={buildExplanation(card)}
                 imageUrl={images[card.meal_id] ?? null}
                 onPress={() => onSelect(card)}
                 // Swap affordance lives INSIDE the card. At the cap it disappears
@@ -469,15 +479,19 @@ const styles = StyleSheet.create({
   cards: {
     gap: spacing.lg,
   },
-  // "Not for me" — a small, quiet ghost pill on the meta line: Charcoal text at
-  // 13, Warm Gray hairline border, pill radius, no fill. Tight padding so it sits
-  // beside the meta without adding height.
+  // Swap-affordance slot inside the card body: right-aligned under the reason.
+  cardFooter: {
+    alignItems: 'flex-end',
+    marginTop: spacing.xs,
+  },
+  // "Not for me" — a low-emphasis ghost pill: Charcoal text at 13, Warm Gray
+  // hairline border, pill radius, no fill. Reads as tappable on the Greige card.
   swapPill: {
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   swapPillText: {
     // Caption size (13) but not shouted — drop the role's uppercase + tracking.
@@ -489,37 +503,27 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     letterSpacing: 0,
   },
-  // Compact horizontal card: thumbnail + text block, no hero image.
+  // Vertical card: image on top, text below.
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
     backgroundColor: colors.card,
     borderColor: colors.chipBorder,
     borderWidth: 1,
     borderRadius: spacing.lg,
-    padding: spacing.md,
+    overflow: 'hidden',
   },
-  cardThumb: {
-    width: 76,
-    height: 76,
-    borderRadius: spacing.sm,
+  cardImage: {
+    width: '100%',
+    // Moderate — not the old 16:9 hero, not a thumbnail. Leaves room for the
+    // reasoning below while keeping the card from filling the viewport.
+    height: 140,
     backgroundColor: colors.bg,
   },
-  cardThumbPlaceholder: {
+  cardImagePlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardBody: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  // Meta line holds the time/cost caption on the left and the swap affordance on
-  // the right, so the pill sits on the meta line rather than adding a row.
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    padding: spacing.lg,
     gap: spacing.sm,
   },
   // Card meta + over-time note are DATA/PROSE, not labels — drop the caption
