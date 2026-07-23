@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -20,20 +21,28 @@ export default function TasteSetup() {
   const { favorites, setFavorites, setDisliked } = useOnboarding();
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(() => {
+    setStatus('loading');
     supabase
       .from('cuisines')
       .select('id, display_label, emoji')
       .order('display_label')
-      .then(({ data }) => {
-        if (active && data) setCuisines(data as Cuisine[]);
-      });
-    return () => {
-      active = false;
-    };
+      .then(
+        ({ data, error }) => {
+          if (error || !data) {
+            setStatus('error');
+            return;
+          }
+          setCuisines(data as Cuisine[]);
+          setStatus('ready');
+        },
+        () => setStatus('error'), // network throw (e.g. offline / blocked)
+      );
   }, []);
+
+  useEffect(() => load(), [load]);
 
   // Chosen favorites — an UNORDERED set, no cap. Tapping toggles a cuisine
   // in/out. Favorite and never-suggest (Page 2) are mutually exclusive —
@@ -72,19 +81,27 @@ export default function TasteSetup() {
         </View>
 
         <View style={styles.section}>
-          <Text variant="body" color="textSecondary">
-            Pick as many as you like
-          </Text>
-          <View style={styles.chipRow}>
-            {cuisines.map((c) => (
-              <Chip
-                key={c.id}
-                label={`${c.emoji} ${c.display_label}`}
-                selected={favorites.includes(c.id)}
-                onPress={() => pickFavorite(c.id)}
-              />
-            ))}
-          </View>
+          {status === 'loading' ? (
+            <LoadingState message="Loading…" />
+          ) : status === 'error' ? (
+            <ErrorState message="Couldn't load cuisines. Try again." onRetry={load} />
+          ) : (
+            <>
+              <Text variant="body" color="textSecondary">
+                Pick as many as you like
+              </Text>
+              <View style={styles.chipRow}>
+                {cuisines.map((c) => (
+                  <Chip
+                    key={c.id}
+                    label={`${c.emoji} ${c.display_label}`}
+                    selected={favorites.includes(c.id)}
+                    onPress={() => pickFavorite(c.id)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
 

@@ -65,26 +65,35 @@ export default function ConstraintsSetup() {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        // Chosen favorites (unordered). The scalar mirrors any one of them so the
-        // onboarding gate (currentUser.ts isOnboarded) stays non-null; the array
-        // is what recommend_meals + reasons.ts read.
-        pref_cuisine_ids: favorites,
-        pref_cuisine_id: favorites[0] ?? null,
-        // Onboarding no longer collects cuisine-avoids (the avoid screen dropped
-        // that section); write an explicit empty set. Engine-independent — the
-        // recommend RPC treats an empty disliked_cuisine_ids as "skip nothing".
-        disliked_cuisine_ids: [],
-        disliked_ingredients: ingredients,
-        pref_effort: effort,
-        default_budget: budget,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+    // Wrap the write: a returned { error } AND a thrown network error (offline /
+    // blocked domain, which rejects the fetch) both surface the same line and
+    // re-enable the button, so it never sticks on "Saving…".
+    try {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          // Chosen favorites (unordered). The scalar mirrors any one of them so the
+          // onboarding gate (currentUser.ts isOnboarded) stays non-null; the array
+          // is what recommend_meals + reasons.ts read.
+          pref_cuisine_ids: favorites,
+          pref_cuisine_id: favorites[0] ?? null,
+          // Onboarding no longer collects cuisine-avoids (the avoid screen dropped
+          // that section); write an explicit empty set. Engine-independent — the
+          // recommend RPC treats an empty disliked_cuisine_ids as "skip nothing".
+          disliked_cuisine_ids: [],
+          disliked_ingredients: ingredients,
+          pref_effort: effort,
+          default_budget: budget,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
 
-    if (updateError) {
+      if (updateError) {
+        setSaving(false);
+        setError("Couldn't save just now. Try once more.");
+        return;
+      }
+    } catch {
       setSaving(false);
       setError("Couldn't save just now. Try once more.");
       return;

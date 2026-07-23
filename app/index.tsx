@@ -1,8 +1,9 @@
 import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { Screen } from '../components/Screen';
-import { Text } from '../components/Text';
+import { ErrorState, LoadingState } from '../components/states';
 import {
   getAuthUser,
   isOnboarded,
@@ -11,7 +12,6 @@ import {
   withTimeout,
 } from '../lib/currentUser';
 import { supabase } from '../lib/supabase';
-import { StyleSheet } from 'react-native';
 
 /**
  * Entry splash / router. The single decision point that used to live inside
@@ -19,19 +19,23 @@ import { StyleSheet } from 'react-native';
  * stable terminal: Welcome, Home, or Onboarding.
  *
  * Stability (no ping-pong with the (tabs) guard): we never redirect while the
- * decision is still `null` — the "One moment…" line renders until session +
- * onboarded state are fully known. Only then do we emit exactly one <Redirect>
- * to a terminal. The (tabs) guard only bounces to '/', and '/' only sends an
- * onboarded/authed user INTO the tabs, so a satisfied user never re-triggers
- * the guard.
+ * decision is still `null` — the loading line renders until session + onboarded
+ * state are fully known. Only then do we emit exactly one <Redirect> to a
+ * terminal. Critically, a HARD read failure resolves to a terminal ErrorState
+ * with retry (NOT '/(tabs)/home') — routing an authenticated-but-unvalidated
+ * user into the guarded tabs made the guard bounce back to '/', which re-ran
+ * this decision and looped, re-issuing isOnboarded()/userRowExists() each lap.
+ * Landing on the error state instead names the real situation and has nothing
+ * for the guard to bounce.
  */
 type Dest = '/welcome' | '/(tabs)/home' | '/onboarding/taste';
 
 export default function Index() {
-  const [dest, setDest] = useState<Dest | null>(null);
+  const [dest, setDest] = useState<Dest | 'error' | null>(null);
 
-  useEffect(() => {
+  const run = useCallback(() => {
     let active = true;
+    setDest(null);
     (async () => {
       const next = await decide();
       if (active) setDest(next);
@@ -41,12 +45,24 @@ export default function Index() {
     };
   }, []);
 
-  if (!dest) {
+  useEffect(() => run(), [run]);
+
+  if (dest === null) {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          One moment…
-        </Text>
+        <LoadingState message="One moment…" />
+      </Screen>
+    );
+  }
+
+  if (dest === 'error') {
+    return (
+      <Screen style={styles.centered}>
+        <ErrorState
+          title="Something went wrong"
+          message="We couldn't check your account just now. Try again."
+          onRetry={run}
+        />
       </Screen>
     );
   }
@@ -55,11 +71,11 @@ export default function Index() {
 }
 
 /**
- * Resolve the destination from session + onboarded state. Fail-safe: any error
- * with a session present prefers the least-disruptive sensible terminal;
- * with no session, Welcome.
+ * Resolve the destination from session + onboarded state. With no session,
+ * Welcome. A hard read failure for an authenticated user resolves to 'error'
+ * (a terminal retry state) rather than routing into the guarded tabs.
  */
-async function decide(): Promise<Dest> {
+async function decide(): Promise<Dest | 'error'> {
   // Reads the persisted session only — does NOT mint an anonymous identity.
   let user: Awaited<ReturnType<typeof getAuthUser>>;
   try {
@@ -101,8 +117,10 @@ async function decide(): Promise<Dest> {
     const done = await withTimeout(isOnboarded());
     return done ? '/(tabs)/home' : '/onboarding/taste';
   } catch {
-    // Transient error — keep a signed-in user out of a re-onboarding loop.
-    return '/(tabs)/home';
+    // Hard read failure for an authenticated user. Do NOT route into the guarded
+    // tabs (the guard would bounce back here and loop, re-issuing these reads).
+    // Surface a terminal error with retry instead.
+    return 'error';
   }
 }
 
