@@ -75,7 +75,7 @@ export default function Handled() {
       <View style={styles.block}>
         <Text variant="display">You&apos;re set</Text>
         {mealLoading ? (
-          <LoadingState message="Getting it ready…" />
+          <LoadingState message="Getting your meal…" />
         ) : meal ? (
           <>
             <Text variant="title" style={styles.meal}>

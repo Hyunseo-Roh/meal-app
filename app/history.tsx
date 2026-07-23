@@ -58,7 +58,7 @@ export default function History() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Loading…" />
+        <LoadingState message="Gathering what you've made…" />
       </Screen>
     );
   }
@@ -66,7 +66,7 @@ export default function History() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <ErrorState message="Couldn't load your history." onRetry={load} />
+        <ErrorState message="We couldn't pull up what you've made" onRetry={load} />
       </Screen>
     );
   }

@@ -122,9 +122,9 @@ export default function Profile() {
             Account
           </Text>
           {account.status === 'loading' ? (
-            <LoadingState message="Loading…" />
+            <LoadingState message="Getting your account…" />
           ) : account.status === 'error' ? (
-            <ErrorState message="Couldn't load your account." onRetry={loadAccount} />
+            <ErrorState message="We couldn't load your account" onRetry={loadAccount} />
           ) : (
             <>
               {account.data?.email ? (
@@ -151,9 +151,9 @@ export default function Profile() {
             Taste
           </Text>
           {taste.status === 'loading' ? (
-            <LoadingState message="Loading…" />
+            <LoadingState message="Getting your taste…" />
           ) : taste.status === 'error' ? (
-            <ErrorState message="Couldn't load your taste." onRetry={loadTaste} />
+            <ErrorState message="We couldn't load your taste" onRetry={loadTaste} />
           ) : (
             <>
               <View style={styles.row}>
@@ -227,9 +227,9 @@ export default function Profile() {
             Meals you&apos;ve made
           </Text>
           {history.status === 'loading' ? (
-            <LoadingState message="Loading…" />
+            <LoadingState message="Gathering what you've made…" />
           ) : history.status === 'error' ? (
-            <ErrorState message="Couldn't load your meals." onRetry={loadMade} />
+            <ErrorState message="We couldn't pull up your meals" onRetry={loadMade} />
           ) : (history.data?.length ?? 0) === 0 ? (
             <View style={styles.row}>
               <EmptyState message="Nothing yet — pick a meal and it lands here" />

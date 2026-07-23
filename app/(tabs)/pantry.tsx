@@ -266,11 +266,11 @@ export default function Pantry() {
             zone, and a hairline divider marks the shift from the "add" zone. */}
         <View style={[styles.section, styles.pantryZone]}>
           {status === 'loading' ? (
-            <LoadingState message="Loading…" />
+            <LoadingState message="Opening your pantry…" />
           ) : status === 'error' ? (
-            <ErrorState message="Couldn't load your pantry." onRetry={load} />
+            <ErrorState message="We couldn't open your pantry" onRetry={load} />
           ) : items.length === 0 ? (
-            <EmptyState message="Nothing here yet — add a staple above." />
+            <EmptyState message="Nothing here yet — add a staple above" />
           ) : (
             // Everything inline: each non-empty category renders its header and
             // ALL its items. No detail page, no accordion — you scroll and see

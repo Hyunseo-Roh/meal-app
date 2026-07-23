@@ -400,8 +400,8 @@ export default function Home() {
 
         {status === 'error' && !hasCards ? (
           <ErrorState
-            title="That slipped away."
-            message="We couldn't pull three meals just now. Try once more."
+            title="That slipped away"
+            message="We couldn't pull three meals just now"
             onRetry={() => load({ time, budget, mood })}
           />
         ) : status === 'loading' && !hasCards ? (
@@ -413,7 +413,7 @@ export default function Home() {
             {refreshError ? (
               <ErrorState
                 title="Showing your previous picks"
-                message="The update didn't go through. Try again."
+                message="The new set didn't come through"
                 onRetry={() => load({ time, budget, mood })}
               />
             ) : null}

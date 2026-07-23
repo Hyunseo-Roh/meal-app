@@ -50,7 +50,7 @@ export default function Index() {
   if (dest === null) {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="One moment…" />
+        <LoadingState message="Getting you in…" />
       </Screen>
     );
   }
@@ -59,8 +59,8 @@ export default function Index() {
     return (
       <Screen style={styles.centered}>
         <ErrorState
-          title="Something went wrong"
-          message="We couldn't check your account just now. Try again."
+          title="Couldn't get you in"
+          message="It didn't load this time"
           onRetry={run}
         />
       </Screen>

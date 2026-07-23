@@ -126,7 +126,7 @@ export default function TasteEdit() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Loading your taste…" />
+        <LoadingState message="Getting your taste…" />
       </Screen>
     );
   }
@@ -134,7 +134,7 @@ export default function TasteEdit() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <ErrorState title="Couldn't open this." message="Try again." onRetry={load} />
+        <ErrorState title="Couldn't open this" message="Your taste didn't load" onRetry={load} />
       </Screen>
     );
   }

@@ -17,7 +17,7 @@ export default function NotFound() {
     <Screen style={styles.centered}>
       <Text variant="title">Nothing here</Text>
       <Text variant="body" color="textSecondary">
-        That page doesn&apos;t exist.
+        That page doesn&apos;t exist
       </Text>
       <View style={styles.action}>
         <PrimaryButton label="Back to home" onPress={() => router.replace('/')} />

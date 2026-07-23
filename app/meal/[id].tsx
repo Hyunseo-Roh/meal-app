@@ -127,8 +127,8 @@ export default function MealDetail() {
     return (
       <Screen style={styles.centered}>
         <ErrorState
-          title="Couldn't open this."
-          message="The details didn't load. Try again."
+          title="Couldn't open this"
+          message="The details didn't come through"
           onRetry={load}
         />
       </Screen>
