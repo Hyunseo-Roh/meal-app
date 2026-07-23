@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
@@ -43,16 +43,20 @@ const TIERS: Tier[] = ['familiar', 'adjacent', 'stretch'];
 const SWAP_CAP = 3;
 
 // One recommendation card: optional photo + cuisine eyebrow, name, meta, reason.
+// `footer` (the swap affordance) sits INSIDE the card body, below the reason,
+// right-aligned — so it unambiguously belongs to this card, not the next one.
 function RecCard({
   opt,
   explanation,
   imageUrl,
   onPress,
+  footer,
 }: {
   opt: RecRow;
   explanation: string;
   imageUrl: string | null;
   onPress: () => void;
+  footer?: ReactNode;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   return (
@@ -81,6 +85,7 @@ function RecCard({
             A little longer than usual
           </Text>
         ) : null}
+        {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
       </View>
     </Pressable>
   );
@@ -335,41 +340,43 @@ export default function Home() {
             </Text>
           </View>
         ) : (
-          <>
+          <View style={styles.cards}>
             {shownCards.map(({ tier, card, hasNext }) => (
-              <View key={tier} style={styles.tierBlock}>
-                <RecCard
-                  opt={card}
-                  explanation={buildExplanation(card)}
-                  imageUrl={images[card.meal_id] ?? null}
-                  onPress={() => onSelect(card)}
-                />
-                {/* Swap affordance. Hidden at the cap (the cap line covers it);
-                    muted note when this lane has no alternate left. */}
-                {capped ? null : !hasNext ? (
-                  <Text variant="caption" color="textSecondary" style={styles.swapNote}>
-                    Nothing else in this lane
-                  </Text>
-                ) : (
-                  <Pressable
-                    onPress={() => onSwap(tier, card)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Not for me — swap ${card.meal}`}
-                    style={styles.swapRow}
-                  >
+              <RecCard
+                key={tier}
+                opt={card}
+                explanation={buildExplanation(card)}
+                imageUrl={images[card.meal_id] ?? null}
+                onPress={() => onSelect(card)}
+                // Swap affordance lives INSIDE the card. At the cap it disappears
+                // entirely (not dimmed); when the lane is exhausted a muted,
+                // borderless note takes its place.
+                footer={
+                  capped ? null : !hasNext ? (
                     <Text variant="caption" color="textSecondary" style={styles.swapNote}>
-                      Not for me
+                      Nothing else in this lane
                     </Text>
-                  </Pressable>
-                )}
-              </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => onSwap(tier, card)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Not for me — swap ${card.meal}`}
+                      style={styles.swapPill}
+                    >
+                      <Text variant="caption" style={styles.swapPillText}>
+                        Not for me
+                      </Text>
+                    </Pressable>
+                  )
+                }
+              />
             ))}
             {capped ? (
               <Text variant="body" color="textSecondary">
                 That&apos;s three swaps — go with one of these
               </Text>
             ) : null}
-          </>
+          </View>
         )}
       </ScrollView>
     </Screen>
@@ -403,18 +410,31 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  // A card plus its swap affordance below it.
-  tierBlock: {
-    gap: spacing.sm,
+  // Cards + the cap line grouped, so the cap line sits directly under the last
+  // card rather than floating a full section-gap away.
+  cards: {
+    gap: spacing.lg,
   },
-  // "Not for me" tap target — low emphasis, its own row under the card.
-  swapRow: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
+  // Swap-affordance slot inside the card body: right-aligned under the reason.
+  cardFooter: {
+    alignItems: 'flex-end',
+    marginTop: spacing.xs,
   },
-  // Reset the caption role's uppercase/tracking so it reads as a quiet action,
-  // not a shouted label.
+  // "Not for me" — a low-emphasis ghost pill: Charcoal text at 13, Warm Gray
+  // hairline border, pill radius, no fill. Reads as tappable on the Greige card.
+  swapPill: {
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  swapPillText: {
+    // Caption size (13) but not shouted — drop the role's uppercase + tracking.
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
+  // Exhausted-lane note in the same slot — muted, no border (not tappable).
   swapNote: {
     textTransform: 'none',
     letterSpacing: 0,
