@@ -3,36 +3,20 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { colors, spacing, typography } from '../../theme/tokens';
 import { RemovableTag, useOnboarding } from './_layout';
 
-// Visual-only dietary preferences. Local component state, intentionally NOT
-// persisted — no DB column, no write to users. Presentation parity only.
-const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free'];
-
-// Page 2 of 3 — Avoid. A free-text list of ingredients to skip (the only signal
-// saved here) plus visual-only dietary tags. Cuisine-level avoids were removed:
-// people don't skip whole cuisines, and it overlapped the favorite signal.
+// Page 2 of 3 — Avoid. A free-text list of ingredients to skip is the only
+// signal saved here. Cuisine-level avoids were removed: people don't skip whole
+// cuisines, and it overlapped the favorite signal.
 export default function AvoidSetup() {
   const router = useRouter();
   const { ingredients, setIngredients } = useOnboarding();
 
   const [ingredientDraft, setIngredientDraft] = useState('');
-  // Visual-only: dietary selections live here and are never written to the DB.
-  const [dietary, setDietary] = useState<Set<string>>(new Set());
-
-  function toggleDietary(name: string) {
-    setDietary((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }
 
   function addIngredient() {
     const v = ingredientDraft.trim().toLowerCase();
@@ -93,22 +77,6 @@ export default function AvoidSetup() {
               ))}
             </View>
           ) : null}
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Dietary
-          </Text>
-          <View style={styles.chipRow}>
-            {DIETARY_OPTIONS.map((d) => (
-              <Chip
-                key={d}
-                label={d}
-                selected={dietary.has(d)}
-                onPress={() => toggleDietary(d)}
-              />
-            ))}
-          </View>
         </View>
       </ScrollView>
 

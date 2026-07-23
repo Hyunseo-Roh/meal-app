@@ -73,7 +73,7 @@ export default function TasteSetup() {
 
         <View style={styles.section}>
           <Text variant="body" color="textSecondary">
-            Pick up to three
+            Pick as many as you like
           </Text>
           <View style={styles.chipRow}>
             {cuisines.map((c) => (

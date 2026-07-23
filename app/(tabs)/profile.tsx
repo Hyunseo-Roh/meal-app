@@ -111,14 +111,14 @@ export default function Profile() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text variant="title">Profile</Text>
 
-        {/* Settings screen: no card surfaces. Grouping comes from whitespace
-            (large gaps between sections, tight rows within) + hairlines that
-            appear ONLY between rows inside a section, never between sections.
+        {/* Settings screen: no card surfaces, no dividers. Grouping comes from
+            SPACE alone — tight rows within a section, a large gap between
+            sections, and extra room under each caption so it reads as a header.
             Each data section owns its loading / error / ready state. */}
 
         {/* ACCOUNT */}
         <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
+          <Text variant="caption" color="textSecondary" style={styles.sectionCaption}>
             Account
           </Text>
           {account.status === 'loading' ? (
@@ -135,7 +135,7 @@ export default function Profile() {
               <Pressable
                 onPress={signOutToStart}
                 accessibilityRole="button"
-                style={[styles.row, account.data?.email ? styles.divider : null]}
+                style={styles.row}
               >
                 <Text variant="body" color="accent">
                   Log out
@@ -147,7 +147,7 @@ export default function Profile() {
 
         {/* TASTE */}
         <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
+          <Text variant="caption" color="textSecondary" style={styles.sectionCaption}>
             Taste
           </Text>
           {taste.status === 'loading' ? (
@@ -166,7 +166,7 @@ export default function Profile() {
                     : 'Not set'}
                 </Text>
               </View>
-              <View style={[styles.row, styles.divider]}>
+              <View style={styles.row}>
                 <Text variant="body" color="textSecondary">
                   Avoids
                 </Text>
@@ -176,13 +176,13 @@ export default function Profile() {
                     : 'None'}
                 </Text>
               </View>
-              <View style={[styles.row, styles.divider]}>
+              <View style={styles.row}>
                 <Text variant="body" color="textSecondary">
                   Effort
                 </Text>
                 <Text variant="body">{taste.data?.effortLabel ?? 'Not set'}</Text>
               </View>
-              <View style={[styles.row, styles.divider]}>
+              <View style={styles.row}>
                 <Text variant="body" color="textSecondary">
                   Budget
                 </Text>
@@ -191,7 +191,7 @@ export default function Profile() {
               <Pressable
                 onPress={() => router.push('/taste/edit')}
                 accessibilityRole="button"
-                style={[styles.navRow, styles.divider]}
+                style={styles.navRow}
               >
                 <Text variant="body">Edit taste</Text>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -202,7 +202,7 @@ export default function Profile() {
 
         {/* SUBSCRIPTION — static, no load. */}
         <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
+          <Text variant="caption" color="textSecondary" style={styles.sectionCaption}>
             Subscription
           </Text>
           <View style={styles.row}>
@@ -214,7 +214,7 @@ export default function Profile() {
           <Pressable
             onPress={() => router.push('/subscription')}
             accessibilityRole="button"
-            style={[styles.navRow, styles.divider]}
+            style={styles.navRow}
           >
             <Text variant="body">See Premium</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -223,7 +223,7 @@ export default function Profile() {
 
         {/* MEALS YOU'VE MADE */}
         <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
+          <Text variant="caption" color="textSecondary" style={styles.sectionCaption}>
             Meals you&apos;ve made
           </Text>
           {history.status === 'loading' ? (
@@ -242,7 +242,7 @@ export default function Profile() {
                   onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
                   accessibilityRole="button"
                   accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
-                  style={[styles.mealRow, i > 0 ? styles.divider : null]}
+                  style={styles.mealRow}
                 >
                   <Text variant="body">{e.name}</Text>
                   <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
@@ -256,7 +256,7 @@ export default function Profile() {
                 <Pressable
                   onPress={() => router.push('/history')}
                   accessibilityRole="button"
-                  style={[styles.navRow, styles.divider]}
+                  style={styles.navRow}
                 >
                   <Text variant="body">See all</Text>
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -326,18 +326,24 @@ const styles = StyleSheet.create({
     // Large gap BETWEEN sections — this is what groups them (no card surfaces).
     gap: spacing.xl,
   },
-  // Caption sits just above its rows; rows themselves are tight (see `row`).
+  // Grouping is by SPACE, not lines: rows sit tight (section gap below), and the
+  // large content gap (24) between sections — 6x the row gap — is what separates
+  // the groups. No dividers.
   section: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  // A label/value or action row. Tight vertical rhythm; the divider (below) is
-  // added only to rows that follow another row in the same section.
+  // Extra room below the caption (on top of the section gap) so it reads as a
+  // header over its rows rather than another row.
+  sectionCaption: {
+    marginBottom: spacing.xs,
+  },
+  // A label/value or action row. minHeight gives the tap target; no vertical
+  // padding, so the section gap alone sets the tight inter-row rhythm.
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 44,
-    paddingVertical: spacing.sm,
   },
   // Chevron nav row — the pantry "pasta ›" pattern. Charcoal label, muted chevron.
   navRow: {
@@ -345,7 +351,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 44,
-    paddingVertical: spacing.sm,
   },
   // Made-meal preview row: name stacked above the date·cuisine caption.
   mealRow: {
@@ -354,12 +359,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: 'center',
     minHeight: 44,
-    paddingVertical: spacing.sm,
-  },
-  // Hairline BETWEEN ROWS within a section only — never between sections.
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.chipBorder,
   },
   // Meta is data, not a label — drop the caption role's uppercase + tracking.
   dataCaption: {

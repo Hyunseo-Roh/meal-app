@@ -85,12 +85,11 @@ export default function TasteEdit() {
     };
   }, []);
 
-  // Chosen favorites — an unordered set, max 3 (no rank): tapping toggles a
-  // cuisine in/out; a 4th tap is ignored.
+  // Chosen favorites — an unordered set, no cap (matches onboarding): tapping
+  // toggles a cuisine in/out.
   function pickFavorite(id: string) {
     setFavorites((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 3) return prev;
       return [...prev, id];
     });
   }
@@ -164,7 +163,7 @@ export default function TasteEdit() {
             Favorite cuisine
           </Text>
           <Text variant="body" color="textSecondary">
-            Pick up to three
+            Pick as many as you like
           </Text>
           <View style={styles.chipRow}>
             {cuisines.map((c) => (
