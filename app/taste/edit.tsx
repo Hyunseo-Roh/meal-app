@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { loadTasteProfile, saveTasteProfile, type BudgetLevel } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
@@ -128,9 +129,7 @@ export default function TasteEdit() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          Loading your taste…
-        </Text>
+        <LoadingState message="Loading your taste…" />
       </Screen>
     );
   }
@@ -138,10 +137,7 @@ export default function TasteEdit() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="title">Couldn&apos;t open this.</Text>
-        <Text variant="body" color="textSecondary">
-          Try again.
-        </Text>
+        <ErrorState title="Couldn't open this." message="Try again." />
       </Screen>
     );
   }

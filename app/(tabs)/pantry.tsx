@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { EmptyState, ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import {
   addPantryItem,
@@ -265,24 +266,11 @@ export default function Pantry() {
             zone, and a hairline divider marks the shift from the "add" zone. */}
         <View style={[styles.section, styles.pantryZone]}>
           {status === 'loading' ? (
-            <Text variant="body" color="textSecondary">
-              Loading…
-            </Text>
+            <LoadingState message="Loading…" />
           ) : status === 'error' ? (
-            <View style={styles.errorRow}>
-              <Text variant="body" color="textSecondary">
-                Couldn&apos;t load your pantry.
-              </Text>
-              <Pressable onPress={load} accessibilityRole="button" style={styles.link}>
-                <Text variant="body" color="accent">
-                  Try again
-                </Text>
-              </Pressable>
-            </View>
+            <ErrorState message="Couldn't load your pantry." onRetry={load} />
           ) : items.length === 0 ? (
-            <Text variant="body" color="textSecondary">
-              Nothing here yet — add a staple above.
-            </Text>
+            <EmptyState message="Nothing here yet — add a staple above." />
           ) : (
             // Everything inline: each non-empty category renders its header and
             // ALL its items. No detail page, no accordion — you scroll and see
@@ -502,13 +490,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  errorRow: {
-    gap: spacing.sm,
-  },
-  link: {
-    minHeight: 44,
-    justifyContent: 'center',
   },
   premiumCard: {
     flexDirection: 'row',

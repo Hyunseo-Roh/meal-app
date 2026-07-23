@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '../components/Screen';
+import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { Text } from '../components/Text';
 import { formatDate } from '../lib/format';
 import { loadHistory, type HistoryEntry } from '../lib/history';
@@ -57,9 +58,7 @@ export default function History() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          Loading…
-        </Text>
+        <LoadingState message="Loading…" />
       </Screen>
     );
   }
@@ -67,14 +66,7 @@ export default function History() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          Couldn&apos;t load your history.
-        </Text>
-        <Pressable onPress={load} accessibilityRole="button" style={styles.link}>
-          <Text variant="body" color="accent">
-            Try again
-          </Text>
-        </Pressable>
+        <ErrorState message="Couldn't load your history." onRetry={load} />
       </Screen>
     );
   }
@@ -82,9 +74,7 @@ export default function History() {
   if (entries.length === 0) {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary" style={styles.emptyText}>
-          Nothing yet — pick a meal and it lands here
-        </Text>
+        <EmptyState centered message="Nothing yet — pick a meal and it lands here" />
       </Screen>
     );
   }
@@ -126,13 +116,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     gap: spacing.md,
-  },
-  emptyText: {
-    textAlign: 'center',
-  },
-  link: {
-    minHeight: 44,
-    justifyContent: 'center',
   },
   backArrow: {
     paddingTop: spacing.sm,

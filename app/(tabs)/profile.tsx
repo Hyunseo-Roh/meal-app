@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
+import { EmptyState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
@@ -194,9 +195,7 @@ export default function Profile() {
               </Text>
               {history.length === 0 ? (
                 <View style={styles.row}>
-                  <Text variant="body" color="textSecondary">
-                    Nothing yet — pick a meal and it lands here
-                  </Text>
+                  <EmptyState message="Nothing yet — pick a meal and it lands here" />
                 </View>
               ) : (
                 <>

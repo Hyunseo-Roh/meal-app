@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { Screen } from '../../components/Screen';
+import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
 import { upsizeImageUrl } from '../../lib/format';
@@ -369,27 +370,13 @@ export default function Home() {
         ) : null}
 
         {status === 'error' && !hasCards ? (
-          <View style={styles.stateBlock}>
-            <Text variant="title">That slipped away.</Text>
-            <Text variant="body" color="textSecondary">
-              We couldn&apos;t pull three meals just now. Try once more.
-            </Text>
-            <Pressable
-              onPress={() => load({ time, budget, mood })}
-              accessibilityRole="button"
-              style={styles.link}
-            >
-              <Text variant="body" color="accent">
-                Try again
-              </Text>
-            </Pressable>
-          </View>
+          <ErrorState
+            title="That slipped away."
+            message="We couldn't pull three meals just now. Try once more."
+            onRetry={() => load({ time, budget, mood })}
+          />
         ) : status === 'loading' && !hasCards ? (
-          <View style={styles.stateBlock}>
-            <Text variant="body" color="textSecondary">
-              Picking three meals…
-            </Text>
-          </View>
+          <LoadingState message="Picking three meals…" />
         ) : (
           <View style={styles.cards}>
             {shownCards.map(({ tier, card, hasNext }) => (
@@ -466,13 +453,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  stateBlock: {
-    gap: spacing.md,
-  },
-  link: {
-    minHeight: 44,
-    justifyContent: 'center',
   },
   // Cards + the cap line grouped, so the cap line sits directly under the last
   // card rather than floating a full section-gap away.

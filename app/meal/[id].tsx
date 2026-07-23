@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { loadGap, type GapData } from '../../lib/gap';
@@ -117,9 +118,7 @@ export default function MealDetail() {
   if (state.status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          Checking your pantry…
-        </Text>
+        <LoadingState message="Checking your pantry…" />
       </Screen>
     );
   }
@@ -127,13 +126,11 @@ export default function MealDetail() {
   if (state.status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="title">Couldn&apos;t open this.</Text>
-        <Text variant="body" color="textSecondary" style={styles.errorBody}>
-          The details didn&apos;t load. Try again.
-        </Text>
-        <View style={styles.retry}>
-          <PrimaryButton label="Try again" onPress={load} />
-        </View>
+        <ErrorState
+          title="Couldn't open this."
+          message="The details didn't load. Try again."
+          onRetry={load}
+        />
       </Screen>
     );
   }
@@ -331,12 +328,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     gap: spacing.md,
-  },
-  errorBody: {
-    marginTop: -spacing.xs,
-  },
-  retry: {
-    marginTop: spacing.md,
   },
   footer: {
     paddingTop: spacing.lg,

@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { formatCost, upsizeImageUrl } from '../../lib/format';
 import { loadWhy, type WhyData } from '../../lib/reasons';
@@ -64,9 +65,7 @@ export default function WhyWeChose() {
   if (state.status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="body" color="textSecondary">
-          Working out why…
-        </Text>
+        <LoadingState message="Working out why…" />
       </Screen>
     );
   }
@@ -74,13 +73,11 @@ export default function WhyWeChose() {
   if (state.status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <Text variant="title">Lost the thread.</Text>
-        <Text variant="body" color="textSecondary" style={styles.errorBody}>
-          We couldn&apos;t pull this one up. Try again.
-        </Text>
-        <View style={styles.retry}>
-          <PrimaryButton label="Try again" onPress={load} />
-        </View>
+        <ErrorState
+          title="Lost the thread."
+          message="We couldn't pull this one up. Try again."
+          onRetry={load}
+        />
       </Screen>
     );
   }
@@ -206,12 +203,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     gap: spacing.md,
-  },
-  errorBody: {
-    marginTop: -spacing.xs,
-  },
-  retry: {
-    marginTop: spacing.md,
   },
   footer: {
     paddingTop: spacing.lg,
