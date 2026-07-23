@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedbackControl } from '../../components/FeedbackControl';
 import { Screen } from '../../components/Screen';
+import { LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
 import { markMealCompleted } from '../../lib/session';
@@ -16,6 +17,9 @@ export default function Handled() {
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
   const [meal, setMeal] = useState<Meal | null>(null);
+  // The meal name/meta is fetched, so it has a brief loading moment on this
+  // critical-path screen. Starts true; resolves once the fetch settles.
+  const [mealLoading, setMealLoading] = useState(true);
   // Calm note shown only if the selection couldn't be recorded.
   const [writeNote, setWriteNote] = useState<string | null>(null);
 
@@ -40,13 +44,19 @@ export default function Handled() {
     }
 
     async function loadMeal() {
-      if (!id) return;
+      if (!id) {
+        if (active) setMealLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from('meals')
         .select('name, cook_time_min, est_cost')
         .eq('id', id)
         .single();
-      if (active) setMeal(data ?? null);
+      if (active) {
+        setMeal(data ?? null);
+        setMealLoading(false);
+      }
     }
 
     // Reaching Handled from the Home flow (we have an option_id) completes a meal
@@ -64,7 +74,9 @@ export default function Handled() {
     <Screen style={styles.screen}>
       <View style={styles.block}>
         <Text variant="display">You&apos;re set</Text>
-        {meal ? (
+        {mealLoading ? (
+          <LoadingState message="Getting it ready…" />
+        ) : meal ? (
           <>
             <Text variant="title" style={styles.meal}>
               {`You’re making ${meal.name}`}

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
@@ -60,30 +60,28 @@ export default function TasteEdit() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const [profile, { data: cuisineRows, error: cErr }] = await Promise.all([
-          loadTasteProfile(),
-          supabase.from('cuisines').select('id, display_label, emoji').order('display_label'),
-        ]);
-        if (cErr) throw cErr;
-        if (!active) return;
-        setCuisines((cuisineRows ?? []) as Cuisine[]);
-        setFavorites(profile.favoriteCuisineIds);
-        setIngredients(profile.dislikedIngredients);
-        setEffort(profile.effort);
-        setBudget(profile.budget);
-        setStatus('ready');
-      } catch {
-        if (active) setStatus('error');
-      }
-    })();
-    return () => {
-      active = false;
-    };
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const [profile, { data: cuisineRows, error: cErr }] = await Promise.all([
+        loadTasteProfile(),
+        supabase.from('cuisines').select('id, display_label, emoji').order('display_label'),
+      ]);
+      if (cErr) throw cErr;
+      setCuisines((cuisineRows ?? []) as Cuisine[]);
+      setFavorites(profile.favoriteCuisineIds);
+      setIngredients(profile.dislikedIngredients);
+      setEffort(profile.effort);
+      setBudget(profile.budget);
+      setStatus('ready');
+    } catch {
+      setStatus('error');
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Chosen favorites — an unordered set, no cap (matches onboarding): tapping
   // toggles a cuisine in/out.
@@ -136,7 +134,7 @@ export default function TasteEdit() {
   if (status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <ErrorState title="Couldn't open this." message="Try again." />
+        <ErrorState title="Couldn't open this." message="Try again." onRetry={load} />
       </Screen>
     );
   }

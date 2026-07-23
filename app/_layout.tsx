@@ -9,7 +9,9 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 
+import { OfflineBanner, OnlineProvider } from '../components/network';
 import { resetCurrentUser } from '../lib/currentUser';
 // Named import also runs the module side effect: validates Supabase env vars and
 // throws loudly if they are missing/blank, so we never boot a broken client.
@@ -56,9 +58,16 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={LightTheme}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }} />
-    </ThemeProvider>
+    <OnlineProvider>
+      <ThemeProvider value={LightTheme}>
+        <StatusBar style="dark" />
+        {/* Offline banner sits above every screen, in the layout flow (non-
+            blocking), so all routes inherit the single connection notice. */}
+        <View style={{ flex: 1 }}>
+          <OfflineBanner />
+          <Stack screenOptions={{ headerShown: false }} />
+        </View>
+      </ThemeProvider>
+    </OnlineProvider>
   );
 }
