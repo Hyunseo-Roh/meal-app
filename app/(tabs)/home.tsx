@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -104,6 +105,9 @@ export default function Home() {
   const [time, setTime] = useState<number | null>(null);
   const [budget, setBudget] = useState<BudgetLevel | null>(null);
   const [mood, setMood] = useState<string | null>(null);
+  // Filters are collapsed to a summary row by default; tapping expands the chip
+  // groups in place. Starts collapsed on every arrival (see the focus effect).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [rows, setRows] = useState<RecRow[] | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -174,6 +178,9 @@ export default function Home() {
   // budget. Filter changes don't refocus the screen, so they never refill it.
   useFocusEffect(
     useCallback(() => {
+      // Every arrival at Home starts with filters collapsed. Filter chip taps
+      // don't refocus the screen, so adjusting filters keeps the panel open.
+      setFiltersOpen(false);
       if (consumeMealCompleted()) {
         swapsRef.current = 0;
         setSwapsUsed(0);
@@ -255,6 +262,15 @@ export default function Home() {
   const capped = swapsUsed >= SWAP_CAP;
   const hasCards = shownCards.length > 0;
 
+  // Compact filter summary (collapsed default). Unset dimensions read as "Any …".
+  const timeLabel =
+    time === null ? 'Any time' : (TIME_OPTIONS.find((o) => o.value === time)?.label ?? 'Any time');
+  const budgetLabel =
+    budget === null
+      ? 'Any budget'
+      : (BUDGET_OPTIONS.find((o) => o.value === budget)?.label ?? 'Any budget');
+  const filterSummary = `${timeLabel} · ${budgetLabel} · ${mood ?? 'Any mood'}`;
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -267,55 +283,77 @@ export default function Home() {
           </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Cook time
+        {/* Collapsed default: one compact summary row. Tap to expand the chip
+            groups in place; tap again (or the chevron) to collapse. */}
+        <Pressable
+          onPress={() => setFiltersOpen((o) => !o)}
+          accessibilityRole="button"
+          accessibilityLabel={`Filters: ${filterSummary}`}
+          style={styles.summaryRow}
+        >
+          <Text variant="body" color="textSecondary">
+            {filterSummary}
           </Text>
-          <View style={styles.chipRow}>
-            {TIME_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={opt.label}
-                selected={time === opt.value}
-                // Tap again to clear — unset means no time constraint.
-                onPress={() => setTime((prev) => (prev === opt.value ? null : opt.value))}
-              />
-            ))}
-          </View>
-        </View>
+          <Ionicons
+            name={filtersOpen ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.textSecondary}
+          />
+        </Pressable>
 
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Budget
-          </Text>
-          <View style={styles.chipRow}>
-            {BUDGET_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={opt.label}
-                selected={budget === opt.value}
-                // Tap again to clear — unset falls back to your saved budget.
-                onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
-              />
-            ))}
-          </View>
-        </View>
+        {filtersOpen ? (
+          <>
+            <View style={styles.section}>
+              <Text variant="caption" color="textSecondary">
+                Cook time
+              </Text>
+              <View style={styles.chipRow}>
+                {TIME_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    selected={time === opt.value}
+                    // Tap again to clear — unset means no time constraint.
+                    onPress={() => setTime((prev) => (prev === opt.value ? null : opt.value))}
+                  />
+                ))}
+              </View>
+            </View>
 
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Mood — optional
-          </Text>
-          <View style={styles.chipRow}>
-            {MOOD_OPTIONS.map((m) => (
-              <Chip
-                key={m}
-                label={m}
-                selected={mood === m}
-                onPress={() => setMood((prev) => (prev === m ? null : m))}
-              />
-            ))}
-          </View>
-        </View>
+            <View style={styles.section}>
+              <Text variant="caption" color="textSecondary">
+                Budget
+              </Text>
+              <View style={styles.chipRow}>
+                {BUDGET_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    selected={budget === opt.value}
+                    // Tap again to clear — unset falls back to your saved budget.
+                    onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text variant="caption" color="textSecondary">
+                Mood — optional
+              </Text>
+              <View style={styles.chipRow}>
+                {MOOD_OPTIONS.map((m) => (
+                  <Chip
+                    key={m}
+                    label={m}
+                    selected={mood === m}
+                    onPress={() => setMood((prev) => (prev === m ? null : m))}
+                  />
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null}
 
         {status === 'error' && !hasCards ? (
           <View style={styles.stateBlock}>
@@ -373,7 +411,7 @@ export default function Home() {
             ))}
             {capped ? (
               <Text variant="body" color="textSecondary">
-                That&apos;s three swaps — go with one of these
+                No more swaps — go with one of these
               </Text>
             ) : null}
           </View>
@@ -397,6 +435,19 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.md,
+  },
+  // Collapsed filter summary — a ghost row (1px border, no fill) that reads as a
+  // tappable control; the chevron signals it expands.
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   chipRow: {
     flexDirection: 'row',
@@ -448,7 +499,9 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    // Shorter than a 16:9 hero so ~1.5 cards are visible at once — the set reads
+    // as a set, not one card at a time.
+    height: 150,
     backgroundColor: colors.card,
   },
   cardBody: {
