@@ -6,6 +6,7 @@ import { FeedbackControl } from '../../components/FeedbackControl';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
+import { markMealCompleted } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
 
@@ -47,6 +48,10 @@ export default function Handled() {
         .single();
       if (active) setMeal(data ?? null);
     }
+
+    // Reaching Handled from the Home flow (we have an option_id) completes a meal
+    // decision — signal Home to start the next meal with a fresh swap budget.
+    if (option_id) markMealCompleted();
 
     recordSelection();
     loadMeal();

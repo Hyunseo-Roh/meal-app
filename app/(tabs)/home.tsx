@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
 import { upsizeImageUrl } from '../../lib/format';
 import { getPicksHeading } from '../../lib/greeting';
+import { consumeMealCompleted } from '../../lib/session';
 import {
   buildExplanation,
   fetchRecommendations,
@@ -162,6 +163,18 @@ export default function Home() {
   useEffect(() => {
     load({ time, budget, mood });
   }, [time, budget, mood, load]);
+
+  // The 3-swap cap is scoped to ONE meal decision. When the user completes a meal
+  // (reaches Handled) and returns to Home, that's the next meal — refill the swap
+  // budget. Filter changes don't refocus the screen, so they never refill it.
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeMealCompleted()) {
+        swapsRef.current = 0;
+        setSwapsUsed(0);
+      }
+    }, []),
+  );
 
   // Persist once for the current shown set, then reuse. The seam swap will share.
   const ensureMaterialized = useCallback(async () => {

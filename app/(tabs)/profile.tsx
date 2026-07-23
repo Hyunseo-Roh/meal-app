@@ -166,10 +166,26 @@ export default function Profile() {
               </Pressable>
             </View>
 
-            {/* SUBSCRIPTION seam — the next section slots in HERE, between Taste
-                and Meals you've made, using this same pattern: a caption plus a
-                chevron row (e.g. "Manage subscription ›" → /premium). No card
-                needed; the section spacing already reads correctly with it added. */}
+            {/* SUBSCRIPTION */}
+            <View style={styles.section}>
+              <Text variant="caption" color="textSecondary">
+                Subscription
+              </Text>
+              <View style={styles.row}>
+                <Text variant="body" color="textSecondary">
+                  Plan
+                </Text>
+                <Text variant="body">Free</Text>
+              </View>
+              <Pressable
+                onPress={() => router.push('/subscription')}
+                accessibilityRole="button"
+                style={[styles.navRow, styles.divider]}
+              >
+                <Text variant="body">See Premium</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
 
             {/* MEALS YOU'VE MADE */}
             <View style={styles.section}>
