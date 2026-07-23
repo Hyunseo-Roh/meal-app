@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { Screen } from '../../components/Screen';
@@ -126,6 +126,15 @@ export default function Home() {
   const [rows, setRows] = useState<RecRow[] | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [images, setImages] = useState<Record<string, string>>({});
+  // In-place re-run (filter change while cards are already shown): `refreshing`
+  // dims the current cards without blanking or shifting layout; `refreshError`
+  // marks that the last re-run failed, so the visible cards are the PREVIOUS
+  // result. Both are distinct from the initial `status` loading/error path.
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
+  // Mirrors `rows` presence so `load` can tell an initial load from a re-run
+  // without depending on `rows` (which would recreate load and re-fire the effect).
+  const rowsRef = useRef<RecRow[] | null>(null);
 
   // Which within-tier rank is currently shown per tier. Resets with each new row
   // set (filter change) — a fresh shown trio starts at rank 0.
@@ -151,19 +160,33 @@ export default function Home() {
   const paramsRef = useRef<RecParams>({ time: null, budget: null, mood: null });
 
   const load = useCallback(async (params: RecParams) => {
-    paramsRef.current = params;
-    matRef.current = null; // filters changed → any prior materialization is stale
-    setShownRank({ familiar: 0, adjacent: 0, stretch: 0 }); // new set → show rank 0
-    setStatus((prev) => (prev === 'ready' ? prev : 'loading'));
-    setImages({});
+    // Re-run (cards already shown) vs initial load. On a re-run we keep the
+    // current cards visible and only signal via `refreshing`; we do NOT touch
+    // rows/params/shownRank until success, so a failed re-run leaves the prior
+    // set fully intact and still engageable.
+    const isRefresh = rowsRef.current != null;
+    if (isRefresh) {
+      setRefreshing(true);
+      setRefreshError(false);
+    } else {
+      setStatus('loading');
+    }
     try {
       const userId = await getCurrentUserId();
       const recs = await withTimeout(fetchRecommendations(userId, params));
+      // Success — commit the new set and reset the per-set state.
+      rowsRef.current = recs;
+      paramsRef.current = params;
+      matRef.current = null; // new set → any prior materialization is stale
+      setShownRank({ familiar: 0, adjacent: 0, stretch: 0 });
       setRows(recs);
       setStatus('ready');
+      setRefreshing(false);
+      setRefreshError(false);
 
       // Prefetch ALL 12 photos (not just the shown three) so a swap to an
-      // alternate is instant with its image. Optional — degrades gracefully.
+      // alternate is instant with its image. Overwrites the prior map on success;
+      // during a re-run the old photos stay put so cards don't flicker.
       const allIds = recs.map((r) => r.meal_id);
       supabase
         .from('meals')
@@ -177,7 +200,13 @@ export default function Home() {
           setImages(map);
         });
     } catch {
-      setStatus('error');
+      if (isRefresh) {
+        // Keep the last-good cards; mark them as the previous result.
+        setRefreshing(false);
+        setRefreshError(true);
+      } else {
+        setStatus('error');
+      }
     }
   }, []);
 
@@ -378,41 +407,59 @@ export default function Home() {
         ) : status === 'loading' && !hasCards ? (
           <LoadingState message="Picking three meals…" />
         ) : (
-          <View style={styles.cards}>
-            {shownCards.map(({ tier, card, hasNext }) => (
-              <RecCard
-                key={tier}
-                opt={card}
-                explanation={buildExplanation(card)}
-                imageUrl={images[card.meal_id] ?? null}
-                onPress={() => onSelect(card)}
-                // Swap affordance lives INSIDE the card. At the cap it disappears
-                // entirely (not dimmed); when the lane is exhausted a muted,
-                // borderless note takes its place.
-                footer={
-                  capped ? null : !hasNext ? (
-                    <Text variant="caption" color="textSecondary" style={styles.swapNote}>
-                      Nothing else in this lane
-                    </Text>
-                  ) : (
-                    <Pressable
-                      onPress={() => onSwap(tier, card)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Not for me — swap ${card.meal}`}
-                      style={styles.swapPill}
-                    >
-                      <Text variant="caption" style={styles.swapPillText}>
-                        Not for me
-                      </Text>
-                    </Pressable>
-                  )
-                }
+          <View style={styles.cardsWrap}>
+            {/* Re-run failed — the cards below are the PREVIOUS result. Surface it
+                inline; keep the last-good cards; offer a retry. (Placeholder copy.) */}
+            {refreshError ? (
+              <ErrorState
+                title="Showing your previous picks"
+                message="The update didn't go through. Try again."
+                onRetry={() => load({ time, budget, mood })}
               />
-            ))}
-            {capped ? (
-              <Text variant="body" color="textSecondary">
-                No more swaps — go with one of these
-              </Text>
+            ) : null}
+            {/* During a re-run the cards dim (no layout shift) with a spinner
+                overlaid, so it's clear new picks are coming without blanking. */}
+            <View style={[styles.cards, refreshing && styles.cardsDim]}>
+              {shownCards.map(({ tier, card, hasNext }) => (
+                <RecCard
+                  key={tier}
+                  opt={card}
+                  explanation={buildExplanation(card)}
+                  imageUrl={images[card.meal_id] ?? null}
+                  onPress={() => onSelect(card)}
+                  // Swap affordance lives INSIDE the card. At the cap it disappears
+                  // entirely (not dimmed); when the lane is exhausted a muted,
+                  // borderless note takes its place.
+                  footer={
+                    capped ? null : !hasNext ? (
+                      <Text variant="caption" color="textSecondary" style={styles.swapNote}>
+                        Nothing else in this lane
+                      </Text>
+                    ) : (
+                      <Pressable
+                        onPress={() => onSwap(tier, card)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Not for me — swap ${card.meal}`}
+                        style={styles.swapPill}
+                      >
+                        <Text variant="caption" style={styles.swapPillText}>
+                          Not for me
+                        </Text>
+                      </Pressable>
+                    )
+                  }
+                />
+              ))}
+              {capped ? (
+                <Text variant="body" color="textSecondary">
+                  No more swaps — go with one of these
+                </Text>
+              ) : null}
+            </View>
+            {refreshing ? (
+              <View style={styles.refreshOverlay} pointerEvents="none">
+                <ActivityIndicator color={colors.textSecondary} />
+              </View>
             ) : null}
           </View>
         )}
@@ -454,10 +501,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  // Relative wrapper so the re-run spinner can overlay the cards without shifting
+  // layout, and so a refresh-error notice can sit above them.
+  cardsWrap: {
+    gap: spacing.lg,
+  },
   // Cards + the cap line grouped, so the cap line sits directly under the last
   // card rather than floating a full section-gap away.
   cards: {
     gap: spacing.lg,
+  },
+  // Dim (not blank) the current cards during an in-place re-run — opacity only,
+  // so nothing reflows.
+  cardsDim: {
+    opacity: 0.4,
+  },
+  // Spinner centered over the dimmed cards; absolute so it adds no height.
+  refreshOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Swap-affordance slot inside the card body: right-aligned under the reason.
   cardFooter: {

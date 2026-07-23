@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
-import { EmptyState } from '../../components/states';
+import { EmptyState, ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
@@ -19,48 +19,64 @@ import { colors, spacing } from '../../theme/tokens';
 // the Supabase auth session, not AsyncStorage.
 const ONBOARDED_KEY = 'app_onboarded';
 
-type Account = { email: string | null } | null;
+type SectionStatus = 'loading' | 'ready' | 'error';
+type AccountData = { email: string | null };
 type TasteSummary = {
   favoriteCuisines: string[];
   avoids: string[];
   effortLabel: string | null;
   budgetLabel: string | null;
 };
+type Section<T> = { status: SectionStatus; data: T | null };
 
 export default function Profile() {
   const router = useRouter();
-  const [account, setAccount] = useState<Account>(null);
-  const [taste, setTaste] = useState<TasteSummary | null>(null);
-  // Inline preview of the meals you've made — the 3 most recent; the full list
-  // lives on the pushed /history route via "See all". Reuses lib/history.ts.
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // Each section (Account / Taste / Meals you've made) loads and fails
+  // INDEPENDENTLY: a failure in one must never hide the others, and — critically
+  // — must never render a value that looks like real data (an errored taste load
+  // showing "Not set" would read as "you never set a taste", which is a lie). So
+  // a failed section shows its own error + retry, and only a *successful* empty
+  // load shows "Not set" / the empty made-meals line.
+  const [account, setAccount] = useState<Section<AccountData>>({ status: 'loading', data: null });
+  const [taste, setTaste] = useState<Section<TasteSummary>>({ status: 'loading', data: null });
+  const [history, setHistory] = useState<Section<HistoryEntry[]>>({
+    status: 'loading',
+    data: null,
+  });
   // Delete account — inline two-step confirm (Alert.alert is unreliable on web).
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Re-read account + taste on every focus so both reflect the latest state
-  // after returning from register / login / logout / the taste editor.
+  // Per-section loaders. Each keeps prior data on a silent refocus (no loading
+  // flash) but shows loading on an explicit retry (when currently errored).
+  const loadAccount = useCallback(() => {
+    setAccount((p) => (p.status === 'ready' ? p : { status: 'loading', data: null }));
+    getAuthUser()
+      .then((u) => setAccount({ status: 'ready', data: { email: u?.email ?? null } }))
+      .catch(() => setAccount({ status: 'error', data: null }));
+  }, []);
+  const loadTaste = useCallback(() => {
+    setTaste((p) => (p.status === 'ready' ? p : { status: 'loading', data: null }));
+    loadTasteSummary()
+      .then((s) => setTaste({ status: 'ready', data: s }))
+      .catch(() => setTaste({ status: 'error', data: null }));
+  }, []);
+  const loadMade = useCallback(() => {
+    setHistory((p) => (p.status === 'ready' ? p : { status: 'loading', data: null }));
+    loadHistory()
+      .then((h) => setHistory({ status: 'ready', data: h }))
+      .catch(() => setHistory({ status: 'error', data: null }));
+  }, []);
+
+  // Re-read all three on every focus so they reflect the latest state after
+  // returning from register / login / logout / the taste editor / a made meal.
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      (async () => {
-        const [u, summary, made] = await Promise.all([
-          getAuthUser().catch(() => null),
-          loadTasteSummary().catch(() => null),
-          loadHistory().catch(() => [] as HistoryEntry[]),
-        ]);
-        if (!active) return;
-        setAccount(u ? { email: u.email } : null);
-        setTaste(summary);
-        setHistory(made);
-        setLoaded(true);
-      })();
-      return () => {
-        active = false;
-      };
-    }, []),
+      loadAccount();
+      loadTaste();
+      loadMade();
+    }, [loadAccount, loadTaste, loadMade]),
   );
 
   // Sign out, clear the memo + onboarded flag, and return to the splash, which
@@ -95,45 +111,58 @@ export default function Profile() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text variant="title">Profile</Text>
 
-        {loaded ? (
-          <>
-            {/* Settings screen: no card surfaces. Grouping comes from whitespace
-                (large gaps between sections, tight rows within) + hairlines that
-                appear ONLY between rows inside a section, never between sections. */}
+        {/* Settings screen: no card surfaces. Grouping comes from whitespace
+            (large gaps between sections, tight rows within) + hairlines that
+            appear ONLY between rows inside a section, never between sections.
+            Each data section owns its loading / error / ready state. */}
 
-            {/* ACCOUNT */}
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Account
-              </Text>
-              {account?.email ? (
+        {/* ACCOUNT */}
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Account
+          </Text>
+          {account.status === 'loading' ? (
+            <LoadingState message="Loading…" />
+          ) : account.status === 'error' ? (
+            <ErrorState message="Couldn't load your account." onRetry={loadAccount} />
+          ) : (
+            <>
+              {account.data?.email ? (
                 <View style={styles.row}>
-                  <Text variant="body">{account.email}</Text>
+                  <Text variant="body">{account.data.email}</Text>
                 </View>
               ) : null}
               <Pressable
                 onPress={signOutToStart}
                 accessibilityRole="button"
-                style={[styles.row, account?.email ? styles.divider : null]}
+                style={[styles.row, account.data?.email ? styles.divider : null]}
               >
                 <Text variant="body" color="accent">
                   Log out
                 </Text>
               </Pressable>
-            </View>
+            </>
+          )}
+        </View>
 
-            {/* TASTE */}
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Taste
-              </Text>
+        {/* TASTE */}
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Taste
+          </Text>
+          {taste.status === 'loading' ? (
+            <LoadingState message="Loading…" />
+          ) : taste.status === 'error' ? (
+            <ErrorState message="Couldn't load your taste." onRetry={loadTaste} />
+          ) : (
+            <>
               <View style={styles.row}>
                 <Text variant="body" color="textSecondary">
                   Favorite
                 </Text>
                 <Text variant="body">
-                  {taste && taste.favoriteCuisines.length > 0
-                    ? taste.favoriteCuisines.join(' · ')
+                  {taste.data && taste.data.favoriteCuisines.length > 0
+                    ? taste.data.favoriteCuisines.join(' · ')
                     : 'Not set'}
                 </Text>
               </View>
@@ -142,20 +171,22 @@ export default function Profile() {
                   Avoids
                 </Text>
                 <Text variant="body">
-                  {taste && taste.avoids.length > 0 ? taste.avoids.join(' · ') : 'None'}
+                  {taste.data && taste.data.avoids.length > 0
+                    ? taste.data.avoids.join(' · ')
+                    : 'None'}
                 </Text>
               </View>
               <View style={[styles.row, styles.divider]}>
                 <Text variant="body" color="textSecondary">
                   Effort
                 </Text>
-                <Text variant="body">{taste?.effortLabel ?? 'Not set'}</Text>
+                <Text variant="body">{taste.data?.effortLabel ?? 'Not set'}</Text>
               </View>
               <View style={[styles.row, styles.divider]}>
                 <Text variant="body" color="textSecondary">
                   Budget
                 </Text>
-                <Text variant="body">{taste?.budgetLabel ?? 'Not set'}</Text>
+                <Text variant="body">{taste.data?.budgetLabel ?? 'Not set'}</Text>
               </View>
               <Pressable
                 onPress={() => router.push('/taste/edit')}
@@ -165,69 +196,75 @@ export default function Profile() {
                 <Text variant="body">Edit taste</Text>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </Pressable>
-            </View>
+            </>
+          )}
+        </View>
 
-            {/* SUBSCRIPTION */}
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Subscription
-              </Text>
-              <View style={styles.row}>
-                <Text variant="body" color="textSecondary">
-                  Plan
-                </Text>
-                <Text variant="body">Free</Text>
-              </View>
-              <Pressable
-                onPress={() => router.push('/subscription')}
-                accessibilityRole="button"
-                style={[styles.navRow, styles.divider]}
-              >
-                <Text variant="body">See Premium</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </Pressable>
-            </View>
+        {/* SUBSCRIPTION — static, no load. */}
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Subscription
+          </Text>
+          <View style={styles.row}>
+            <Text variant="body" color="textSecondary">
+              Plan
+            </Text>
+            <Text variant="body">Free</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/subscription')}
+            accessibilityRole="button"
+            style={[styles.navRow, styles.divider]}
+          >
+            <Text variant="body">See Premium</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
 
-            {/* MEALS YOU'VE MADE */}
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Meals you&apos;ve made
-              </Text>
-              {history.length === 0 ? (
-                <View style={styles.row}>
-                  <EmptyState message="Nothing yet — pick a meal and it lands here" />
-                </View>
-              ) : (
-                <>
-                  {history.slice(0, 3).map((e, i) => (
-                    <Pressable
-                      key={`${e.mealId}-${e.createdAt}-${i}`}
-                      onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
-                      style={[styles.mealRow, i > 0 ? styles.divider : null]}
-                    >
-                      <Text variant="body">{e.name}</Text>
-                      <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                        {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
-                      </Text>
-                    </Pressable>
-                  ))}
-                  {/* Chevron nav row (pantry "pasta ›" pattern) → the full list.
-                      Gated to >3: a link to already-visible content is a dead link. */}
-                  {history.length > 3 ? (
-                    <Pressable
-                      onPress={() => router.push('/history')}
-                      accessibilityRole="button"
-                      style={[styles.navRow, styles.divider]}
-                    >
-                      <Text variant="body">See all</Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                  ) : null}
-                </>
-              )}
+        {/* MEALS YOU'VE MADE */}
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            Meals you&apos;ve made
+          </Text>
+          {history.status === 'loading' ? (
+            <LoadingState message="Loading…" />
+          ) : history.status === 'error' ? (
+            <ErrorState message="Couldn't load your meals." onRetry={loadMade} />
+          ) : (history.data?.length ?? 0) === 0 ? (
+            <View style={styles.row}>
+              <EmptyState message="Nothing yet — pick a meal and it lands here" />
             </View>
+          ) : (
+            <>
+              {(history.data ?? []).slice(0, 3).map((e, i) => (
+                <Pressable
+                  key={`${e.mealId}-${e.createdAt}-${i}`}
+                  onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
+                  style={[styles.mealRow, i > 0 ? styles.divider : null]}
+                >
+                  <Text variant="body">{e.name}</Text>
+                  <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                    {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
+                  </Text>
+                </Pressable>
+              ))}
+              {/* Chevron nav row (pantry "pasta ›" pattern) → the full list.
+                  Gated to >3: a link to already-visible content is a dead link. */}
+              {(history.data?.length ?? 0) > 3 ? (
+                <Pressable
+                  onPress={() => router.push('/history')}
+                  accessibilityRole="button"
+                  style={[styles.navRow, styles.divider]}
+                >
+                  <Text variant="body">See all</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
+            </>
+          )}
+        </View>
 
             {/* Delete account — outside every section, on its own, with generous
                 space above so a destructive action never sits at preference weight. */}
@@ -274,8 +311,6 @@ export default function Profile() {
                 </View>
               )}
             </View>
-          </>
-        ) : null}
       </ScrollView>
     </Screen>
   );
