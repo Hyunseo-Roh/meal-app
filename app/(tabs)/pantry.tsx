@@ -25,12 +25,6 @@ const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shr
 // How long the "Added to X" line + row tint stay up after an add.
 const ADDED_NOTICE_MS = 2500;
 
-// Non-functional premium placeholders. No entitlement check — pure UI.
-const PREMIUM = [
-  { key: 'scan', title: 'Barcode scan', subtitle: 'Skip the typing — scan to fill your pantry.' },
-  { key: 'ai', title: 'AI Chef', subtitle: "Turn what's in your pantry into new recipes." },
-] as const;
-
 type Status = 'loading' | 'ready' | 'error';
 
 export default function Pantry() {
@@ -45,7 +39,11 @@ export default function Pantry() {
   // chip to "tap to add" instantly, so a fast second tap could re-add the row
   // while the DELETE is still in flight.
   const [removing, setRemoving] = useState(false);
-  const [tappedPremium, setTappedPremium] = useState<string | null>(null);
+  // The premium explainer popup (merged Barcode scan + AI Chef card → this).
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  // Add-by-name is collapsed behind a "+" by default so the add feature stays
+  // out of the way at the bottom; opening it autofocuses the field.
+  const [addOpen, setAddOpen] = useState(false);
   // The item whose move sheet is open (null = closed), plus a sheet-local error.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
@@ -205,72 +203,43 @@ export default function Pantry() {
           </Text>
         </View>
 
-        {/* Add by name */}
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Add an item
-          </Text>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={addDraft}
-            placeholder="Type an item, press enter"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-            returnKeyType="done"
-            style={styles.input}
-          />
-          <PrimaryButton label={adding ? 'Adding…' : 'Add'} onPress={addDraft} disabled={adding} />
-          {/* Answers "where did it go?" right here, so the category can stay
-              below the fold without the user hunting for it. */}
-          {justAdded ? (
+        {/* Premium — the two conveniences (Barcode scan, AI Chef) merged into one
+            card. Tapping opens an explainer popup, which is also the in-app way
+            into the scanner. Non-functional badge; no entitlement check yet. */}
+        <Pressable
+          onPress={() => setPremiumOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Barcode scan and AI Chef — learn more"
+          style={styles.premiumCard}
+        >
+          <Ionicons name="lock-closed" size={20} color={colors.textSecondary} style={styles.lock} />
+          <View style={styles.premiumBody}>
+            <View style={styles.premiumTitleRow}>
+              <Text variant="body">Barcode scan and AI Chef</Text>
+              <View style={styles.badge}>
+                <Text variant="caption" color="textSecondary">
+                  Premium
+                </Text>
+              </View>
+            </View>
             <Text variant="body" color="textSecondary">
-              {`Added to ${toSentenceCase(justAdded.category)}`}
+              Conveniences on top of the free app
             </Text>
-          ) : null}
-        </View>
-
-        {/* Quick add — a TOGGLE. Tap a staple to add it; tap the "✓" version to
-            take it back out. Owned renders full-opacity with a ✓ so it reads as
-            OWNED, not disabled (dimming it said "broken"). The ✓ inherits Chip's
-            unselected Charcoal (never accent fill, and never Sage — Sage is the
-            Gap Tracker's alone). */}
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            Quick add
-          </Text>
-          <View style={styles.chipRow}>
-            {QUICK_ADD.map((name) =>
-              has(name) ? (
-                <Chip
-                  key={name}
-                  label={`✓ ${toSentenceCase(name)}`}
-                  selected={false}
-                  onPress={() => removeStaple(name)}
-                />
-              ) : (
-                <Chip
-                  key={name}
-                  label={toSentenceCase(name)}
-                  selected={false}
-                  onPress={() => add(name)}
-                />
-              ),
-            )}
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} style={styles.lock} />
+        </Pressable>
 
         {/* Current pantry — items grouped by category. Two removal paths: the
             per-item sheet (tap a row → Remove) and tapping an owned quick-add ✓
             chip. Header intentionally omitted: the intro copy + tab name set the
-            zone, and a hairline divider marks the shift from the "add" zone. */}
-        <View style={[styles.section, styles.pantryZone]}>
+            zone; the add zone sits below it. */}
+        <View style={styles.section}>
           {status === 'loading' ? (
             <LoadingState message="Opening your pantry…" />
           ) : status === 'error' ? (
             <ErrorState message="Your pantry didn't open" onRetry={load} />
           ) : items.length === 0 ? (
-            <EmptyState message="Nothing here yet — add a staple above" />
+            <EmptyState message="Nothing here yet — add a staple below" />
           ) : (
             // Everything inline: each non-empty category renders its header and
             // ALL its items. No detail page, no accordion — you scroll and see
@@ -306,43 +275,77 @@ export default function Pantry() {
           )}
         </View>
 
-        {error ? <Text variant="body">{error}</Text> : null}
-
-        {/* Premium placeholders — non-functional, no entitlement check. */}
-        <View style={styles.section}>
+        {/* Add zone — the bottom of the screen. Quick-add chips stay; add-by-name
+            collapses behind a "+" so it no longer dominates. Both add paths
+            surface the "Added to X" notice + any error, gathered here. */}
+        <View style={[styles.section, styles.addZone]}>
+          {/* Quick add — a TOGGLE. Tap a staple to add it; tap the "✓" version to
+              take it back out. Owned renders full-opacity with a ✓ so it reads as
+              OWNED, not disabled (dimming it said "broken"). The ✓ inherits Chip's
+              unselected Charcoal (never accent fill, and never Sage — Sage is the
+              Gap Tracker's alone). */}
           <Text variant="caption" color="textSecondary">
-            More, with Premium
+            Quick add
           </Text>
-          {PREMIUM.map((card) => (
+          <View style={styles.chipRow}>
+            {QUICK_ADD.map((name) =>
+              has(name) ? (
+                <Chip
+                  key={name}
+                  label={`✓ ${toSentenceCase(name)}`}
+                  selected={false}
+                  onPress={() => removeStaple(name)}
+                />
+              ) : (
+                <Chip
+                  key={name}
+                  label={toSentenceCase(name)}
+                  selected={false}
+                  onPress={() => add(name)}
+                />
+              ),
+            )}
+          </View>
+
+          {/* Add by name — behind a "+". Opening autofocuses the field. */}
+          {addOpen ? (
+            <View style={styles.section}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={addDraft}
+                placeholder="Type an item, press enter"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+                autoFocus
+                returnKeyType="done"
+                style={styles.input}
+              />
+              <PrimaryButton
+                label={adding ? 'Adding…' : 'Add'}
+                onPress={addDraft}
+                disabled={adding}
+              />
+            </View>
+          ) : (
             <Pressable
-              key={card.key}
-              onPress={() =>
-                card.key === 'scan' ? router.push('/scanner') : setTappedPremium(card.key)
-              }
+              onPress={() => setAddOpen(true)}
               accessibilityRole="button"
-              style={styles.premiumCard}
+              accessibilityLabel="Add an item by name"
+              style={styles.addToggle}
             >
-              <Ionicons name="lock-closed" size={20} color={colors.textSecondary} style={styles.lock} />
-              <View style={styles.premiumBody}>
-                <View style={styles.premiumTitleRow}>
-                  <Text variant="body">{card.title}</Text>
-                  <View style={styles.badge}>
-                    <Text variant="caption" color="textSecondary">
-                      Premium
-                    </Text>
-                  </View>
-                </View>
-                <Text variant="body" color="textSecondary">
-                  {card.subtitle}
-                </Text>
-                {tappedPremium === card.key ? (
-                  <Text variant="body" color="textSecondary">
-                    Coming soon
-                  </Text>
-                ) : null}
-              </View>
+              <Ionicons name="add" size={20} color={colors.text} />
+              <Text variant="body">Add an item</Text>
             </Pressable>
-          ))}
+          )}
+
+          {/* Answers "where did it go?" for both add paths. */}
+          {justAdded ? (
+            <Text variant="body" color="textSecondary">
+              {`Added to ${toSentenceCase(justAdded.category)}`}
+            </Text>
+          ) : null}
+          {error ? <Text variant="body">{error}</Text> : null}
         </View>
       </ScrollView>
 
@@ -356,6 +359,7 @@ export default function Pantry() {
           <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Dismiss" />
           {sheetItem ? (
             <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+              <View style={styles.dragHandle} />
               <Text variant="title" style={styles.sheetTitle}>
                 {toSentenceCase(sheetItem.name)}
               </Text>
@@ -393,6 +397,64 @@ export default function Pantry() {
           ) : null}
         </View>
       </Modal>
+
+      {/* Premium explainer — what each convenience does, plus the in-app way into
+          the scanner (the merged card no longer links to it directly). */}
+      <Modal
+        visible={premiumOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPremiumOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable
+            style={styles.scrim}
+            onPress={() => setPremiumOpen(false)}
+            accessibilityLabel="Dismiss"
+          />
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+            <View style={styles.dragHandle} />
+            <Text variant="title" style={styles.sheetTitle}>
+              With Premium
+            </Text>
+            <Text variant="body" color="textSecondary">
+              You&apos;ve got what you need for free — these two just save steps
+            </Text>
+
+            {/* Barcode scan — tappable: this is the only in-app entry to the
+                scanner now that the cards are merged. */}
+            <Pressable
+              onPress={() => {
+                setPremiumOpen(false);
+                router.push('/scanner');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Open barcode scanner"
+              style={styles.premiumFeatureRow}
+            >
+              <View style={styles.premiumFeatureBody}>
+                <Text variant="body">Barcode scan</Text>
+                <Text variant="body" color="textSecondary">
+                  Scan a barcode to fill your pantry — no typing
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
+
+            {/* AI Chef — non-functional, no route. */}
+            <View style={styles.premiumFeatureRow}>
+              <View style={styles.premiumFeatureBody}>
+                <Text variant="body">AI Chef</Text>
+                <Text variant="body" color="textSecondary">
+                  Turn what you have on hand into new recipes
+                </Text>
+              </View>
+            </View>
+
+            <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -419,12 +481,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
   },
-  // Hairline divider + breathing room marking the start of the "your pantry"
-  // zone now that the header is gone.
-  pantryZone: {
+  // Hairline divider + breathing room marking the shift from the inventory into
+  // the "add" zone at the bottom.
+  addZone: {
     borderTopWidth: 1,
     borderTopColor: colors.chipBorder,
     paddingTop: spacing.xl,
+  },
+  // Collapsed add-by-name affordance — ghost row (1px border) with a "+".
+  addToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
   },
   // One inline category: its caption header, then its item rows. The gap sits
   // between header and rows; the rows carry their own hairline separators.
@@ -465,6 +538,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     gap: spacing.sm,
+  },
+  // Small grab affordance at the top of the bottom sheets.
+  dragHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.chipBorder,
+    marginBottom: spacing.sm,
+  },
+  // A single feature block inside the premium popup.
+  premiumFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+  },
+  premiumFeatureBody: {
+    flex: 1,
+    gap: spacing.xs,
   },
   sheetTitle: {
     // 8 here + the sheet's 8 gap = ~16 of separation, so the 24 title reads as
