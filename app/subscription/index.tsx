@@ -22,7 +22,7 @@ const FEATURES = [
   {
     icon: 'sparkles-outline',
     title: 'AI Chef',
-    line: 'Recipes from what you have',
+    line: 'Recipes from your leftovers',
     soon: true,
   },
   {
