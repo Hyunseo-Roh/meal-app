@@ -68,11 +68,10 @@ export async function loadTasteSummary(): Promise<{
 }> {
   const p = await loadTasteProfile();
 
-  // Resolve cuisine ids → display labels in ONE query covering both lists
-  // (favorites AND legacy disliked cuisines). Avoids guessing the users→cuisines
-  // FK-embed constraint name. Each list keeps its own stored order; unresolved
-  // ids (e.g. a cuisine that no longer exists) drop out of that list.
-  const cuisineIds = [...p.favoriteCuisineIds, ...p.dislikedCuisineIds];
+  // Resolve favorite cuisine ids → display labels in one query (avoids guessing
+  // the users→cuisines FK-embed constraint name). Stored order preserved;
+  // unresolved ids (e.g. a cuisine that no longer exists) drop out.
+  const cuisineIds = p.favoriteCuisineIds;
   let labelById = new Map<string, string>();
   if (cuisineIds.length > 0) {
     const { data } = await withTimeout(
@@ -90,10 +89,11 @@ export async function loadTasteSummary(): Promise<{
 
   const favoriteCuisines = resolve(p.favoriteCuisineIds);
 
-  // "Avoids" is the user's stated avoid set, shown in full: legacy cuisine
-  // dislikes (read-only — no longer editable, but still filter recommend_meals)
-  // FIRST, then the ingredient names. Dietary is excluded (never persisted).
-  const avoids = [...resolve(p.dislikedCuisineIds), ...p.dislikedIngredients.map(capitalize)];
+  // "Avoids" is the user's avoided INGREDIENTS — still collected at onboarding
+  // and still enforced by recommend_meals. Disliked cuisines are no longer part
+  // of it: that input was removed and the stored column cleared (migration
+  // 20260723_clear_disliked_cuisines). Dietary is excluded (never persisted).
+  const avoids = p.dislikedIngredients.map(capitalize);
 
   return {
     favoriteCuisines,
@@ -104,11 +104,11 @@ export async function loadTasteSummary(): Promise<{
 }
 
 /**
- * Single users UPDATE. The editor no longer edits cuisine-avoids, so
- * `disliked_cuisine_ids` is intentionally OMITTED from the payload — never
- * written — which preserves any legacy stored value instead of clearing it.
- * The input type drops that field for the same reason. loadTasteProfile still
- * returns it (Profile's avoids count reads it); only the write forgoes it.
+ * Single users UPDATE. `disliked_cuisine_ids` is deprecated — its input was
+ * removed from onboarding and this editor, and the stored values were cleared
+ * (migration 20260723_clear_disliked_cuisines). It is intentionally OMITTED
+ * from the payload (and dropped from the input type) because it is no longer a
+ * user-facing preference — NOT to preserve any legacy value.
  */
 export async function saveTasteProfile(
   p: Omit<TasteProfile, 'dislikedCuisineIds'>,
