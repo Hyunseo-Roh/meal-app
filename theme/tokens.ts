@@ -32,7 +32,6 @@ export type ColorName = keyof typeof colors;
 export const fonts = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
-  semibold: 'Inter_600SemiBold',
   serif: 'Literata_500Medium', // display face for the 32/24 roles only
 } as const;
 

@@ -8,7 +8,6 @@ import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
-import { upsizeImageUrl } from '../../lib/format';
 import { getPicksHeading } from '../../lib/greeting';
 import { consumeMealCompleted } from '../../lib/session';
 import {
@@ -72,7 +71,7 @@ function RecCard({
     <Pressable onPress={onPress} accessibilityRole="button" style={styles.card}>
       {imageUrl && !imageFailed ? (
         <Image
-          source={{ uri: upsizeImageUrl(imageUrl) }}
+          source={{ uri: imageUrl }}
           style={styles.cardImage}
           resizeMode="cover"
           onError={() => setImageFailed(true)}

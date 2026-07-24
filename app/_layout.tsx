@@ -1,9 +1,4 @@
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  useFonts,
-} from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_500Medium, useFonts } from '@expo-google-fonts/inter';
 import { Literata_500Medium } from '@expo-google-fonts/literata';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
@@ -30,7 +25,6 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
-    Inter_600SemiBold,
     Literata_500Medium,
   });
 

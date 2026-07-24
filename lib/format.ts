@@ -9,15 +9,6 @@ export function formatCost(estCost: number): string {
   return `≈ $${estCost.toFixed(2)} / serving`;
 }
 
-/**
- * Spoonacular serves the same image at larger sizes. Upsize the seeded
- * "312x231" thumbnail to "636x393" so it isn't blurry when shown large.
- * Display only — the stored URL is untouched; unmatched URLs return unchanged.
- */
-export function upsizeImageUrl(url: string): string {
-  return url.replace('-312x231.', '-636x393.');
-}
-
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',

@@ -23,16 +23,6 @@ export function getMealBucket(date: Date): MealBucket {
   return 'dinner';
 }
 
-const GREETING: Record<MealBucket, string> = {
-  breakfast: "What's for breakfast?",
-  lunch: "What's for lunch?",
-  dinner: "What's for dinner?",
-};
-
-export function getMealGreeting(date: Date): string {
-  return GREETING[getMealBucket(date)];
-}
-
 // Home now shows the answer, not the question, so its heading names the meal
 // slot instead of asking — same time-of-day thresholds as getMealBucket.
 const SLOT_LABEL: Record<MealBucket, string> = {

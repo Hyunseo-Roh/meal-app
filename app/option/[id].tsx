@@ -7,7 +7,7 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
-import { formatCost, upsizeImageUrl } from '../../lib/format';
+import { formatCost } from '../../lib/format';
 import { loadWhy, type WhyData } from '../../lib/reasons';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -126,7 +126,7 @@ export default function WhyWeChose() {
 
         {imageUrl && !imageFailed ? (
           <Image
-            source={{ uri: upsizeImageUrl(imageUrl) }}
+            source={{ uri: imageUrl }}
             style={styles.image}
             resizeMode="cover"
             onError={() => setImageFailed(true)}

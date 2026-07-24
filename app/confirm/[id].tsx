@@ -76,7 +76,7 @@ export default function Handled() {
       <View style={styles.block}>
         {/* The commitment moment — the meal you're about to make, pictured.
             Greige fallback (via MealImage) if the photo is null or slow. */}
-        <MealImage url={meal?.image_url ?? null} width="100%" height={140} upsize />
+        <MealImage url={meal?.image_url ?? null} width="100%" height={140} />
         <Text variant="display">You&apos;re set</Text>
         {mealLoading ? (
           <LoadingState message="Getting your meal…" />
