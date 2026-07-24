@@ -441,15 +441,33 @@ export default function Pantry() {
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </Pressable>
 
-            {/* AI Chef — non-functional, no route. */}
+            {/* AI Chef — non-functional: no route, no chevron. A dead tap here
+                would read as broken, so it gets no affordance at all. */}
             <View style={styles.premiumFeatureRow}>
               <View style={styles.premiumFeatureBody}>
                 <Text variant="body">AI Chef</Text>
                 <Text variant="body" color="textSecondary">
-                  Turn what you have on hand into new recipes
+                  Pick what&apos;s left in your fridge and get recipes that use it up
                 </Text>
               </View>
             </View>
+
+            {/* See Premium — the plan/paywall. Same chevron affordance as the
+                Barcode scan row. */}
+            <Pressable
+              onPress={() => {
+                setPremiumOpen(false);
+                router.push('/subscription');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="See Premium"
+              style={styles.premiumFeatureRow}
+            >
+              <View style={styles.premiumFeatureBody}>
+                <Text variant="body">See Premium</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
 
             <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
           </View>
