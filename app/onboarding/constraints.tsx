@@ -9,7 +9,7 @@ import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
-import { colors, spacing } from '../../theme/tokens';
+import { colors, spacing, typography } from '../../theme/tokens';
 import { useOnboarding, type BudgetLevel } from './_layout';
 
 // Display labels/descriptions only. The stored value stays the same int
@@ -28,11 +28,13 @@ const BUDGET_OPTIONS: { label: string; description: string; value: BudgetLevel }
 
 // Visual-only cook-time preference. Local state, intentionally NOT persisted —
 // no DB column, no write. Mirrors the Home screen's time chips for parity.
+// DISPLAY labels only ("min" moved to the group label as "· MIN"); values,
+// ids, selection logic, and the not-persisted behavior are unchanged.
 const COOK_TIME_OPTIONS: { label: string; value: number }[] = [
-  { label: '15 min', value: 15 },
-  { label: '30 min', value: 30 },
-  { label: '45 min', value: 45 },
-  { label: '60+ min', value: 60 },
+  { label: '15', value: 15 },
+  { label: '30', value: 30 },
+  { label: '45', value: 45 },
+  { label: '60+', value: 60 },
 ];
 
 // Page 2 of 3 — Constraints. Collects effort + budget, then writes the whole
@@ -137,7 +139,7 @@ export default function ConstraintsSetup() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            Cook time
+            Cook time · min
           </Text>
           <View style={styles.chipRow}>
             {COOK_TIME_OPTIONS.map((opt) => (
@@ -150,6 +152,9 @@ export default function ConstraintsSetup() {
               />
             ))}
           </View>
+          {/* Empty helper slot — reserves the same line as Budget/Effort so all
+              three groups share one rhythm. Cook time never has a description. */}
+          <View style={styles.helperSlot} />
         </View>
 
         <View style={styles.section}>
@@ -167,11 +172,15 @@ export default function ConstraintsSetup() {
               />
             ))}
           </View>
-          {budgetDescription ? (
-            <Text variant="body" color="textSecondary">
-              {budgetDescription}
-            </Text>
-          ) : null}
+          {/* Reserved slot: text appears on selection, filling the space rather
+              than pushing the next group / Continue down. */}
+          <View style={styles.helperSlot}>
+            {budgetDescription ? (
+              <Text variant="body" color="textSecondary">
+                {budgetDescription}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -189,18 +198,16 @@ export default function ConstraintsSetup() {
               />
             ))}
           </View>
-          {effortDescription ? (
-            <Text variant="body" color="textSecondary">
-              {effortDescription}
-            </Text>
-          ) : null}
+          <View style={styles.helperSlot}>
+            {effortDescription ? (
+              <Text variant="body" color="textSecondary">
+                {effortDescription}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
-        {error ? (
-          <Text variant="body" color="text">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Text variant="body">{error}</Text> : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -240,14 +247,16 @@ const styles = StyleSheet.create({
   progressActive: {
     backgroundColor: colors.accent,
   },
-  progressInactive: {
-    backgroundColor: colors.chipBorder,
-  },
   header: {
     gap: spacing.sm,
   },
   section: {
     gap: spacing.md,
+  },
+  // Reserves exactly one body line under each group's chips (Step-3 local), so a
+  // selection fills the space instead of shifting the layout; empty for Cook time.
+  helperSlot: {
+    minHeight: typography.body.lineHeight,
   },
   chipRow: {
     flexDirection: 'row',
