@@ -33,3 +33,29 @@ export function formatDate(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+/**
+ * Month header label for the grouped History list, e.g. "July". Rendered through
+ * the caption role, which uppercases it → "JULY" (matches PROTEINS / QUICK ADD).
+ * Returns '' for a bad/empty date.
+ */
+export function monthLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return MONTH_NAMES[d.getMonth()];
+}
+
+/**
+ * Stable year+month key for grouping ("2026-6"). Year-scoped so July 2025 and
+ * July 2026 never merge into one section even though both display as "JULY".
+ */
+export function monthKey(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${d.getMonth()}`;
+}

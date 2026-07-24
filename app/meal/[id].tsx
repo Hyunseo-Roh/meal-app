@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MealImage } from '../../components/MealImage';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
@@ -162,8 +161,6 @@ export default function MealDetail() {
         <Ionicons name="chevron-back" size={28} color={colors.text} />
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* The meal, pictured — Greige fallback if the photo is null or fails. */}
-        <MealImage url={gap.imageUrl} width="100%" height={140} upsize />
         <View style={styles.header}>
           {gap.cuisineLabel ? (
             <Text variant="caption" color="textSecondary">
