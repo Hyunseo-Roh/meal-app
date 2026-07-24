@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MealImage } from '../components/MealImage';
 import { Screen } from '../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { Text } from '../components/Text';
@@ -100,10 +101,13 @@ export default function History() {
               accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
               style={styles.itemRow}
             >
-              <Text variant="body">{e.name}</Text>
-              <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
-              </Text>
+              <MealImage url={e.imageUrl} width={56} height={56} radius={8} />
+              <View style={styles.itemText}>
+                <Text variant="body">{e.name}</Text>
+                <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                  {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
+                </Text>
+              </View>
             </Pressable>
           ))}
         </View>
@@ -131,16 +135,23 @@ const styles = StyleSheet.create({
     // Rows carry their own hairline separators; no inter-row gap.
   },
   itemRow: {
-    // Stacked (not space-between): long meal names get their own full-width line
-    // above the date·cuisine caption, so nothing collides on the right edge.
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: spacing.xs,
-    justifyContent: 'center',
+    // Thumbnail left, text block right, both vertically centered.
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     minHeight: 44,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
+  },
+  // Name stacked above the date·cuisine caption; long names get a full line and
+  // wrap within the column instead of colliding on the right edge.
+  itemText: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    justifyContent: 'center',
   },
   // Meta is data, not a label — drop the caption role's uppercase + tracking.
   dataCaption: {

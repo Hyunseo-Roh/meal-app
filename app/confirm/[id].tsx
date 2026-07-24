@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedbackControl } from '../../components/FeedbackControl';
+import { MealImage } from '../../components/MealImage';
 import { Screen } from '../../components/Screen';
 import { LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
@@ -11,7 +12,7 @@ import { markMealCompleted } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
 import { spacing } from '../../theme/tokens';
 
-type Meal = { name: string; cook_time_min: number; est_cost: number };
+type Meal = { name: string; cook_time_min: number; est_cost: number; image_url: string | null };
 
 export default function Handled() {
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
@@ -50,7 +51,7 @@ export default function Handled() {
       }
       const { data } = await supabase
         .from('meals')
-        .select('name, cook_time_min, est_cost')
+        .select('name, cook_time_min, est_cost, image_url')
         .eq('id', id)
         .single();
       if (active) {
@@ -73,6 +74,9 @@ export default function Handled() {
   return (
     <Screen style={styles.screen}>
       <View style={styles.block}>
+        {/* The commitment moment — the meal you're about to make, pictured.
+            Greige fallback (via MealImage) if the photo is null or slow. */}
+        <MealImage url={meal?.image_url ?? null} width="100%" height={150} upsize />
         <Text variant="display">You&apos;re set</Text>
         {mealLoading ? (
           <LoadingState message="Getting your meal…" />

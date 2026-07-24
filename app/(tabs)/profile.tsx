@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MealImage } from '../../components/MealImage';
 import { Screen } from '../../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
@@ -244,10 +245,13 @@ export default function Profile() {
                   accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
                   style={styles.mealRow}
                 >
-                  <Text variant="body">{e.name}</Text>
-                  <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                    {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
-                  </Text>
+                  <MealImage url={e.imageUrl} width={56} height={56} radius={8} />
+                  <View style={styles.mealText}>
+                    <Text variant="body">{e.name}</Text>
+                    <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                      {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
+                    </Text>
+                  </View>
                 </Pressable>
               ))}
               {/* Chevron nav row (pantry "pasta ›" pattern) → the full list.
@@ -352,13 +356,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 44,
   },
-  // Made-meal preview row: name stacked above the date·cuisine caption.
+  // Made-meal preview row: thumbnail left, text block right, vertically centered.
   mealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 44,
+  },
+  // Name stacked above the date·cuisine caption, beside the thumbnail.
+  mealText: {
+    flex: 1,
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 44,
   },
   // Meta is data, not a label — drop the caption role's uppercase + tracking.
   dataCaption: {

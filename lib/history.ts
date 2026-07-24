@@ -15,6 +15,7 @@ export type HistoryEntry = {
   mealId: string;
   name: string;
   cuisineLabel: string;
+  imageUrl: string | null;
   createdAt: string; // ISO, from recommendation_requests.created_at
 };
 
@@ -24,7 +25,7 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
     supabase
       .from('recommendation_options')
       .select(
-        'meal_id, recommendation_requests!inner(created_at, user_id), meals!fk_options_meal(name, cuisines!fk_meals_cuisine(display_label))',
+        'meal_id, recommendation_requests!inner(created_at, user_id), meals!fk_options_meal(name, image_url, cuisines!fk_meals_cuisine(display_label))',
       )
       .eq('was_selected', true)
       .eq('recommendation_requests.user_id', userId),
@@ -42,7 +43,7 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
 
     const mealEmbed = row.meals as unknown;
     const meal = (Array.isArray(mealEmbed) ? mealEmbed[0] : mealEmbed) as
-      | { name: string; cuisines: unknown }
+      | { name: string; image_url: string | null; cuisines: unknown }
       | null
       | undefined;
 
@@ -56,6 +57,7 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
       mealId: row.meal_id as string,
       name: meal?.name ?? '',
       cuisineLabel: cuisineRow?.display_label ?? '',
+      imageUrl: meal?.image_url ?? null,
       createdAt: req?.created_at ?? '',
     };
   });
