@@ -286,7 +286,8 @@ export default function Profile() {
               ) : (
                 <View style={styles.deleteConfirm}>
                   <Text variant="caption" color="textSecondary" style={styles.warning}>
-                    This permanently removes your taste and pantry. You can&apos;t undo this.
+                    This permanently removes your taste and pantry, and this email can&apos;t be
+                    used to sign up again. You can&apos;t undo this.
                   </Text>
                   {/* Destructive action kept quiet (muted, no accent/blue). We can't
                       use a warning color; the explicit confirm tap is the safeguard. */}
