@@ -41,16 +41,29 @@ function capitalize(s: string) {
   return s.length ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
-/** Short, rule-based one-liner per tier. No LLM. */
-export function buildExplanation(row: RecRow): string {
+/**
+ * Short, rule-based one-liner per tier. No LLM.
+ *
+ * `favoriteCuisines` is the set of the user's favorite cuisine NAMES (matching
+ * the RPC's `row.cuisine`, i.e. cuisines.name). The wording only claims the
+ * cuisine is familiar / comfortable / new to the user when THIS meal's cuisine
+ * is actually a favorite; otherwise it drops to honest, taste-neutral copy —
+ * because the tier is assigned by score+rank, not by whether the meal is a
+ * favorite, so the top-scored "familiar" pick is often not in the user's lane
+ * (and for a user with no favorites, never is).
+ */
+export function buildExplanation(row: RecRow, favoriteCuisines: Set<string>): string {
   const cuisine = capitalize(row.cuisine);
+  const isFavorite = favoriteCuisines.has(row.cuisine);
   switch (row.tier) {
     case 'familiar':
-      return `A familiar ${cuisine} pick, right in your lane.`;
+      return isFavorite
+        ? `A familiar ${cuisine} pick, right in your lane.`
+        : 'The closest fit to your time and budget.';
     case 'adjacent':
-      return `One small step over — still comfortable ${cuisine}.`;
+      return isFavorite ? `One small step over — still comfortable ${cuisine}.` : `One step over: ${cuisine}.`;
     case 'stretch':
-      return `Something new: ${cuisine}.`;
+      return isFavorite ? `Something new: ${cuisine}.` : `Something different: ${cuisine}.`;
   }
 }
 
@@ -87,6 +100,7 @@ export async function materializeSelection(
   userId: string,
   params: RecParams,
   rows: RecRow[],
+  favoriteCuisines: Set<string>,
 ): Promise<{ requestId: string; optionByMeal: Map<string, string> }> {
   const { data: request, error: reqError } = await supabase
     .from('recommendation_requests')
@@ -109,7 +123,7 @@ export async function materializeSelection(
     request_id: requestId,
     meal_id: row.meal_id,
     tier: row.tier,
-    explanation: buildExplanation(row),
+    explanation: buildExplanation(row, favoriteCuisines),
     was_selected: false, // selection happens on the Handled screen; NOT NULL, no default
     tier_order: row.tier_rank, // within-tier rank: 0 = shown card, 1..3 = alternates
   }));

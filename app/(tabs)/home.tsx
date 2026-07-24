@@ -126,6 +126,13 @@ export default function Home() {
   const [rows, setRows] = useState<RecRow[] | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [images, setImages] = useState<Record<string, string>>({});
+  // The user's favorite cuisine NAMES (from pref_cuisine_ids), loaded once —
+  // favorites don't change mid-session. Gates whether an explanation may claim a
+  // cuisine is "familiar" to the user; empty (default AND failure fallback) →
+  // honest, taste-neutral copy. The ref mirror keeps materialize() current
+  // without adding a dependency that would churn its memo.
+  const [favCuisines, setFavCuisines] = useState<Set<string>>(new Set());
+  const favCuisinesRef = useRef<Set<string>>(new Set());
   // In-place re-run (filter change while cards are already shown): `refreshing`
   // dims the current cards without blanking or shifting layout; `refreshError`
   // marks that the last re-run failed, so the visible cards are the PREVIOUS
@@ -216,6 +223,35 @@ export default function Home() {
     load({ time, budget, mood });
   }, [time, budget, mood, load]);
 
+  // Resolve the user's favorite cuisine NAMES once (pref_cuisine_ids → names) to
+  // compare against each row's cuisine. Any failure (or no favorites) leaves the
+  // set empty, so the copy stays honest rather than risking a false claim.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const userId = await getCurrentUserId();
+        const { data: u } = await supabase
+          .from('users')
+          .select('pref_cuisine_ids')
+          .eq('id', userId)
+          .single();
+        const ids = (u?.pref_cuisine_ids as string[] | null) ?? [];
+        if (ids.length === 0) return;
+        const { data: cs } = await supabase.from('cuisines').select('name').in('id', ids);
+        if (!active) return;
+        const set = new Set((cs ?? []).map((c) => c.name as string));
+        favCuisinesRef.current = set;
+        setFavCuisines(set);
+      } catch {
+        // leave the set empty → honest, taste-neutral copy
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // The 3-swap cap is scoped to ONE meal decision. When the user completes a meal
   // (reaches Handled) and returns to Home, that's the next meal — refill the swap
   // budget. Filter changes don't refocus the screen, so they never refill it.
@@ -236,7 +272,12 @@ export default function Home() {
     if (!matRef.current) {
       const userId = await getCurrentUserId();
       const current = rows ?? [];
-      matRef.current = materializeSelection(userId, paramsRef.current, current).catch((err) => {
+      matRef.current = materializeSelection(
+        userId,
+        paramsRef.current,
+        current,
+        favCuisinesRef.current,
+      ).catch((err) => {
         matRef.current = null; // let a later engagement retry
         throw err;
       });
@@ -424,7 +465,7 @@ export default function Home() {
                 <RecCard
                   key={tier}
                   opt={card}
-                  explanation={buildExplanation(card)}
+                  explanation={buildExplanation(card, favCuisines)}
                   imageUrl={images[card.meal_id] ?? null}
                   onPress={() => onSelect(card)}
                   // Swap affordance lives INSIDE the card. At the cap it disappears

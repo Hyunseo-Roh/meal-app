@@ -85,20 +85,32 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
   const tier = option.tier as Tier;
   const reasons: string[] = [];
 
-  // tier — always holds
-  reasons.push(TIER_REASON[tier]);
+  // Is THIS meal's cuisine one of the user's favorites? Tiers are assigned by
+  // score+rank, not by favorites, so a "familiar" pick need not be in the user's
+  // lane — every taste/habit claim below is gated on this one condition.
+  const favoriteIds = (user.pref_cuisine_ids as string[] | null) ?? [];
+  const isFavorite = !!(meal.cuisine_id && favoriteIds.includes(meal.cuisine_id));
+
+  // tier line — a habit claim ("your usual lane" / "what you know" / "than
+  // usual"), so it only holds when the cuisine is genuinely a favorite. No
+  // match → render nothing; the effort/time/budget reasons carry the screen.
+  if (isFavorite) {
+    reasons.push(TIER_REASON[tier]);
+  }
 
   // cuisine match — fires when the meal's cuisine is one of the user's favorites
-  const favoriteIds = (user.pref_cuisine_ids as string[] | null) ?? [];
-  if (meal.cuisine_id && favoriteIds.includes(meal.cuisine_id) && cuisineLabel) {
+  if (isFavorite && cuisineLabel) {
     reasons.push(`You tend to like ${cuisineLabel}.`);
   }
 
-  // effort fit (only when it genuinely fits — omit if more effort than wanted)
-  if (meal.effort_level === 1) {
-    reasons.push('Low effort, like you wanted.');
-  } else if (meal.effort_level === user.pref_effort) {
-    reasons.push("About the effort you're up for.");
+  // effort fit (only when it genuinely fits — omit if more effort than wanted).
+  // "Low effort, like you wanted." requires the user to have ASKED for low
+  // effort (pref_effort === 1); an effort-1 meal for someone who wanted more is
+  // "a little easier than usual", not something they wanted.
+  if (meal.effort_level === user.pref_effort) {
+    reasons.push(
+      meal.effort_level === 1 ? 'Low effort, like you wanted.' : "About the effort you're up for.",
+    );
   } else if (meal.effort_level < user.pref_effort) {
     reasons.push('A little easier than usual.');
   }
