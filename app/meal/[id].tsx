@@ -163,7 +163,7 @@ export default function MealDetail() {
       </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* The meal, pictured — Greige fallback if the photo is null or fails. */}
-        <MealImage url={gap.imageUrl} width="100%" height={150} upsize />
+        <MealImage url={gap.imageUrl} width="100%" height={140} upsize />
         <View style={styles.header}>
           {gap.cuisineLabel ? (
             <Text variant="caption" color="textSecondary">
