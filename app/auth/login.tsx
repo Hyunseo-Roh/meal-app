@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { authErrorMessage } from '../../lib/authErrors';
 import { isOnboarded, resetCurrentUser, setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
@@ -36,8 +37,10 @@ export default function Login() {
     });
     if (err) {
       setSubmitting(false);
-      // Surface the server's actual reason (e.g. invalid credentials / password).
-      setError(err.message || 'Couldn’t log in. Try again.');
+      // Never render the provider's raw message — map to our own copy. Wrong
+      // password and unknown email both arrive as invalid_credentials, so they
+      // read the same; everything else falls to one calm line.
+      setError(authErrorMessage(err));
       return;
     }
     // Identity just changed. Reset the memo NOW (don't wait for the async

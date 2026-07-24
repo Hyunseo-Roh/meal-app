@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { authErrorMessage, isEmailInUse } from '../../lib/authErrors';
 import { setLocalOnboarded } from '../../lib/currentUser';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, typography } from '../../theme/tokens';
@@ -35,7 +36,7 @@ export default function Register() {
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Your password needs at least 6 characters');
       return;
     }
     if (password !== confirm) {
@@ -52,15 +53,11 @@ export default function Register() {
     const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
     if (err) {
       setSubmitting(false);
-      const msg = err.message ?? '';
-      if (/already|registered|exists/i.test(msg)) {
-        setEmailInUse(true);
-        setError('That email is already registered');
-      } else {
-        // Surface the server's actual reason (incl. password rules); generic only
-        // if the server gave no message.
-        setError(msg || 'Couldn’t create your account. Try again.');
-      }
+      // Never render the provider's raw message — map by the stable error code
+      // to our own copy (already-registered / weak password / malformed email),
+      // with one calm fallback. `emailInUse` still drives the "log in" affordance.
+      setEmailInUse(isEmailInUse(err));
+      setError(authErrorMessage(err));
       return;
     }
     // New account is not onboarded yet — clear the flag so the splash/onboarding
