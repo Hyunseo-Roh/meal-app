@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MealImage } from '../../components/MealImage';
@@ -13,6 +13,7 @@ import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { formatDate } from '../../lib/format';
 import { loadHistory, type HistoryEntry } from '../../lib/history';
 import { loadTasteSummary } from '../../lib/profile';
+import { consumePasswordChanged } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
 
@@ -44,6 +45,9 @@ export default function Profile() {
     status: 'loading',
     data: null,
   });
+  // Transient "Password updated" confirmation, handed over by the change-password
+  // screen via a one-shot flag and consumed on focus. Auto-clears.
+  const [pwChanged, setPwChanged] = useState(false);
   // Delete account — inline two-step confirm (Alert.alert is unreliable on web).
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -77,8 +81,17 @@ export default function Profile() {
       loadAccount();
       loadTaste();
       loadMade();
+      // Show the confirmation once, on returning from a successful change.
+      if (consumePasswordChanged()) setPwChanged(true);
     }, [loadAccount, loadTaste, loadMade]),
   );
+
+  // Retire the "Password updated" line on its own after a beat.
+  useEffect(() => {
+    if (!pwChanged) return;
+    const t = setTimeout(() => setPwChanged(false), 3000);
+    return () => clearTimeout(t);
+  }, [pwChanged]);
 
   // Sign out, clear the memo + onboarded flag, and return to the splash, which
   // resolves a no-session user to Welcome. Sign-up is required to re-enter.
@@ -142,8 +155,21 @@ export default function Profile() {
                   Log out
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => router.push('/change-password')}
+                accessibilityRole="button"
+                style={styles.navRow}
+              >
+                <Text variant="body">Change password</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </Pressable>
             </>
           )}
+          {pwChanged ? (
+            <Text variant="body" color="textSecondary">
+              Password updated
+            </Text>
+          ) : null}
         </View>
 
         {/* TASTE */}

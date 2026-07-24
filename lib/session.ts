@@ -20,3 +20,19 @@ export function consumeMealCompleted(): boolean {
   mealCompleted = false;
   return v;
 }
+
+// "Password was just changed" — set on the change-password screen, consumed by
+// Profile on next focus to show a transient confirmation. Same one-shot pattern.
+let passwordChanged = false;
+
+/** Mark that the password was changed (call from the change-password screen). */
+export function markPasswordChanged(): void {
+  passwordChanged = true;
+}
+
+/** Read-and-clear the password-changed flag. Returns true once per change. */
+export function consumePasswordChanged(): boolean {
+  const v = passwordChanged;
+  passwordChanged = false;
+  return v;
+}

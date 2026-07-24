@@ -32,3 +32,23 @@ export function authErrorMessage(error: AuthErrorLike): string {
 export function isEmailInUse(error: AuthErrorLike): boolean {
   return error?.code === 'user_already_exists';
 }
+
+/**
+ * Change-password copy. The reauth step signs in with the CURRENT user's known
+ * email, so an `invalid_credentials` there is unambiguously a wrong current
+ * password — named specifically rather than the shared login line. The
+ * updateUser step can return `weak_password` (too short) or `same_password`
+ * (new == old, though we also guard that client-side). Same voice rules.
+ */
+export function changePasswordErrorMessage(error: AuthErrorLike): string {
+  switch (error?.code) {
+    case 'invalid_credentials':
+      return 'That’s not your current password';
+    case 'weak_password':
+      return 'Your password needs at least 6 characters';
+    case 'same_password':
+      return 'Your new password needs to be different';
+    default:
+      return 'That didn’t go through';
+  }
+}
