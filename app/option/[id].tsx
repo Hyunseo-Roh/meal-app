@@ -132,28 +132,31 @@ export default function WhyWeChose() {
             onError={() => setImageFailed(true)}
           />
         ) : null}
+        {/* Footer flows with the content (not a fixed bottom bar): this screen's
+            content is short, so a pinned footer left a large dead gap below the
+            photo. In-flow, the CTA sits just under the content and everything
+            reads top-down; a long why-list simply scrolls. */}
+        <View style={styles.footer}>
+          <PrimaryButton
+            label="See what's in it"
+            onPress={() =>
+              router.push({
+                pathname: '/meal/[id]',
+                params: { id: why.mealId, option_id: id },
+              })
+            }
+          />
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            style={styles.backLink}
+          >
+            <Text variant="caption" color="accent">
+              Back to three meals
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton
-          label="See what's in it"
-          onPress={() =>
-            router.push({
-              pathname: '/meal/[id]',
-              params: { id: why.mealId, option_id: id },
-            })
-          }
-        />
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          style={styles.backLink}
-        >
-          <Text variant="caption" color="accent">
-            Back to three meals
-          </Text>
-        </Pressable>
-      </View>
     </Screen>
   );
 }

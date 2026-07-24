@@ -118,7 +118,10 @@ export default function Handled() {
 
 const styles = StyleSheet.create({
   screen: {
-    justifyContent: 'center',
+    // Pinned to the top (was justifyContent:'center', which left ~a quarter of
+    // the screen empty above the hero). paddingTop gives breathing room since
+    // this screen has no back-arrow header.
+    paddingTop: spacing.xl,
     gap: spacing.xl,
   },
   block: {

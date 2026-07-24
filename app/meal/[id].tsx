@@ -160,7 +160,11 @@ export default function MealDetail() {
       >
         <Ionicons name="chevron-back" size={28} color={colors.text} />
       </Pressable>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           {gap.cuisineLabel ? (
             <Text variant="caption" color="textSecondary">
@@ -304,6 +308,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: 0,
     paddingRight: spacing.md,
+  },
+  // Bounds the scroll region to the space ABOVE the pinned footer, so the last
+  // ingredient / step never scrolls under the fixed "Make this" button (the
+  // footer is an in-flow sibling with its own space — no overlay, so no
+  // clearance padding is needed, which would only add a dead gap).
+  scroll: {
+    flex: 1,
   },
   content: {
     paddingTop: spacing.sm,
