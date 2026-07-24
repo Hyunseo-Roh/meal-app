@@ -132,7 +132,7 @@ export default function ConstraintsSetup() {
         </Text>
 
         <View style={styles.header}>
-          <Text variant="display">What works for you most nights?</Text>
+          <Text variant="display">What usually works for you?</Text>
         </View>
 
         <View style={styles.section}>

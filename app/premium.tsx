@@ -11,7 +11,7 @@ import { colors, spacing } from '../theme/tokens';
 // Locked premium placeholders — same pattern/tokens as the Pantry cards. No
 // entitlement check, no payment; purely a soft introduction.
 const PREMIUM = [
-  { key: 'ai', title: 'AI Chef', subtitle: "Turn what's in your pantry into new recipes." },
+  { key: 'ai', title: 'AI Chef', subtitle: "Pick what's left in your fridge and get recipes that use it up" },
   { key: 'scan', title: 'Barcode scan', subtitle: 'Skip the typing — scan to fill your pantry.' },
 ] as const;
 

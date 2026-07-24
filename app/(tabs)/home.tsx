@@ -97,7 +97,7 @@ function RecCard({
         </Text>
         {opt.over_time ? (
           <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-            A little longer than usual
+            A little longer, but close
           </Text>
         ) : null}
         {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
@@ -363,7 +363,7 @@ export default function Home() {
             {getPicksHeading(new Date())}
           </Text>
           <Text variant="body" color="textSecondary">
-            Three picks — filter to narrow them
+            Filter to narrow them
           </Text>
         </View>
 
