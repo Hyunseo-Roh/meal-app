@@ -8,24 +8,28 @@ import { Text } from '../../components/Text';
 import { colors, spacing } from '../../theme/tokens';
 
 // Premium is three conveniences on top of a free tier that already solves the
-// core problem: barcode = automation, AI Chef = intelligence that creates, the
-// monthly summary = intelligence that reads (your cooking history — not calories
-// or health, which the app never tracks).
+// core problem. One short line each — the screen was a wall of text. Barcode
+// scan is the only one that actually runs, so it's the only tappable preview;
+// AI Chef and Monthly summary aren't built, so they carry an inline "Coming
+// soon" label and no affordance (a dead tap reads as broken).
 const FEATURES = [
   {
     icon: 'barcode-outline',
     title: 'Barcode scan',
-    line: 'Scan a barcode to fill your pantry — no typing',
+    line: 'Scan to fill your pantry',
+    action: 'scanner',
   },
   {
     icon: 'sparkles-outline',
     title: 'AI Chef',
-    line: "Pick what's left in your fridge and get recipes that use it up",
+    line: 'Recipes from what you have',
+    soon: true,
   },
   {
     icon: 'calendar-outline',
     title: 'Monthly summary',
-    line: 'A monthly look back at what you cooked',
+    line: 'A look back at your month',
+    soon: true,
   },
 ] as const;
 
@@ -50,22 +54,43 @@ export default function Subscription() {
         </View>
 
         <View style={styles.features}>
-          {FEATURES.map((f) => (
-            <View key={f.title} style={styles.featureRow}>
-              <Ionicons
-                name={f.icon}
-                size={22}
-                color={colors.textSecondary}
-                style={styles.featureIcon}
-              />
-              <View style={styles.featureBody}>
-                <Text variant="body">{f.title}</Text>
-                <Text variant="body" color="textSecondary">
-                  {f.line}
-                </Text>
+          {FEATURES.map((f) => {
+            const inner = (
+              <>
+                <Ionicons name={f.icon} size={22} color={colors.textSecondary} />
+                <View style={styles.featureBody}>
+                  <Text variant="body">{f.title}</Text>
+                  <Text variant="body" color="textSecondary">
+                    {f.line}
+                  </Text>
+                </View>
+                {'action' in f ? (
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                ) : (
+                  <Text variant="caption" color="textSecondary">
+                    Coming soon
+                  </Text>
+                )}
+              </>
+            );
+            // Barcode scan is the only feature that runs — the sole live preview,
+            // so it's the only tappable row. The unbuilt two are plain views.
+            return 'action' in f ? (
+              <Pressable
+                key={f.title}
+                onPress={() => router.push('/scanner')}
+                accessibilityRole="button"
+                accessibilityLabel="Open barcode scanner"
+                style={styles.featureRow}
+              >
+                {inner}
+              </Pressable>
+            ) : (
+              <View key={f.title} style={styles.featureRow}>
+                {inner}
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -109,10 +134,8 @@ const styles = StyleSheet.create({
   featureRow: {
     flexDirection: 'row',
     gap: spacing.md,
-    alignItems: 'flex-start',
-  },
-  featureIcon: {
-    marginTop: spacing.xs,
+    alignItems: 'center',
+    minHeight: 44,
   },
   featureBody: {
     flex: 1,
