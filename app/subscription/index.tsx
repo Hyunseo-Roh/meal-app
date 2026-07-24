@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { isPremiumActive } from '../../lib/session';
 import { colors, spacing } from '../../theme/tokens';
 
 // Premium is three conveniences on top of a free tier that already solves the
@@ -36,6 +38,10 @@ const FEATURES = [
 export default function Subscription() {
   const router = useRouter();
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  // Re-read the plan on focus: this screen stays mounted while payment / cancel
+  // are pushed on top, so it won't re-render on its own when they flip the flag.
+  const [premium, setPremium] = useState(isPremiumActive());
+  useFocusEffect(useCallback(() => setPremium(isPremiumActive()), []));
 
   return (
     <Screen>
@@ -94,17 +100,21 @@ export default function Subscription() {
         </View>
       </ScrollView>
 
+      {/* One CTA per plan — never both. Premium can cancel; Free can upgrade. */}
       <View style={styles.footer}>
-        <PrimaryButton label="Go Premium" onPress={() => router.push('/subscription/payment')} />
-        <Pressable
-          onPress={() => router.push('/subscription/cancel')}
-          accessibilityRole="button"
-          style={styles.secondary}
-        >
-          <Text variant="body" color="textSecondary">
-            Cancel subscription
-          </Text>
-        </Pressable>
+        {premium ? (
+          <Pressable
+            onPress={() => router.push('/subscription/cancel')}
+            accessibilityRole="button"
+            style={styles.secondary}
+          >
+            <Text variant="body" color="textSecondary">
+              Cancel subscription
+            </Text>
+          </Pressable>
+        ) : (
+          <PrimaryButton label="Go Premium" onPress={() => router.push('/subscription/payment')} />
+        )}
       </View>
     </Screen>
   );

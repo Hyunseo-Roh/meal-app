@@ -1,20 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { setPremiumActive } from '../../lib/session';
 import { colors, spacing } from '../../theme/tokens';
 
 /**
- * Cancel — UI only, non-functional. Not a dead end: "Keep Premium" returns, and
- * the cancel action surfaces a calm preview note rather than doing anything.
+ * Cancel — client-only. "Cancel Premium" flips the plan back to Free and returns
+ * to /subscription; "Keep Premium" just pops back without changing the flag.
  */
 export default function CancelSubscription() {
   const router = useRouter();
-  const [done, setDone] = useState(false);
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   return (
@@ -31,15 +30,17 @@ export default function CancelSubscription() {
           </Text>
         </View>
 
-        {done ? (
-          <Text variant="body" color="textSecondary">
-            {"This is a preview — nothing changed, and you're still on Free."}
-          </Text>
-        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Cancel Premium" onPress={() => setDone(true)} />
+        <PrimaryButton
+          label="Cancel Premium"
+          onPress={() => {
+            setPremiumActive(false);
+            if (router.canGoBack()) router.back();
+            else router.replace('/subscription');
+          }}
+        />
         <Pressable onPress={back} accessibilityRole="button" style={styles.secondary}>
           <Text variant="body" color="accent">
             Keep Premium

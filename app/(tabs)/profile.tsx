@@ -13,7 +13,7 @@ import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { formatDate } from '../../lib/format';
 import { loadHistory, type HistoryEntry } from '../../lib/history';
 import { loadTasteSummary } from '../../lib/profile';
-import { consumePasswordChanged } from '../../lib/session';
+import { consumePasswordChanged, isPremiumActive } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
 
@@ -48,6 +48,8 @@ export default function Profile() {
   // Transient "Password updated" confirmation, handed over by the change-password
   // screen via a one-shot flag and consumed on focus. Auto-clears.
   const [pwChanged, setPwChanged] = useState(false);
+  // Client-only plan, re-read on focus so it stays coherent with /subscription.
+  const [premium, setPremium] = useState(isPremiumActive());
   // Delete account — inline two-step confirm (Alert.alert is unreliable on web).
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -81,6 +83,7 @@ export default function Profile() {
       loadAccount();
       loadTaste();
       loadMade();
+      setPremium(isPremiumActive());
       // Show the confirmation once, on returning from a successful change.
       if (consumePasswordChanged()) setPwChanged(true);
     }, [loadAccount, loadTaste, loadMade]),
@@ -236,7 +239,7 @@ export default function Profile() {
             <Text variant="body" color="textSecondary">
               Plan
             </Text>
-            <Text variant="body">Free</Text>
+            <Text variant="body">{premium ? 'Premium' : 'Free'}</Text>
           </View>
           <Pressable
             onPress={() => router.push('/subscription')}

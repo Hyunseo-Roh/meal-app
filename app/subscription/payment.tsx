@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
+import { setPremiumActive } from '../../lib/session';
 import { colors, spacing } from '../../theme/tokens';
 
 /**
@@ -67,7 +68,11 @@ export default function Payment() {
       <View style={styles.footer}>
         <PrimaryButton
           label="Start Premium"
-          onPress={() => setNote('Payments aren’t live yet — nothing was charged.')}
+          onPress={() => {
+            setPremiumActive(true);
+            if (router.canGoBack()) router.back();
+            else router.replace('/subscription');
+          }}
         />
       </View>
     </Screen>

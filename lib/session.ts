@@ -36,3 +36,19 @@ export function consumePasswordChanged(): boolean {
   passwordChanged = false;
   return v;
 }
+
+// Client-only plan state (Free / Premium). Unlike the flags above this is a
+// PERSISTENT boolean read repeatedly (get/set, not mark/consume): /subscription
+// and Profile read it on focus; the payment / cancel screens flip it. NOT
+// persisted — resetting to Free on reload is intended (no schema, no storage).
+let premiumActive = false;
+
+/** Current plan: true = Premium, false = Free. */
+export function isPremiumActive(): boolean {
+  return premiumActive;
+}
+
+/** Set the plan (Start Premium → true, Cancel Premium → false). */
+export function setPremiumActive(v: boolean): void {
+  premiumActive = v;
+}
