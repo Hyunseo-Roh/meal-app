@@ -142,11 +142,11 @@ export default function MealDetail() {
   const displayedHave = [...gap.have, ...gap.toBuy.filter((n) => added.has(n))];
   const haveCount = gap.have.length + added.size;
 
-  // Steps: normalize for display, then gate. A single step is upstream junk
-  // ("Whatch video", a bare link), so >= 2 is the bar for showing the section at
-  // all — which also lets a not-yet-seeded (NULL) meal render exactly as before.
+  // Steps: normalize for display. The "How to make it" section always renders;
+  // a legitimate one-step recipe shows now, and a meal with NO steps shows a
+  // one-line note instead of silently vanishing — the old "< 2" gate was a
+  // junk-data workaround that let missing instructions (and rot) go unnoticed.
   const steps = (gap.instructions ?? []).map(normalizeStep).filter(Boolean);
-  const showSteps = steps.length >= 2;
   const collapsible = steps.length > STEP_THRESHOLD;
   const visibleSteps = collapsible && !expanded ? steps.slice(0, STEP_CAP) : steps;
 
@@ -236,34 +236,40 @@ export default function MealDetail() {
 
         {/* Steps sit BEFORE "Make this" on purpose: you see what the cooking
             involves while still deciding, not after committing. */}
-        {showSteps ? (
-          <View style={styles.section}>
-            <Text variant="caption" color="textSecondary">
-              How to make it
+        <View style={styles.section}>
+          <Text variant="caption" color="textSecondary">
+            How to make it
+          </Text>
+          {steps.length > 0 ? (
+            <>
+              {visibleSteps.map((step, i) => (
+                <View key={i} style={styles.row}>
+                  <Text variant="body" color="textSecondary" style={styles.marker}>
+                    {`${i + 1}`}
+                  </Text>
+                  <Text variant="body" style={styles.stepText}>
+                    {step}
+                  </Text>
+                </View>
+              ))}
+              {collapsible ? (
+                <Pressable
+                  onPress={() => setExpanded((v) => !v)}
+                  accessibilityRole="button"
+                  style={styles.backLink}
+                >
+                  <Text variant="caption" color="accent">
+                    {expanded ? 'Show fewer steps' : `Show all ${steps.length} steps`}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <Text variant="body" color="textSecondary">
+              Steps aren&apos;t available for this one
             </Text>
-            {visibleSteps.map((step, i) => (
-              <View key={i} style={styles.row}>
-                <Text variant="body" color="textSecondary" style={styles.marker}>
-                  {`${i + 1}`}
-                </Text>
-                <Text variant="body" style={styles.stepText}>
-                  {step}
-                </Text>
-              </View>
-            ))}
-            {collapsible ? (
-              <Pressable
-                onPress={() => setExpanded((v) => !v)}
-                accessibilityRole="button"
-                style={styles.backLink}
-              >
-                <Text variant="caption" color="accent">
-                  {expanded ? 'Show fewer steps' : `Show all ${steps.length} steps`}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
+          )}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
