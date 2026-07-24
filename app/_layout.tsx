@@ -9,7 +9,7 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { OfflineBanner, OnlineProvider } from '../components/network';
 import { resetCurrentUser } from '../lib/currentUser';
@@ -50,6 +50,19 @@ export default function RootLayout() {
       }
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Register the offline cold-boot service worker (web only). Best-effort — the
+  // app is fully functional without it; it only adds an honest holding page when
+  // a navigation is attempted with no network. Registration matters only while
+  // online, so running it after the bundle loads is fine.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
+    }
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // ignore — nothing depends on the worker being present
+    });
   }, []);
 
   // Render nothing until Inter is ready, so the type ladder never flashes a fallback font.
