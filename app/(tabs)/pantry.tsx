@@ -1,7 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Chip } from '../../components/Chip';
@@ -27,6 +36,41 @@ const ADDED_NOTICE_MS = 2500;
 
 type Status = 'loading' | 'ready' | 'error';
 
+/**
+ * Makes a bottom sheet swipe-to-dismiss. RN's Modal has no built-in drag gesture,
+ * so we drive a translateY with a PanResponder that captures only DOWNWARD drags
+ * (dy > 4) and clamps upward motion at 0. Release past 80px or a fast flick
+ * (vy > 0.5) dismisses; anything shorter springs back. `panHandlers` must be
+ * spread onto the handle/heading region ONLY so rows inside the sheet stay
+ * tappable, and `reset()` should run whenever the sheet reopens (the value
+ * persists across the Modal's mount/unmount otherwise). PanResponder works under
+ * react-native-web, so the mouse drags the sheet in the browser too.
+ */
+function useDismissibleSheet(onDismiss: () => void) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  // Keep the latest onDismiss reachable without rebuilding the responder.
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
+  const reset = useCallback(() => translateY.setValue(0), [translateY]);
+
+  const responder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => g.dy > 4,
+      onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy > 80 || g.vy > 0.5) {
+          dismissRef.current();
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+        }
+      },
+    }),
+  ).current;
+
+  return { translateY, panHandlers: responder.panHandlers, reset };
+}
+
 export default function Pantry() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -50,6 +94,17 @@ export default function Pantry() {
   // The just-added item: answers "where did it go?" with a line by the add field
   // AND by tinting its row. Transient — cleared after ADDED_NOTICE_MS.
   const [justAdded, setJustAdded] = useState<{ id: string; category: string } | null>(null);
+
+  // Swipe-to-dismiss for each bottom sheet (closeSheet/setPremiumOpen are hoisted).
+  const editSheet = useDismissibleSheet(() => closeSheet());
+  const premiumSheet = useDismissibleSheet(() => setPremiumOpen(false));
+  // The translateY persists across the Modal mount; zero it each time a sheet opens.
+  useEffect(() => {
+    if (sheetItem) editSheet.reset();
+  }, [sheetItem, editSheet]);
+  useEffect(() => {
+    if (premiumOpen) premiumSheet.reset();
+  }, [premiumOpen, premiumSheet]);
 
   // Manual retry (from the error state): show the loading line while refetching.
   const load = useCallback(async () => {
@@ -212,21 +267,20 @@ export default function Pantry() {
           accessibilityLabel="Barcode scan and AI Chef — learn more"
           style={styles.premiumCard}
         >
-          <Ionicons name="lock-closed" size={20} color={colors.textSecondary} style={styles.lock} />
           <View style={styles.premiumBody}>
-            <View style={styles.premiumTitleRow}>
-              <Text variant="body">Barcode scan and AI Chef</Text>
-              <View style={styles.badge}>
-                <Text variant="caption" color="textSecondary">
-                  Premium
-                </Text>
-              </View>
+            {/* Badge on its own row, then the title full-width so it never wraps
+                mid-phrase, then the subtitle. */}
+            <View style={styles.badge}>
+              <Text variant="caption" color="textSecondary">
+                Premium
+              </Text>
             </View>
+            <Text variant="body">Barcode scan and AI Chef</Text>
             <Text variant="body" color="textSecondary">
               Conveniences on top of the free app
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} style={styles.lock} />
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
         </Pressable>
 
         {/* Current pantry — items grouped by category. Two removal paths: the
@@ -358,11 +412,21 @@ export default function Pantry() {
         <View style={styles.modalRoot}>
           <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Dismiss" />
           {sheetItem ? (
-            <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-              <View style={styles.dragHandle} />
-              <Text variant="title" style={styles.sheetTitle}>
-                {toSentenceCase(sheetItem.name)}
-              </Text>
+            <Animated.View
+              style={[
+                styles.sheet,
+                { paddingBottom: insets.bottom + spacing.lg },
+                { transform: [{ translateY: editSheet.translateY }] },
+              ]}
+            >
+              {/* Drag region — handle + title ONLY, so the category rows below stay
+                  tappable while a downward swipe on the top dismisses the sheet. */}
+              <View {...editSheet.panHandlers}>
+                <View style={styles.dragHandle} />
+                <Text variant="title" style={styles.sheetTitle}>
+                  {toSentenceCase(sheetItem.name)}
+                </Text>
+              </View>
               <Text variant="caption" color="textSecondary" style={styles.moveToLabel}>
                 Move to
               </Text>
@@ -393,7 +457,7 @@ export default function Pantry() {
                   Cancel
                 </Text>
               </Pressable>
-            </View>
+            </Animated.View>
           ) : null}
         </View>
       </Modal>
@@ -412,11 +476,21 @@ export default function Pantry() {
             onPress={() => setPremiumOpen(false)}
             accessibilityLabel="Dismiss"
           />
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-            <View style={styles.dragHandle} />
-            <Text variant="title" style={styles.sheetTitle}>
-              With Premium
-            </Text>
+          <Animated.View
+            style={[
+              styles.sheet,
+              { paddingBottom: insets.bottom + spacing.lg },
+              { transform: [{ translateY: premiumSheet.translateY }] },
+            ]}
+          >
+            {/* Drag region — handle + heading ONLY, so the feature rows below stay
+                tappable while a downward swipe on the top dismisses the sheet. */}
+            <View {...premiumSheet.panHandlers}>
+              <View style={styles.dragHandle} />
+              <Text variant="title" style={styles.sheetTitle}>
+                With Premium
+              </Text>
+            </View>
             <Text variant="body" color="textSecondary">
               You&apos;ve got what you need for free — these two just save steps
             </Text>
@@ -470,7 +544,7 @@ export default function Pantry() {
             </Pressable>
 
             <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </Screen>
@@ -606,6 +680,7 @@ const styles = StyleSheet.create({
   },
   premiumCard: {
     flexDirection: 'row',
+    alignItems: 'center', // vertically centers the chevron against the content column
     gap: spacing.md,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -613,19 +688,13 @@ const styles = StyleSheet.create({
     borderRadius: spacing.md,
     padding: spacing.lg,
   },
-  lock: {
-    marginTop: spacing.xs,
-  },
   premiumBody: {
     flex: 1,
     gap: spacing.xs,
   },
-  premiumTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   badge: {
+    // Hug the label instead of stretching to the column width.
+    alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: 999,
