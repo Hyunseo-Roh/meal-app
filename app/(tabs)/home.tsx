@@ -132,6 +132,9 @@ export default function Home() {
   // without adding a dependency that would churn its memo.
   const [favCuisines, setFavCuisines] = useState<Set<string>>(new Set());
   const favCuisinesRef = useRef<Set<string>>(new Set());
+  // The user's first name for the header eyebrow. Null/empty → no eyebrow (legacy
+  // rows unchanged). Read alongside the favorites lookup — no extra fetch.
+  const [firstName, setFirstName] = useState<string | null>(null);
   // In-place re-run (filter change while cards are already shown): `refreshing`
   // dims the current cards without blanking or shifting layout; `refreshError`
   // marks that the last re-run failed, so the visible cards are the PREVIOUS
@@ -232,9 +235,15 @@ export default function Home() {
         const userId = await getCurrentUserId();
         const { data: u } = await supabase
           .from('users')
-          .select('pref_cuisine_ids')
+          .select('pref_cuisine_ids, first_name')
           .eq('id', userId)
           .single();
+        // Set the name first — it must show even for a user with no favorites
+        // (below the early return). Stored as entered; no casing applied.
+        if (active) {
+          const name = ((u?.first_name as string | null) ?? '').trim();
+          setFirstName(name || null);
+        }
         const ids = (u?.pref_cuisine_ids as string[] | null) ?? [];
         if (ids.length === 0) return;
         const { data: cs } = await supabase.from('cuisines').select('name').in('id', ids);
@@ -358,6 +367,13 @@ export default function Home() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
+          {/* Address-by-name eyebrow above the unchanged heading. Absent for
+              legacy rows with no first_name, so the header stays as-is. */}
+          {firstName ? (
+            <Text variant="caption" color="textSecondary">
+              {`Hi ${firstName}`}
+            </Text>
+          ) : null}
           <Text variant="title" style={styles.heading}>
             {getPicksHeading(new Date())}
           </Text>

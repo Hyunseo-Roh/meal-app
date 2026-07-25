@@ -13,6 +13,7 @@ import { colors, spacing, typography } from '../../theme/tokens';
 
 export default function Register() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -31,6 +32,10 @@ export default function Register() {
     setEmailInUse(false);
     // Fast client-side pre-checks. The <6 check is only a pre-check; server
     // password errors are surfaced verbatim below (never overwritten).
+    if (!firstName.trim()) {
+      setError('Enter your first name');
+      return;
+    }
     if (!email.trim()) {
       setError('Enter your email');
       return;
@@ -50,7 +55,7 @@ export default function Register() {
     // so the client never INSERTs into users (exactly one row per account, no
     // 409). Email confirmation is OFF, so signUp returns an active session and
     // onboarding can proceed immediately.
-    const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
+    const { data, error: err } = await supabase.auth.signUp({ email: email.trim(), password });
     if (err) {
       setSubmitting(false);
       // Never render the provider's raw message — map by the stable error code
@@ -60,6 +65,20 @@ export default function Register() {
       setError(authErrorMessage(err));
       return;
     }
+
+    // Persist the display name into the row the on_auth_user_created trigger just
+    // created. Email confirmation is OFF, so signUp returns an ACTIVE session;
+    // upsert on id (while that session is live) sets first_name WITHOUT touching
+    // pref_cuisine_id, so isOnboarded() stays false and onboarding proceeds.
+    // Stored as entered/trimmed — no lowercasing (that rule is ingredients only).
+    // Best-effort: a name-write hiccup must not strand an already-created account.
+    const newUserId = data.user?.id;
+    if (newUserId) {
+      await supabase
+        .from('users')
+        .upsert({ id: newUserId, first_name: firstName.trim() }, { onConflict: 'id' });
+    }
+
     // New account is not onboarded yet — clear the flag so the splash/onboarding
     // gate takes them through taste → avoid → constraints. The _layout
     // onAuthStateChange (SIGNED_IN) clears the id memo; getCurrentUserId then
@@ -88,6 +107,21 @@ export default function Register() {
           <Text variant="body" color="textSecondary">
             You can start right away.
           </Text>
+        </View>
+
+        <View style={styles.field}>
+          <Text variant="caption" color="textSecondary">
+            First name
+          </Text>
+          <TextInput
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Your first name"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+            autoCorrect={false}
+            style={styles.input}
+          />
         </View>
 
         <View style={styles.field}>
