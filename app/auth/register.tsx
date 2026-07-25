@@ -14,6 +14,7 @@ import { colors, spacing, typography } from '../../theme/tokens';
 export default function Register() {
   const router = useRouter();
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -34,6 +35,10 @@ export default function Register() {
     // password errors are surfaced verbatim below (never overwritten).
     if (!firstName.trim()) {
       setError('Enter your first name');
+      return;
+    }
+    if (!lastName.trim()) {
+      setError('Enter your last name');
       return;
     }
     if (!email.trim()) {
@@ -76,7 +81,10 @@ export default function Register() {
     if (newUserId) {
       await supabase
         .from('users')
-        .upsert({ id: newUserId, first_name: firstName.trim() }, { onConflict: 'id' });
+        .upsert(
+          { id: newUserId, first_name: firstName.trim(), last_name: lastName.trim() },
+          { onConflict: 'id' },
+        );
     }
 
     // New account is not onboarded yet — clear the flag so the splash/onboarding
@@ -117,6 +125,21 @@ export default function Register() {
             value={firstName}
             onChangeText={setFirstName}
             placeholder="Your first name"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text variant="caption" color="textSecondary">
+            Last name
+          </Text>
+          <TextInput
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Your last name"
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
             autoCorrect={false}

@@ -367,10 +367,11 @@ export default function Home() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          {/* Address-by-name eyebrow above the unchanged heading. Absent for
-              legacy rows with no first_name, so the header stays as-is. */}
+          {/* Address-by-name eyebrow above the unchanged heading, sentence case
+              (body, not the uppercasing caption). Absent for legacy rows with no
+              first_name, so the header stays as-is. */}
           {firstName ? (
-            <Text variant="caption" color="textSecondary">
+            <Text variant="body" color="textSecondary">
               {`Hi ${firstName}`}
             </Text>
           ) : null}
