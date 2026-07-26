@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
+import { useSessionGate } from '../../components/RequireSession';
 import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
@@ -56,6 +57,7 @@ type State =
   | { status: 'error' };
 
 export default function MealDetail() {
+  const gate = useSessionGate();
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -114,6 +116,9 @@ export default function MealDetail() {
       });
     }
   }
+
+  // Logged out (or unknown session) — redirect to Welcome before any data state.
+  if (gate) return gate;
 
   if (state.status === 'loading') {
     return (

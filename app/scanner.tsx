@@ -6,6 +6,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '../components/PrimaryButton';
+import { useSessionGate } from '../components/RequireSession';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { lookupProduct, type OFFResult } from '../lib/openfoodfacts';
@@ -37,6 +38,7 @@ function prefillName(p: FoundProduct): string {
  * insert path). No schema change; category stays derived at render time.
  */
 export default function Scanner() {
+  const gate = useSessionGate();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
@@ -105,6 +107,9 @@ export default function Scanner() {
       setAddError('That didn’t make it in');
     }
   }
+
+  // Logged out (or unknown session) — never expose the camera; redirect to Welcome.
+  if (gate) return gate;
 
   // Permission still resolving — minimal blank placeholder.
   if (!permission) {

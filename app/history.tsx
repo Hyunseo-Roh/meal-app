@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MealImage } from '../components/MealImage';
+import { useSessionGate } from '../components/RequireSession';
 import { Screen } from '../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { Text } from '../components/Text';
@@ -35,6 +36,7 @@ function groupByMonth(entries: HistoryEntry[]): MonthGroup[] {
  * writes.
  */
 export default function History() {
+  const gate = useSessionGate();
   const router = useRouter();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [status, setStatus] = useState<Status>('loading');
@@ -103,6 +105,9 @@ export default function History() {
   }
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  // Logged out (or unknown session) — redirect to Welcome before any data state.
+  if (gate) return gate;
 
   if (status === 'loading') {
     return (

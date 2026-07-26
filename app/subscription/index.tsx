@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
+import { useSessionGate } from '../../components/RequireSession';
 import { Screen } from '../../components/Screen';
 import { Text } from '../../components/Text';
 import { isPremiumActive } from '../../lib/session';
@@ -36,12 +37,15 @@ const FEATURES = [
 ] as const;
 
 export default function Subscription() {
+  const gate = useSessionGate();
   const router = useRouter();
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
   // Re-read the plan on focus: this screen stays mounted while payment / cancel
   // are pushed on top, so it won't re-render on its own when they flip the flag.
   const [premium, setPremium] = useState(isPremiumActive());
   useFocusEffect(useCallback(() => setPremium(isPremiumActive()), []));
+
+  if (gate) return gate;
 
   return (
     <Screen>
