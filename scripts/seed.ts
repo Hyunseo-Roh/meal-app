@@ -6,7 +6,12 @@
  *   node --experimental-strip-types scripts/seed.ts prices   # UPDATE est_cost (existing 30)
  *   node --experimental-strip-types scripts/seed.ts images   # UPDATE image_url 312x231 -> 636x393
  *   node --experimental-strip-types scripts/seed.ts spoon    # ADD 4 cuisines + new meals (needs Spoonacular key)
+ *   node --experimental-strip-types scripts/seed.ts effort   # UPDATE effort_level from step count (run AFTER scripts/instructions.ts)
  *   node --experimental-strip-types scripts/seed.ts all
+ *
+ * NOTE: effort_level is derived from cleaned STEP COUNT (hands-on effort), not
+ * cook time — so new meals are inserted with effort_level NULL and filled by the
+ * `effort` phase once scripts/instructions.ts has enriched their steps.
  *
  * Keys come from .env (gitignored) — never hardcode:
  *   EXPO_PUBLIC_SUPABASE_URL         (required)
@@ -157,9 +162,31 @@ type SpoonRecipe = {
   extendedIngredients?: { nameClean?: string; name?: string }[];
 };
 
-function effortFromTime(min: number): number {
-  if (min <= 20) return 1;
-  if (min <= 40) return 2;
+// Effort is derived from cleaned STEP COUNT (hands-on effort), NOT cook time.
+// effortFromTime made effort_level collinear with the time filter (lopsided
+// 3/26/41); step count is orthogonal to duration. Buckets match the
+// 20260725_effort_from_steps migration: <=4 -> 1, 5-8 -> 2, >=9 -> 3.
+const STEP_HEADER = 'Method|Directions|Instructions|Preparation';
+function cleanedStepCount(instructions: string[] | null): number {
+  return (instructions ?? [])
+    .map((s) =>
+      s
+        .replace(/([a-z0-9])\.([A-Z])/g, '$1. $2')
+        .replace(/([a-z]):([A-Z])/g, '$1: $2')
+        .replace(new RegExp(`^(?:(?:For\\s[^:]{1,40}|${STEP_HEADER})\\s*:\\s*)+`, 'i'), '')
+        .replace(new RegExp(`(^|[.:]\\s*)(?:${STEP_HEADER})\\s*:\\s*`, 'g'), '$1')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
+    )
+    .filter(Boolean).length;
+}
+
+// 0 steps = missing data (not "easy"): return null and flag for manual review,
+// never default to 1.
+function effortFromSteps(steps: number): number | null {
+  if (steps <= 0) return null;
+  if (steps <= 4) return 1;
+  if (steps <= 8) return 2;
   return 3;
 }
 
@@ -196,7 +223,9 @@ async function insertRecipe(r: SpoonRecipe, cuisineId: string): Promise<boolean>
     .insert({
       name: r.title,
       cuisine_id: cuisineId,
-      effort_level: effortFromTime(cook),
+      // Derived from step count by the `effort` phase, after instructions.ts
+      // enriches this meal's steps — never from cook time.
+      effort_level: null,
       cook_time_min: cook,
       est_cost: Math.min(10, Math.max(0.9, cost)),
       image_url: to636(r.image),
@@ -497,7 +526,8 @@ async function phaseRepull(dry: boolean) {
         .insert({
           name: cleanName(r.title),
           cuisine_id: p.cuisineId,
-          effort_level: effortFromTime(cook),
+          // Derived from step count by the `effort` phase (post-enrichment).
+          effort_level: null,
           cook_time_min: cook,
           est_cost: cost,
           image_url: to636(r.image),
@@ -522,12 +552,46 @@ async function phaseRepull(dry: boolean) {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE effort — derive effort_level from cleaned step count. Run AFTER
+// scripts/instructions.ts has enriched steps. Only fills meals with a NULL
+// effort_level (freshly inserted), so curated values and the migration's manual
+// overrides are never clobbered. A meal still at 0 steps is left NULL and flagged
+// for manual review — 0 steps is missing data, never "easy".
+async function phaseEffort() {
+  const { data: meals, error } = await db
+    .from('meals')
+    .select('id, name, instructions')
+    .is('effort_level', null);
+  if (error) throw new Error(`effort read failed: ${error.message}`);
+  let set = 0;
+  const flagged: string[] = [];
+  for (const m of meals ?? []) {
+    const steps = cleanedStepCount((m.instructions as string[] | null) ?? null);
+    const eff = effortFromSteps(steps);
+    if (eff === null) {
+      flagged.push(m.name as string);
+      continue;
+    }
+    const { error: uErr } = await db.from('meals').update({ effort_level: eff }).eq('id', m.id);
+    if (uErr) console.error(`    effort update FAIL (${m.name}):`, uErr.message);
+    else set++;
+  }
+  console.log(
+    `PHASE effort: derived ${set} meals from step count; ${flagged.length} still 0-step, left NULL for manual review:`,
+  );
+  for (const n of flagged) console.log(`    • ${n}`);
+}
+
+// ---------------------------------------------------------------------------
 async function main() {
   const phase = process.argv[2] ?? 'all';
   if (phase === 'prices' || phase === 'all') await phasePrices();
   if (phase === 'images' || phase === 'all') await phaseImages();
   if (phase === 'spoon' || phase === 'all') await phaseSpoon();
   if (phase === 'topup' || phase === 'all') await phaseTopup();
+  // effort runs last in `all`, but new meals only get steps once instructions.ts
+  // has run — so in practice run `instructions.ts` then `seed.ts effort`.
+  if (phase === 'effort' || phase === 'all') await phaseEffort();
   if (phase === 'repull') await phaseRepull(process.argv[3] === 'dry');
   console.log('done:', phase);
 }
