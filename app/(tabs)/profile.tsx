@@ -126,7 +126,13 @@ export default function Profile() {
   return (
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text variant="title">Profile</Text>
+        {/* Decorative page icon beside the title (same treatment as Pantry/Home). */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <Ionicons name="person-circle-outline" size={30} color={colors.textSecondary} />
+          </View>
+          <Text variant="title">Profile</Text>
+        </View>
 
         {/* Settings screen: no card surfaces, no dividers. Grouping comes from
             SPACE alone — tight rows within a section, a large gap between
@@ -353,6 +359,19 @@ export default function Profile() {
 const styles = StyleSheet.create({
   screen: {
     // column layout: scroll body fills, reset sits at the bottom
+  },
+  // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
+  // decorative Ionicon centered in a 44×44 box, on a row with the title.
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  titleIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     paddingTop: spacing.xl,

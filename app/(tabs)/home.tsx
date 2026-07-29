@@ -375,9 +375,16 @@ export default function Home() {
               {`Hi ${firstName}`}
             </Text>
           ) : null}
-          <Text variant="title" style={styles.heading}>
-            {getPicksHeading(new Date())}
-          </Text>
+          {/* Decorative page icon beside the heading (same treatment as
+              Pantry/Profile); eyebrow above and subtitle below are unchanged. */}
+          <View style={[styles.titleRow, styles.heading]}>
+            <View style={styles.titleIcon}>
+              {/* Fork & knife — intentionally shares the glyph with the meal-card
+                  image placeholder on this screen; preferred over sparkles. */}
+              <Ionicons name="restaurant-outline" size={30} color={colors.textSecondary} />
+            </View>
+            <Text variant="title">{getPicksHeading(new Date())}</Text>
+          </View>
           <Text variant="body" color="textSecondary">
             Filter to narrow them
           </Text>
@@ -534,8 +541,23 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
+  // Extra heading→subtitle breathing room; now carried by the title row so the
+  // centered text isn't nudged off the icon's vertical center.
   heading: {
     marginBottom: spacing.xs,
+  },
+  // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
+  // decorative Ionicon centered in a 44×44 box, on a row with the title.
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  titleIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
     gap: spacing.md,

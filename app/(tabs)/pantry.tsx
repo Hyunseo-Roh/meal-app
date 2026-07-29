@@ -252,7 +252,15 @@ export default function Pantry() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text variant="title">Pantry</Text>
+          {/* Decorative page icon beside the title; subtitle line unchanged. */}
+          <View style={styles.titleRow}>
+            <View style={styles.titleIcon}>
+              {/* Not basket-outline — that's the Pantry TAB's glyph; this reads
+                  as a stocked shelf instead, so title and tab don't twin. */}
+              <Ionicons name="file-tray-stacked-outline" size={30} color={colors.textSecondary} />
+            </View>
+            <Text variant="title">Pantry</Text>
+          </View>
           <Text variant="body" color="textSecondary">
             What&apos;s in your kitchen — Sate tracks the gaps.
           </Text>
@@ -559,6 +567,19 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+  },
+  // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
+  // decorative Ionicon centered in a 44×44 box, on a row with the title.
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  titleIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
     gap: spacing.md,
