@@ -12,7 +12,8 @@ import { colors } from '../../theme/tokens';
 /**
  * Bottom tab navigation — Home / Pantry / Profile (History merged into Profile).
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
- * no shadow/elevation. Active = Cool Slate accent, inactive = Warm Gray Deep.
+ * no shadow/elevation. Active = solid Charcoal (filled glyph), inactive = Warm
+ * Gray Deep (outline glyph).
  *
  * Labels are rendered with a custom RN <Text> (nav chrome, not screen content)
  * so they size to their own content — react-navigation's default label sits in
@@ -95,7 +96,7 @@ export default function TabsLayout() {
       initialRouteName="home"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
           backgroundColor: colors.bg,
@@ -126,7 +127,9 @@ export default function TabsLayout() {
           title: 'Pantry',
           tabBarLabel: tabLabel('Pantry'),
           tabBarIcon: ({ color, focused, size }) => (
-            <Ionicons name={focused ? 'basket' : 'basket-outline'} size={size} color={color} />
+            // A container/box reads as pantry storage (not a bag or cart), and is
+            // distinct from the in-page title's stacked-tray shelf glyph.
+            <Ionicons name={focused ? 'cube' : 'cube-outline'} size={size} color={color} />
           ),
         }}
       />

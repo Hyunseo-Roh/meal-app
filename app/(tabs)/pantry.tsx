@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Chip } from '../../components/Chip';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../../components/states';
@@ -23,15 +22,13 @@ import {
   deletePantryItem,
   listPantry,
   setPantryItemCategory,
+  setPantryItemQuantity,
   type PantryItem,
 } from '../../lib/pantry';
 import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, layout, spacing, typography } from '../../theme/tokens';
 
-// Local staple list (decoupled — not imported from the onboarding pantry screen).
-const QUICK_ADD = ['rice', 'pasta', 'eggs', 'olive oil', 'garlic', 'onion', 'shrimp', 'chicken'];
-
-// How long the "Added to X" line + row tint stay up after an add.
+// How long the just-added row stays highlighted.
 const ADDED_NOTICE_MS = 2500;
 
 type Status = 'loading' | 'ready' | 'error';
@@ -48,7 +45,6 @@ type Status = 'loading' | 'ready' | 'error';
  */
 function useDismissibleSheet(onDismiss: () => void) {
   const translateY = useRef(new Animated.Value(0)).current;
-  // Keep the latest onDismiss reachable without rebuilding the responder.
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
 
@@ -79,26 +75,29 @@ export default function Pantry() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
-  // Serializes the Quick Add toggle: without it, the optimistic remove flips the
-  // chip to "tap to add" instantly, so a fast second tap could re-add the row
-  // while the DELETE is still in flight.
-  const [removing, setRemoving] = useState(false);
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
-  // Add-by-name is collapsed behind a "+" by default so the add feature stays
-  // out of the way at the bottom; opening it autofocuses the field.
+  // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
   const [addOpen, setAddOpen] = useState(false);
-  // The item whose move sheet is open (null = closed), plus a sheet-local error.
+  // The item whose edit sheet is open (null = closed), plus a sheet-local error
+  // and the move-to-category dropdown's open state.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
-  // The just-added item: answers "where did it go?" with a line by the add field
-  // AND by tinting its row. Transient — cleared after ADDED_NOTICE_MS.
-  const [justAdded, setJustAdded] = useState<{ id: string; category: string } | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  // Which category the swipe row has selected — the list shows only its items.
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // The just-added item id — highlights its row briefly. Transient.
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  // Synchronous mirror of each item's quantity, so rapid stepper taps accumulate
+  // (each tap reads the latest target, not a stale render closure).
+  const qtyRef = useRef<Record<string, number>>({});
+  // Per-item write chain: serialize quantity writes so rapid taps persist in
+  // order (last value wins) instead of racing to an out-of-order final value.
+  const qtyWriteChain = useRef<Record<string, Promise<unknown>>>({});
 
   // Swipe-to-dismiss for each bottom sheet (closeSheet/setPremiumOpen are hoisted).
   const editSheet = useDismissibleSheet(() => closeSheet());
   const premiumSheet = useDismissibleSheet(() => setPremiumOpen(false));
-  // The translateY persists across the Modal mount; zero it each time a sheet opens.
   useEffect(() => {
     if (sheetItem) editSheet.reset();
   }, [sheetItem, editSheet]);
@@ -110,7 +109,9 @@ export default function Pantry() {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      setItems(await listPantry());
+      const rows = await listPantry();
+      setItems(rows);
+      qtyRef.current = Object.fromEntries(rows.map((i) => [i.id, i.quantity]));
       setStatus('ready');
     } catch {
       setStatus('error');
@@ -126,6 +127,7 @@ export default function Pantry() {
           const rows = await listPantry();
           if (active) {
             setItems(rows);
+            qtyRef.current = Object.fromEntries(rows.map((i) => [i.id, i.quantity]));
             setStatus('ready');
           }
         } catch {
@@ -138,29 +140,55 @@ export default function Pantry() {
     }, []),
   );
 
-  // Retire the add notice on its own. Keyed on justAdded, so a second add before
-  // the first expires clears the old timer (cleanup) and starts a fresh one —
-  // no stacked timers, and nothing fires after unmount.
+  // Retire the just-added highlight on its own (a fresh add clears the old timer).
   useEffect(() => {
-    if (!justAdded) return;
-    const t = setTimeout(() => setJustAdded(null), ADDED_NOTICE_MS);
+    if (!justAddedId) return;
+    const t = setTimeout(() => setJustAddedId(null), ADDED_NOTICE_MS);
     return () => clearTimeout(t);
-  }, [justAdded]);
+  }, [justAddedId]);
+
+  // Categories that currently hold at least one item, in display order, w/ counts.
+  const catCounts = CATEGORY_ORDER.map((cat) => ({
+    cat,
+    count: items.filter((i) => categoryOf(i) === cat).length,
+  })).filter((c) => c.count > 0);
+  const presentKey = catCounts.map((c) => c.cat).join(',');
+
+  // Default-select the first present category, and keep the selection valid as
+  // categories come and go (add / remove / move). Runs only when the SET of
+  // present categories changes, so it never fights a manual selection.
+  useEffect(() => {
+    if (catCounts.length === 0) {
+      setSelectedCategory(null);
+      return;
+    }
+    if (!catCounts.some((c) => c.cat === selectedCategory)) {
+      setSelectedCategory(catCounts[0].cat);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presentKey]);
+
+  const selectedItems = selectedCategory
+    ? items
+        .filter((i) => categoryOf(i) === selectedCategory)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    : [];
 
   const has = (name: string) => items.some((i) => i.name === name.trim().toLowerCase());
 
+  // Add into the SELECTED category: writing category explicitly means the new
+  // item lands in the current view immediately (fixes "where did it go?").
   async function add(name: string) {
     const v = name.trim().toLowerCase();
-    if (!v || adding || removing || has(v)) return;
+    if (!v || adding || has(v)) return;
     setAdding(true);
     setError(null);
     try {
-      const row = await addPantryItem(v);
+      const row = await addPantryItem(v, 'manual', selectedCategory);
       if (row) {
         setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
-        // Categorization is implicit (addPantryItem never sets `category`; it's
-        // derived at render). Say where it landed rather than making the user hunt.
-        setJustAdded({ id: row.id, category: categoryOf(row) });
+        qtyRef.current[row.id] = row.quantity;
+        setJustAddedId(row.id);
       }
     } catch {
       setError('That didn’t make it in');
@@ -175,22 +203,46 @@ export default function Pantry() {
     await add(v);
   }
 
+  // Quantity stepper. Optimistic; floors at 1; reverts on error. Never feeds the
+  // recommendation engine — quantity is display/edit only.
+  function changeQty(item: PantryItem, delta: number) {
+    // Read the latest target from the ref (accumulates across rapid taps), floor
+    // at 1, and write it back synchronously so a fast next tap sees it.
+    const current = qtyRef.current[item.id] ?? item.quantity;
+    const next = Math.max(1, current + delta);
+    if (next === current) return;
+    qtyRef.current[item.id] = next;
+    setItems((cur) => cur.map((i) => (i.id === item.id ? { ...i, quantity: next } : i)));
+    setError(null);
+    // Chain this write after any pending write for the same item, so the DB ends
+    // up at the FINAL tapped value rather than whichever concurrent write lands
+    // last. A failure surfaces a note; the next focus/reload reconciles to truth.
+    const prev = qtyWriteChain.current[item.id] ?? Promise.resolve();
+    qtyWriteChain.current[item.id] = prev
+      .catch(() => {})
+      .then(() => setPantryItemQuantity(item.id, qtyRef.current[item.id]))
+      .catch(() => setError('That didn’t save'));
+  }
+
   function openSheet(item: PantryItem) {
     setSheetError(null);
+    setMoveOpen(false);
     setSheetItem(item);
   }
   function closeSheet() {
     setSheetItem(null);
     setSheetError(null);
+    setMoveOpen(false);
   }
 
   // Move: write the new category (only labels from CATEGORY_ORDER reach here).
-  // Optimistically re-tag in the shared `items`, so the item leaves one category
-  // group and joins another — and both headers recount — in the same frame.
+  // Optimistically re-tag in `items`; the item leaves one category and joins
+  // another (the selector recounts) in the same frame.
   async function moveTo(item: PantryItem, target: string) {
     setSheetError(null);
     const prev = items;
     setItems((cur) => cur.map((i) => (i.id === item.id ? { ...i, category: target } : i)));
+    setSelectedCategory(target); // follow the item so it stays visible
     try {
       await setPantryItemCategory(item.id, target);
       closeSheet();
@@ -200,49 +252,23 @@ export default function Pantry() {
     }
   }
 
-  /**
-   * The shared remove: optimistic drop + rollback on failure. Returns false if it
-   * failed (already rolled back) so each caller can surface the error where its
-   * user is actually looking — the sheet's inline note vs the screen-level one.
-   * Both the sheet row and the Quick Add ✓ chip go through this.
-   */
-  async function removeItemCore(item: PantryItem): Promise<boolean> {
-    const prev = items;
-    setItems((cur) => cur.filter((i) => i.id !== item.id)); // optimistic
-    // An item can't be "just added" once it's gone — drop the notice with it.
-    if (justAdded?.id === item.id) setJustAdded(null);
-    try {
-      await deletePantryItem(item.id);
-      return true;
-    } catch {
-      setItems(prev); // rollback
-      return false;
-    }
-  }
-
   async function removeItem(item: PantryItem) {
     setSheetError(null);
-    if (await removeItemCore(item)) closeSheet();
-    else setSheetError('That didn’t come off');
-  }
-
-  /**
-   * Quick Add toggle, remove half: tapping "✓ rice" takes rice back out. Matches
-   * the staple to its row by the SAME normalization add() uses (trim+lowercase —
-   * which is also how lib/pantry stores names), then reuses removeItemCore.
-   */
-  async function removeStaple(name: string) {
-    const v = name.trim().toLowerCase();
-    const item = items.find((i) => i.name === v);
-    if (!item || adding || removing) return;
-    setRemoving(true);
-    setError(null);
+    const prev = items;
+    setItems((cur) => cur.filter((i) => i.id !== item.id)); // optimistic
+    if (justAddedId === item.id) setJustAddedId(null);
     try {
-      if (!(await removeItemCore(item))) setError('That didn’t come off');
-    } finally {
-      setRemoving(false);
+      await deletePantryItem(item.id);
+      closeSheet();
+    } catch {
+      setItems(prev); // rollback
+      setSheetError('That didn’t come off');
     }
   }
+
+  const moveTargets = sheetItem
+    ? CATEGORY_ORDER.filter((c) => c !== categoryOf(sheetItem))
+    : [];
 
   return (
     <Screen>
@@ -252,11 +278,10 @@ export default function Pantry() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          {/* Decorative page icon beside the title; subtitle line unchanged. */}
           <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
-              {/* Not basket-outline — that's the Pantry TAB's glyph; this reads
-                  as a stocked shelf instead, so title and tab don't twin. */}
+              {/* A stocked-shelf glyph — distinct from the Pantry TAB's container
+                  (cube) glyph, so the title and tab read as pantry without twinning. */}
               <Ionicons name="file-tray-stacked-outline" size={30} color={colors.textSecondary} />
             </View>
             <Text variant="title">Pantry</Text>
@@ -266,9 +291,7 @@ export default function Pantry() {
           </Text>
         </View>
 
-        {/* Premium — the two conveniences (Barcode scan, AI Chef) merged into one
-            card. Tapping opens an explainer popup, which is also the in-app way
-            into the scanner. Non-functional badge; no entitlement check yet. */}
+        {/* Premium — pinned near the top, unchanged. Tapping opens the explainer. */}
         <Pressable
           onPress={() => setPremiumOpen(true)}
           accessibilityRole="button"
@@ -276,8 +299,6 @@ export default function Pantry() {
           style={styles.premiumCard}
         >
           <View style={styles.premiumBody}>
-            {/* Badge on its own row, then the title full-width so it never wraps
-                mid-phrase, then the subtitle. */}
             <View style={styles.badge}>
               <Text variant="caption" color="textSecondary">
                 Premium
@@ -291,132 +312,128 @@ export default function Pantry() {
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
         </Pressable>
 
-        {/* Current pantry — items grouped by category. Two removal paths: the
-            per-item sheet (tap a row → Remove) and tapping an owned quick-add ✓
-            chip. Header intentionally omitted: the intro copy + tab name set the
-            zone; the add zone sits below it. */}
-        <View style={styles.section}>
-          {status === 'loading' ? (
-            <LoadingState message="Opening your pantry…" delayMs={250} />
-          ) : status === 'error' ? (
-            <ErrorState message="Your pantry didn't open" onRetry={load} />
-          ) : items.length === 0 ? (
-            <EmptyState message="Nothing here yet — add a staple below" />
-          ) : (
-            // Everything inline: each non-empty category renders its header and
-            // ALL its items. No detail page, no accordion — you scroll and see
-            // the whole pantry. Tapping an item opens the move/remove sheet.
-            CATEGORY_ORDER.map((cat) => {
-              // .filter returns a fresh array, so sorting it never mutates `items`.
-              const catItems = items
-                .filter((it) => categoryOf(it) === cat)
-                .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-              if (catItems.length === 0) return null;
-              return (
-                <View key={cat} style={styles.categoryGroup}>
-                  <Text variant="caption" color="textSecondary" style={styles.categoryHeader}>
-                    {toSentenceCase(cat)}
-                  </Text>
-                  {catItems.map((item) => (
+        {status === 'loading' ? (
+          <LoadingState message="Opening your pantry…" delayMs={250} />
+        ) : status === 'error' ? (
+          <ErrorState message="Your pantry didn't open" onRetry={load} />
+        ) : (
+          <>
+            {/* CATEGORY SWIPE ROW — a horizontal, edge-to-edge card strip; one card
+                per category that has items. Selected = Butter fill + Toast border. */}
+            {catCounts.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.catScroll}
+                contentContainerStyle={styles.catRow}
+              >
+                {catCounts.map(({ cat, count }) => {
+                  const selected = cat === selectedCategory;
+                  return (
                     <Pressable
-                      key={item.id}
+                      key={cat}
+                      onPress={() => setSelectedCategory(cat)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${toSentenceCase(cat)}, ${count} items`}
+                      style={[styles.catCard, selected && styles.catCardSelected]}
+                    >
+                      <Text variant="body" numberOfLines={1}>
+                        {toSentenceCase(cat)}
+                      </Text>
+                      <Text variant="caption" color="textSecondary" style={styles.catCount}>
+                        {`${count} item${count === 1 ? '' : 's'}`}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
+            {/* ITEM LIST — only the selected category's items, each with a stepper. */}
+            <View style={styles.section}>
+              {items.length === 0 ? (
+                <EmptyState message="Nothing here yet — add a staple below" />
+              ) : (
+                selectedItems.map((item) => (
+                  <View key={item.id} style={styles.itemRow}>
+                    <Pressable
                       onPress={() => openSheet(item)}
                       accessibilityRole="button"
                       accessibilityLabel={`Options for ${item.name}`}
-                      style={styles.itemRow}
+                      style={styles.itemName}
                     >
-                      <Text variant="body" color={justAdded?.id === item.id ? 'accent' : 'text'}>
+                      <Text variant="body" color={justAddedId === item.id ? 'accent' : 'text'}>
                         {toSentenceCase(item.name)}
                       </Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </Pressable>
-                  ))}
+                    <View style={styles.stepper}>
+                      <Pressable
+                        onPress={() => changeQty(item, -1)}
+                        disabled={item.quantity <= 1}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Fewer ${item.name}`}
+                        hitSlop={8}
+                        style={styles.stepBtn}
+                      >
+                        <Ionicons
+                          name="remove"
+                          size={20}
+                          color={item.quantity <= 1 ? colors.chipBorder : colors.text}
+                        />
+                      </Pressable>
+                      <Text variant="title" color="toast" style={styles.qtyNum}>
+                        {item.quantity}
+                      </Text>
+                      <Pressable
+                        onPress={() => changeQty(item, 1)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`More ${item.name}`}
+                        hitSlop={8}
+                        style={styles.stepBtn}
+                      >
+                        <Ionicons name="add" size={20} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))
+              )}
+
+              {/* + Add an item — at the bottom of the current category's list.
+                  Adding writes the selected category so it appears right here. */}
+              {addOpen ? (
+                <View style={styles.addFields}>
+                  <TextInput
+                    value={draft}
+                    onChangeText={setDraft}
+                    onSubmitEditing={addDraft}
+                    placeholder="Type an item, press enter"
+                    placeholderTextColor={colors.textSecondary}
+                    autoCapitalize="none"
+                    autoFocus
+                    returnKeyType="done"
+                    style={styles.input}
+                  />
+                  <PrimaryButton label={adding ? 'Adding…' : 'Add'} onPress={addDraft} disabled={adding} />
                 </View>
-              );
-            })
-          )}
-        </View>
-
-        {/* Add zone — the bottom of the screen. Quick-add chips stay; add-by-name
-            collapses behind a "+" so it no longer dominates. Both add paths
-            surface the "Added to X" notice + any error, gathered here. */}
-        <View style={[styles.section, styles.addZone]}>
-          {/* Quick add — a TOGGLE. Tap a staple to add it; tap the "✓" version to
-              take it back out. Owned renders full-opacity with a ✓ so it reads as
-              OWNED, not disabled (dimming it said "broken"). The ✓ inherits Chip's
-              unselected Charcoal (never accent fill, and never Sage — Sage is the
-              Gap Tracker's alone). */}
-          <Text variant="caption" color="textSecondary">
-            Quick add
-          </Text>
-          <View style={styles.chipRow}>
-            {QUICK_ADD.map((name) =>
-              has(name) ? (
-                <Chip
-                  key={name}
-                  label={`✓ ${toSentenceCase(name)}`}
-                  selected={false}
-                  onPress={() => removeStaple(name)}
-                />
               ) : (
-                <Chip
-                  key={name}
-                  label={toSentenceCase(name)}
-                  selected={false}
-                  onPress={() => add(name)}
-                />
-              ),
-            )}
-          </View>
-
-          {/* Add by name — behind a "+". Opening autofocuses the field. */}
-          {addOpen ? (
-            <View style={styles.section}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                onSubmitEditing={addDraft}
-                placeholder="Type an item, press enter"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="none"
-                autoFocus
-                returnKeyType="done"
-                style={styles.input}
-              />
-              <PrimaryButton
-                label={adding ? 'Adding…' : 'Add'}
-                onPress={addDraft}
-                disabled={adding}
-              />
+                <Pressable
+                  onPress={() => setAddOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add an item by name"
+                  style={styles.addToggle}
+                >
+                  <Ionicons name="add" size={20} color={colors.text} />
+                  <Text variant="body">Add an item</Text>
+                </Pressable>
+              )}
+              {error ? <Text variant="body">{error}</Text> : null}
             </View>
-          ) : (
-            <Pressable
-              onPress={() => setAddOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Add an item by name"
-              style={styles.addToggle}
-            >
-              <Ionicons name="add" size={20} color={colors.text} />
-              <Text variant="body">Add an item</Text>
-            </Pressable>
-          )}
-
-          {/* Answers "where did it go?" for both add paths. */}
-          {justAdded ? (
-            <Text variant="body" color="textSecondary">
-              {`Added to ${toSentenceCase(justAdded.category)}`}
-            </Text>
-          ) : null}
-          {error ? <Text variant="body">{error}</Text> : null}
-        </View>
+          </>
+        )}
       </ScrollView>
 
-      <Modal
-        visible={sheetItem !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={closeSheet}
-      >
+      {/* Edit sheet — Move via a select control + Remove. */}
+      <Modal visible={sheetItem !== null} transparent animationType="fade" onRequestClose={closeSheet}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Dismiss" />
           {sheetItem ? (
@@ -427,7 +444,7 @@ export default function Pantry() {
                 { transform: [{ translateY: editSheet.translateY }] },
               ]}
             >
-              {/* Drag region — handle + title ONLY, so the category rows below stay
+              {/* Drag region — handle + title ONLY, so the controls below stay
                   tappable while a downward swipe on the top dismisses the sheet. */}
               <View {...editSheet.panHandlers}>
                 <View style={styles.dragHandle} />
@@ -435,23 +452,41 @@ export default function Pantry() {
                   {toSentenceCase(sheetItem.name)}
                 </Text>
               </View>
+
+              {/* Move to category — a single select control that opens a dropdown. */}
               <Text variant="caption" color="textSecondary" style={styles.moveToLabel}>
-                Move to
+                Move to category
               </Text>
-              <View>
-                {/* Targets exclude THIS item's own category — derived per item now
-                    that one screen hosts every category at once. */}
-                {CATEGORY_ORDER.filter((c) => c !== categoryOf(sheetItem)).map((target) => (
-                  <Pressable
-                    key={target}
-                    onPress={() => moveTo(sheetItem, target)}
-                    accessibilityRole="button"
-                    style={styles.sheetRow}
-                  >
-                    <Text variant="body">{toSentenceCase(target)}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Pressable
+                onPress={() => setMoveOpen((o) => !o)}
+                accessibilityRole="button"
+                accessibilityLabel="Choose a category"
+                style={styles.selectControl}
+              >
+                <Text variant="body" color="textSecondary">
+                  {toSentenceCase(categoryOf(sheetItem))}
+                </Text>
+                <Ionicons
+                  name={moveOpen ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+              {moveOpen ? (
+                <View style={styles.selectMenu}>
+                  {moveTargets.map((target) => (
+                    <Pressable
+                      key={target}
+                      onPress={() => moveTo(sheetItem, target)}
+                      accessibilityRole="button"
+                      style={styles.selectOption}
+                    >
+                      <Text variant="body">{toSentenceCase(target)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
               <Pressable
                 onPress={() => removeItem(sheetItem)}
                 accessibilityRole="button"
@@ -470,8 +505,7 @@ export default function Pantry() {
         </View>
       </Modal>
 
-      {/* Premium explainer — what each convenience does, plus the in-app way into
-          the scanner (the merged card no longer links to it directly). */}
+      {/* Premium explainer — unchanged. */}
       <Modal
         visible={premiumOpen}
         transparent
@@ -491,8 +525,6 @@ export default function Pantry() {
               { transform: [{ translateY: premiumSheet.translateY }] },
             ]}
           >
-            {/* Drag region — handle + heading ONLY, so the feature rows below stay
-                tappable while a downward swipe on the top dismisses the sheet. */}
             <View {...premiumSheet.panHandlers}>
               <View style={styles.dragHandle} />
               <Text variant="title" style={styles.sheetTitle}>
@@ -503,8 +535,6 @@ export default function Pantry() {
               You&apos;ve got what you need for free — these two just save steps
             </Text>
 
-            {/* Barcode scan — tappable: this is the only in-app entry to the
-                scanner now that the cards are merged. */}
             <Pressable
               onPress={() => {
                 setPremiumOpen(false);
@@ -523,8 +553,6 @@ export default function Pantry() {
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </Pressable>
 
-            {/* AI Chef — non-functional: no route, no chevron. A dead tap here
-                would read as broken, so it gets no affordance at all. */}
             <View style={styles.premiumFeatureRow}>
               <View style={styles.premiumFeatureBody}>
                 <Text variant="body">AI Chef</Text>
@@ -534,8 +562,6 @@ export default function Pantry() {
               </View>
             </View>
 
-            {/* See Premium — the plan/paywall. Same chevron affordance as the
-                Barcode scan row. */}
             <Pressable
               onPress={() => {
                 setPremiumOpen(false);
@@ -568,8 +594,6 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
-  // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
-  // decorative Ionicon centered in a 44×44 box, on a row with the title.
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -584,6 +608,35 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
   },
+  // Category strip breaks out of the screen's 24px side margins so cards can be
+  // cut by the screen edge (the peek), while the first card still aligns to the
+  // content column via the contentContainer's padding.
+  catScroll: {
+    marginHorizontal: -layout.screenMargin,
+  },
+  catRow: {
+    paddingHorizontal: layout.screenMargin,
+    gap: spacing.sm,
+  },
+  catCard: {
+    width: 116,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    backgroundColor: colors.card,
+    gap: spacing.xs,
+  },
+  // Selected: Butter fill + Toast border (the selection accent).
+  catCardSelected: {
+    backgroundColor: colors.butter,
+    borderColor: colors.toast,
+  },
+  catCount: {
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
   input: {
     ...typography.body,
     color: colors.text,
@@ -594,51 +647,55 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
   },
-  // Hairline divider + breathing room marking the shift from the inventory into
-  // the "add" zone at the bottom.
-  addZone: {
-    borderTopWidth: 1,
-    borderTopColor: colors.chipBorder,
-    paddingTop: spacing.xl,
+  addFields: {
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
-  // Collapsed add-by-name affordance — ghost row (1px border) with a "+".
   addToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: 52,
+    marginTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
   },
-  // One inline category: its caption header, then its item rows. The gap sits
-  // between header and rows; the rows carry their own hairline separators.
-  categoryGroup: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  // Negative offset against the group's 8px gap, so the header sits ~4px above
-  // its first row (tighter than the 8px item→item gap) — the header "owns" the
-  // rows below it without a divider.
-  categoryHeader: {
-    marginBottom: -spacing.xs,
-  },
+  // Item row: name (tappable → sheet) left, quantity stepper right, hairline below.
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 44,
-    paddingVertical: spacing.sm,
+    minHeight: 52,
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
+  },
+  itemName: {
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  stepBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Literata 24 Toast numeral — fixed width so the buttons don't shift 1↔10.
+  qtyNum: {
+    minWidth: 28,
+    textAlign: 'center',
   },
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  // Charcoal token at low opacity — no new color. Separate view so its opacity
-  // never dims the sheet.
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.text,
@@ -652,7 +709,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.sm,
   },
-  // Small grab affordance at the top of the bottom sheets.
   dragHandle: {
     alignSelf: 'center',
     width: 36,
@@ -661,7 +717,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chipBorder,
     marginBottom: spacing.sm,
   },
-  // A single feature block inside the premium popup.
   premiumFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -675,15 +730,36 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   sheetTitle: {
-    // 8 here + the sheet's 8 gap = ~16 of separation, so the 24 title reads as
-    // its own block above the eyebrow (the eyebrow→first row stays the 8 gap).
     marginBottom: spacing.sm,
   },
   moveToLabel: {
-    // Quiet eyebrow: 13 / secondary, sentence case — drop the caption role's
-    // uppercase + tracking (same treatment as the pantry category labels).
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  // The collapsed select control (a bordered row with a chevron).
+  selectControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    backgroundColor: colors.card,
+  },
+  // The dropdown options revealed under the control.
+  selectMenu: {
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  selectOption: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
   },
   sheetRow: {
     minHeight: 44,
@@ -694,14 +770,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.chipBorder,
     marginTop: spacing.sm,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
   premiumCard: {
     flexDirection: 'row',
-    alignItems: 'center', // vertically centers the chevron against the content column
+    alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -714,7 +785,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   badge: {
-    // Hug the label instead of stretching to the column width.
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: colors.chipBorder,
