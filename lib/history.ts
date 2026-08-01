@@ -15,6 +15,7 @@ import { supabase } from './supabase';
  * get_ingredient_gap / scoring.
  */
 export type HistoryEntry = {
+  requestId: string; // recommendation_requests.id — the key for delete_history_entry
   mealId: string;
   name: string;
   cuisineLabel: string;
@@ -42,7 +43,7 @@ export async function loadHistory(offset = 0): Promise<HistoryEntry[]> {
     supabase
       .from('recommendation_requests')
       .select(
-        'created_at, recommendation_options!inner(meal_id, was_selected, meals!fk_options_meal(name, image_url, cuisines!fk_meals_cuisine(display_label)))',
+        'id, created_at, recommendation_options!inner(meal_id, was_selected, meals!fk_options_meal(name, image_url, cuisines!fk_meals_cuisine(display_label)))',
       )
       .eq('user_id', userId)
       // Inner-join only the request's SELECTED option (the meal that got made).
@@ -76,6 +77,7 @@ export async function loadHistory(offset = 0): Promise<HistoryEntry[]> {
       | undefined;
 
     return {
+      requestId: (row.id as string) ?? '',
       mealId: opt?.meal_id ?? '',
       name: meal?.name ?? '',
       cuisineLabel: cuisineRow?.display_label ?? '',
@@ -85,4 +87,18 @@ export async function loadHistory(offset = 0): Promise<HistoryEntry[]> {
   });
 
   return entries;
+}
+
+/**
+ * Remove ONE made-meal history entry — the recommendation_requests row plus its
+ * options/feedback/swap_rejections — via the auth.uid()-guarded RPC (live since
+ * migration 20260731_delete_history_entry). Passing another user's request id is
+ * a no-op server-side. Throws on failure so the caller can revert the optimistic
+ * removal and surface an error. Touches nothing outside that one request.
+ */
+export async function deleteHistoryEntry(requestId: string): Promise<void> {
+  const { error } = await withTimeout(
+    supabase.rpc('delete_history_entry', { p_request_id: requestId }),
+  );
+  if (error) throw new Error('history_delete_failed');
 }

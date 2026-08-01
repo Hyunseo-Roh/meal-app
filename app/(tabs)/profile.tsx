@@ -11,7 +11,7 @@ import { Text } from '../../components/Text';
 import { deleteAccount } from '../../lib/account';
 import { getAuthUser, resetCurrentUser } from '../../lib/currentUser';
 import { formatDate } from '../../lib/format';
-import { loadHistory, type HistoryEntry } from '../../lib/history';
+import { deleteHistoryEntry, loadHistory, type HistoryEntry } from '../../lib/history';
 import { consumePasswordChanged, isPremiumActive } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing } from '../../theme/tokens';
@@ -47,6 +47,76 @@ function NavRow({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
+/**
+ * One made-meal row with a reliable trailing delete control. Swipe-to-delete via
+ * PanResponder proved un-drivable/unverifiable on web here (same as the filter
+ * bar), and react-native-gesture-handler/reanimated aren't wired — so rather than
+ * ship a possibly-dead swipe, delete lives in a trailing trash affordance: tap it
+ * to arm a clay "Delete" confirm (auto-disarms after a few seconds), tap that to
+ * remove. Tapping the row's thumbnail/name still navigates, untouched. The parent
+ * owns the optimistic removal + revert.
+ */
+function MadeMealRow({
+  entry,
+  onNavigate,
+  onDelete,
+}: {
+  entry: HistoryEntry;
+  onNavigate: () => void;
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  // Auto-disarm the confirm so a stray tap can't leave a live Delete sitting there.
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 3500);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
+  return (
+    <View style={styles.mealRow}>
+      <Pressable
+        onPress={onNavigate}
+        accessibilityRole="button"
+        accessibilityLabel={`${entry.name}, made ${formatDate(entry.createdAt)}`}
+        style={styles.mealTap}
+      >
+        <MealImage url={entry.imageUrl} width={40} height={40} radius={8} />
+        <View style={styles.mealText}>
+          <Text variant="body">{entry.name}</Text>
+          <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+            {`${formatDate(entry.createdAt)} · ${entry.cuisineLabel}`}
+          </Text>
+        </View>
+      </Pressable>
+
+      {confirming ? (
+        <Pressable
+          onPress={onDelete}
+          accessibilityRole="button"
+          accessibilityLabel={`Confirm delete ${entry.name}`}
+          style={styles.confirmDelete}
+        >
+          <Text variant="caption" color="bg" style={styles.confirmDeleteText}>
+            Delete
+          </Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => setConfirming(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${entry.name}`}
+          hitSlop={10}
+          style={styles.trashBtn}
+        >
+          <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export default function Profile() {
   const router = useRouter();
   // Account (the header name) and Meals-you've-made load and fail INDEPENDENTLY:
@@ -66,6 +136,8 @@ export default function Profile() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Swipe-to-delete a made-meal entry: a transient note if the remove fails.
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Per-section loaders. Each keeps prior data on a silent refocus (no loading
   // flash) but shows loading on an explicit retry (when currently errored).
@@ -142,6 +214,25 @@ export default function Profile() {
     }
   }
 
+  // Swipe-to-delete: optimistically drop the entry (the row unmounts and the
+  // "See all N" count decrements immediately), then call the auth.uid()-guarded
+  // RPC. On failure, revert and surface a small note. Another user's entries are
+  // untouched — the function only deletes a request owned by auth.uid().
+  const removeHistoryEntry = useCallback(
+    async (entry: HistoryEntry) => {
+      setHistoryError(null);
+      const prev = history.data ?? [];
+      setHistory({ status: 'ready', data: prev.filter((e) => e.requestId !== entry.requestId) });
+      try {
+        await deleteHistoryEntry(entry.requestId);
+      } catch {
+        setHistory({ status: 'ready', data: prev }); // revert
+        setHistoryError('Couldn’t remove that');
+      }
+    },
+    [history.data],
+  );
+
   const firstName = account.data?.firstName ?? null;
   const email = account.data?.email ?? null;
   const initials =
@@ -163,23 +254,19 @@ export default function Profile() {
   } else {
     madeBody = (
       <>
-        {(history.data ?? []).slice(0, 3).map((e, i) => (
-          <Pressable
-            key={`${e.mealId}-${e.createdAt}-${i}`}
-            onPress={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
-            accessibilityRole="button"
-            accessibilityLabel={`${e.name}, made ${formatDate(e.createdAt)}`}
-            style={styles.mealRow}
-          >
-            <MealImage url={e.imageUrl} width={40} height={40} radius={8} />
-            <View style={styles.mealText}>
-              <Text variant="body">{e.name}</Text>
-              <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                {`${formatDate(e.createdAt)} · ${e.cuisineLabel}`}
-              </Text>
-            </View>
-          </Pressable>
+        {(history.data ?? []).slice(0, 3).map((e) => (
+          <MadeMealRow
+            key={e.requestId}
+            entry={e}
+            onNavigate={() => router.push({ pathname: '/meal/[id]', params: { id: e.mealId } })}
+            onDelete={() => removeHistoryEntry(e)}
+          />
         ))}
+        {historyError ? (
+          <Text variant="body" color="error" style={styles.historyError}>
+            {historyError}
+          </Text>
+        ) : null}
         {/* Chevron nav row → the full list. Gated to >3 (a link to already-
             visible content is a dead link); shows the total count. */}
         {madeCount > 3 ? (
@@ -386,12 +473,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 44,
   },
-  // Made-meal preview row: 40px thumbnail left, text block right, centered.
+  historyError: {
+    marginTop: spacing.sm,
+  },
+  // Made-meal preview row: tappable thumbnail+text (flex) left, delete control right.
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
     minHeight: 48,
+  },
+  // The navigable part of the row (thumbnail + text).
+  mealTap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  // Trailing trash affordance (idle).
+  trashBtn: {
+    width: 40,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Armed clay Delete confirm (destructive).
+  confirmDelete: {
+    backgroundColor: colors.error,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmDeleteText: {
+    // Drop the caption role's uppercase + tracking — a compact button label.
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   // Name stacked above the date·cuisine caption, beside the thumbnail.
   mealText: {
