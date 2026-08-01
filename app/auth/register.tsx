@@ -20,6 +20,11 @@ export default function Register() {
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which field to mark invalid (clay border + fill). Validation is sequential,
+  // so at most one is wrong at a time; server errors map to email or password.
+  const [errorField, setErrorField] = useState<
+    'first' | 'last' | 'email' | 'password' | 'confirm' | null
+  >(null);
   const [emailInUse, setEmailInUse] = useState(false);
   // Non-functional social sign-in: tapping shows a calm "coming soon" note,
   // same pattern as the Pantry premium cards. No OAuth is wired.
@@ -30,26 +35,32 @@ export default function Register() {
 
   async function handleSave() {
     setError(null);
+    setErrorField(null);
     setEmailInUse(false);
     // Fast client-side pre-checks. The <6 check is only a pre-check; server
     // password errors are surfaced verbatim below (never overwritten).
     if (!firstName.trim()) {
+      setErrorField('first');
       setError('Enter your first name');
       return;
     }
     if (!lastName.trim()) {
+      setErrorField('last');
       setError('Enter your last name');
       return;
     }
     if (!email.trim()) {
+      setErrorField('email');
       setError('Enter your email');
       return;
     }
     if (password.length < 6) {
+      setErrorField('password');
       setError('Your password needs at least 6 characters');
       return;
     }
     if (password !== confirm) {
+      setErrorField('confirm');
       setError("Passwords don't match");
       return;
     }
@@ -67,6 +78,9 @@ export default function Register() {
       // to our own copy (already-registered / weak password / malformed email),
       // with one calm fallback. `emailInUse` still drives the "log in" affordance.
       setEmailInUse(isEmailInUse(err));
+      // Map the server error to the offending field so it lights up too:
+      // weak_password → password; already-registered / bad-email → email.
+      setErrorField(err.code === 'weak_password' ? 'password' : 'email');
       setError(authErrorMessage(err));
       return;
     }
@@ -123,12 +137,15 @@ export default function Register() {
           </Text>
           <TextInput
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(t) => {
+              setFirstName(t);
+              if (errorField === 'first') setErrorField(null);
+            }}
             placeholder="Your first name"
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
             autoCorrect={false}
-            style={styles.input}
+            style={[styles.input, errorField === 'first' && styles.inputError]}
           />
         </View>
 
@@ -138,12 +155,15 @@ export default function Register() {
           </Text>
           <TextInput
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={(t) => {
+              setLastName(t);
+              if (errorField === 'last') setErrorField(null);
+            }}
             placeholder="Your last name"
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
             autoCorrect={false}
-            style={styles.input}
+            style={[styles.input, errorField === 'last' && styles.inputError]}
           />
         </View>
 
@@ -153,13 +173,16 @@ export default function Register() {
           </Text>
           <TextInput
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => {
+              setEmail(t);
+              if (errorField === 'email') setErrorField(null);
+            }}
             placeholder="you@example.com"
             placeholderTextColor={colors.textSecondary}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            style={styles.input}
+            style={[styles.input, errorField === 'email' && styles.inputError]}
           />
         </View>
 
@@ -170,12 +193,15 @@ export default function Register() {
           <View style={styles.passwordWrap}>
             <TextInput
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (errorField === 'password') setErrorField(null);
+              }}
               placeholder="At least 6 characters"
               placeholderTextColor={colors.textSecondary}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              style={[styles.input, styles.inputWithIcon]}
+              style={[styles.input, styles.inputWithIcon, errorField === 'password' && styles.inputError]}
             />
             <Pressable
               onPress={() => setShowPassword((v) => !v)}
@@ -200,12 +226,15 @@ export default function Register() {
           <View style={styles.passwordWrap}>
             <TextInput
               value={confirm}
-              onChangeText={setConfirm}
+              onChangeText={(t) => {
+                setConfirm(t);
+                if (errorField === 'confirm') setErrorField(null);
+              }}
               placeholder="Re-enter password"
               placeholderTextColor={colors.textSecondary}
               secureTextEntry={!showConfirm}
               autoCapitalize="none"
-              style={[styles.input, styles.inputWithIcon]}
+              style={[styles.input, styles.inputWithIcon, errorField === 'confirm' && styles.inputError]}
             />
             <Pressable
               onPress={() => setShowConfirm((v) => !v)}
@@ -225,7 +254,9 @@ export default function Register() {
 
         {error ? (
           <View style={styles.errorBlock}>
-            <Text variant="body">{error}</Text>
+            <Text variant="body" color="error">
+              {error}
+            </Text>
             {emailInUse ? (
               <Pressable
                 onPress={() => router.replace('/auth/login')}
@@ -286,6 +317,9 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+    // 2px of horizontal room so the browser focus ring (drawn outside the input
+    // box) isn't clipped by the scroll container's overflow.
+    paddingHorizontal: 2,
     gap: spacing.lg,
   },
   header: {
@@ -304,6 +338,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
+  },
+  // Invalid-field treatment: clay border + pale clay fill (never Sage).
+  inputError: {
+    borderColor: colors.error,
+    backgroundColor: colors.errorSurface,
   },
   passwordWrap: {
     justifyContent: 'center',

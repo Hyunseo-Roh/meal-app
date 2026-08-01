@@ -21,6 +21,8 @@ export const colors = {
   accent: '#8A9AA6', // Cool Slate — single accent (selected chips, primary buttons, active nav)
   text: '#2E2E2C', // Charcoal Ink — text, never pure black
   have: '#7C8A6B', // Sage — semantic "have"/success ONLY (Gap Tracker ✓). NEVER a general accent.
+  error: '#9E463A', // Warm clay-red — semantic ERROR ONLY (invalid input border + message). Not decorative.
+  errorSurface: '#F3E4E0', // Pale warm clay tint — invalid-input fill. error text on this: 5.0:1 (AA ✓).
 } as const;
 
 export type ColorName = keyof typeof colors;

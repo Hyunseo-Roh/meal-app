@@ -17,16 +17,24 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which field(s) to mark invalid (clay border + fill). invalid_credentials is
+  // ambiguous (email OR password), so it lights both.
+  const [invalidEmail, setInvalidEmail] = useState(false);
+  const [invalidPassword, setInvalidPassword] = useState(false);
   // Password visibility toggle (display only — no auth logic).
   const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin() {
     setError(null);
+    setInvalidEmail(false);
+    setInvalidPassword(false);
     if (!email.trim()) {
+      setInvalidEmail(true);
       setError('Enter your email');
       return;
     }
     if (!password) {
+      setInvalidPassword(true);
       setError('Enter your password');
       return;
     }
@@ -39,7 +47,9 @@ export default function Login() {
       setSubmitting(false);
       // Never render the provider's raw message — map to our own copy. Wrong
       // password and unknown email both arrive as invalid_credentials, so they
-      // read the same; everything else falls to one calm line.
+      // read the same; everything else falls to one calm line. Light both fields.
+      setInvalidEmail(true);
+      setInvalidPassword(true);
       setError(authErrorMessage(err));
       return;
     }
@@ -87,14 +97,17 @@ export default function Login() {
           </Text>
           <TextInput
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => {
+              setEmail(t);
+              if (invalidEmail) setInvalidEmail(false);
+            }}
             placeholder="you@example.com"
             placeholderTextColor={colors.textSecondary}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
             editable={!submitting}
-            style={styles.input}
+            style={[styles.input, invalidEmail && styles.inputError]}
           />
         </View>
 
@@ -105,13 +118,16 @@ export default function Login() {
           <View style={styles.passwordWrap}>
             <TextInput
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (invalidPassword) setInvalidPassword(false);
+              }}
               placeholder="Your password"
               placeholderTextColor={colors.textSecondary}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!submitting}
-              style={[styles.input, styles.inputWithIcon]}
+              style={[styles.input, styles.inputWithIcon, invalidPassword && styles.inputError]}
             />
             <Pressable
               onPress={() => setShowPassword((v) => !v)}
@@ -129,7 +145,21 @@ export default function Login() {
           </View>
         </View>
 
-        {error ? <Text variant="body">{error}</Text> : null}
+        <Pressable
+          onPress={() => router.push('/auth/forgot-password')}
+          accessibilityRole="button"
+          style={styles.forgot}
+        >
+          <Text variant="body" color="accent">
+            Forgot password?
+          </Text>
+        </Pressable>
+
+        {error ? (
+          <Text variant="body" color="error">
+            {error}
+          </Text>
+        ) : null}
 
         <Pressable
           onPress={() => router.replace('/auth/register')}
@@ -164,6 +194,10 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+    // 2px of horizontal room so the browser focus ring (drawn outside the input
+    // box) isn't clipped by the scroll container's overflow. Offsets the inputs
+    // by 2px each side — visually unnoticeable, keeps the 24px screen margin feel.
+    paddingHorizontal: 2,
     gap: spacing.lg,
   },
   header: {
@@ -182,6 +216,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.card,
+  },
+  // Invalid-field treatment: clay border + pale clay fill. Fires on submit /
+  // field error, clears on edit. Never Sage (success-only).
+  inputError: {
+    borderColor: colors.error,
+    backgroundColor: colors.errorSurface,
+  },
+  forgot: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: -spacing.sm,
   },
   passwordWrap: {
     justifyContent: 'center',

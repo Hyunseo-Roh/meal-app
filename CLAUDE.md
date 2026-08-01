@@ -35,7 +35,9 @@ Cuisine ids (10 total; the DB emoji values below are canonical): italian `a00000
 Call these RPCs as-is. Do not reimplement recommendation logic in the client. Do not add an LLM call anywhere.
 
 ## Design system — enforce exactly
-**Colors (only these):** Bone `#EDEAE3` (bg) · Greige `#DCD3C5` (cards) · Warm Gray `#C9C2B6` (borders) · Warm Gray Deep `#53544F` (muted text) · Cool Slate `#8A9AA6` (active nav tint only) · Charcoal Ink `#2E2E2C` (text, primary action buttons, and selected chips + feedback pills with Bone text for AA contrast; never pure black) · **Sage `#7C8A6B` (semantic "have/success" ONLY — the ✓ checks in the Gap Tracker; nowhere else).** No other colors.
+**Colors (only these):** Bone `#EDEAE3` (bg) · Greige `#DCD3C5` (cards) · Warm Gray `#C9C2B6` (borders) · Warm Gray Deep `#53544F` (muted text) · Cool Slate `#8A9AA6` (active nav tint only) · Charcoal Ink `#2E2E2C` (text, primary action buttons, and selected chips + feedback pills with Bone text for AA contrast; never pure black) · **Sage `#7C8A6B` (semantic "have/success" ONLY — the ✓ checks in the Gap Tracker; nowhere else).** These 7 are the base Quiet Authority palette; no other brand colors.
+
+**Semantic tokens (not brand colors, mirror Sage's rule):** **Error `#9E463A` (warm clay-red) + Error Surface `#F3E4E0` (pale warm tint) — validation/error states ONLY** (invalid-input border + surface fill + message text on the auth screens; error text on Error Surface is AA 5.0:1). Never decorative, never a general accent — the error counterpart to Sage's success-only rule.
 
 **Type — locked 4-step ladder, no in-between sizes:** Screen Title 32/38 Semibold · Section Title 24/30 Medium · Body 16/24 Regular · Label 13/16 Medium UPPERCASE +6%. Never use 18, 20, or 15. Hierarchy comes from size + color, not from bolding everything.
 

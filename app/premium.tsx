@@ -43,7 +43,7 @@ export default function PremiumIntro() {
             </View>
             <Text variant="body">Barcode scan and AI Chef</Text>
             <Text variant="body" color="textSecondary">
-              Conveniences on top of the free app
+              Optional — they just save steps
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />

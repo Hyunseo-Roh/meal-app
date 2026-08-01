@@ -34,6 +34,37 @@ export function isEmailInUse(error: AuthErrorLike): boolean {
 }
 
 /**
+ * Password-reset REQUEST copy (resetPasswordForEmail). To avoid leaking whether
+ * an email is registered, GoTrue returns success for unknown addresses — so the
+ * only real errors here are a malformed email or the send rate limit. Same voice.
+ */
+export function resetRequestErrorMessage(error: AuthErrorLike): string {
+  switch (error?.code) {
+    case 'validation_failed':
+      return 'That email doesn’t look right';
+    case 'over_email_send_rate_limit':
+      return 'Too many attempts — try again in a bit';
+    default:
+      return 'That didn’t go through';
+  }
+}
+
+/**
+ * Password-reset UPDATE copy (updateUser on the recovery session). Mirrors the
+ * change-password mapping minus the reauth step (the recovery link IS the auth).
+ */
+export function resetUpdateErrorMessage(error: AuthErrorLike): string {
+  switch (error?.code) {
+    case 'weak_password':
+      return 'Your password needs at least 6 characters';
+    case 'same_password':
+      return 'Your new password needs to be different';
+    default:
+      return 'That didn’t go through';
+  }
+}
+
+/**
  * Change-password copy. The reauth step signs in with the CURRENT user's known
  * email, so an `invalid_credentials` there is unambiguously a wrong current
  * password — named specifically rather than the shared login line. The
