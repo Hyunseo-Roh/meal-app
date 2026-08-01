@@ -1,27 +1,38 @@
--- Lightweight account deletion (no Edge Function this session): remove all of a
--- user's app data in one atomic call, in FK order. Only pantry_items.user_id
--- cascades on users delete; every other FK is NO ACTION, so children MUST be
--- deleted first. Order: feedback -> recommendation_options (via the user's
--- requests) -> recommendation_requests -> pantry_items -> users.
+-- Account deletion — mirror of the live function. Removes all of a user's app
+-- data in FK order, then the caller's own auth.users identity, so a deleted
+-- email frees up for re-signup (previously it stayed registered → 422
+-- user_already_exists, and re-login left a session with no public.users row).
 --
--- NOTE: the auth.users record is NOT removed here (needs service_role), so the
--- email stays registered. The splash guards the re-login edge (a lingering
--- session whose public.users row is gone routes to Welcome, not onboarding).
+-- SECURITY DEFINER owned by postgres: deleting from auth.users needs a
+-- privileged role (postgres holds DELETE on auth.users; every FK referencing
+-- auth.users is ON DELETE CASCADE, so the row deletes cleanly). Because DEFINER
+-- bypasses RLS, every WHERE keys off auth.uid() — the JWT caller — NOT the
+-- client-supplied p_user_id, so it can only ever delete the caller's own rows.
+-- p_user_id is kept in the signature (unused) so the client rpc call and grants
+-- are unchanged. With no session, auth.uid() is NULL and every delete is a
+-- no-op. set search_path = '' pins an empty path (all names schema-qualified),
+-- keeping the SECURITY DEFINER function injection-safe.
 --
--- SECURITY INVOKER (default): the caller (anon or authenticated) already holds
--- DELETE on these tables in this dev project. Kept in lockstep with the dated
--- migration supabase/migrations/20260709_delete_user_data.sql.
+-- Kept in lockstep with the dated migration
+-- supabase/migrations/20260731_delete_auth_user.sql.
 
 create or replace function public.delete_user_data(p_user_id uuid)
  returns void
  language sql
+ security definer
+ set search_path = ''
 as $function$
-  delete from feedback where user_id = p_user_id;
-  delete from recommendation_options
-    where request_id in (select id from recommendation_requests where user_id = p_user_id);
-  delete from recommendation_requests where user_id = p_user_id;
-  delete from pantry_items where user_id = p_user_id;
-  delete from users where id = p_user_id;
+  delete from public.feedback where user_id = auth.uid();
+  delete from public.recommendation_options
+    where request_id in (select id from public.recommendation_requests where user_id = auth.uid());
+  delete from public.recommendation_requests where user_id = auth.uid();
+  delete from public.pantry_items where user_id = auth.uid();
+  delete from public.users where id = auth.uid();
+  -- Final step: remove the caller's own auth identity so the email frees up.
+  -- Cascades to auth.identities / sessions / mfa_factors / one_time_tokens / etc.
+  delete from auth.users where id = auth.uid();
 $function$;
+
+alter function public.delete_user_data(uuid) owner to postgres;
 
 grant execute on function public.delete_user_data(uuid) to anon, authenticated;
