@@ -1,35 +1,36 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedbackControl } from '../../components/FeedbackControl';
-import { MealImage } from '../../components/MealImage';
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { formatCost } from '../../lib/format';
+import { loadGapCounts } from '../../lib/gap';
 import { markMealCompleted } from '../../lib/session';
 import { supabase } from '../../lib/supabase';
-import { spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
 
-type Meal = { name: string; cook_time_min: number; est_cost: number; image_url: string | null };
+type Meal = { name: string; cook_time_min: number; est_cost: number };
 
 export default function Handled() {
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
   const [meal, setMeal] = useState<Meal | null>(null);
-  // The meal name/meta is fetched, so it has a brief loading moment on this
-  // critical-path screen. Starts true; resolves once the fetch settles.
   const [mealLoading, setMealLoading] = useState(true);
+  // The pantry-memory count for this meal (payoff), or null until it resolves /
+  // on error — the line simply doesn't render then.
+  const [gap, setGap] = useState<{ have: number; total: number } | null>(null);
   // Calm note shown only if the selection couldn't be recorded.
   const [writeNote, setWriteNote] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    // The one meaningful write: mark the chosen option selected. Idempotent —
-    // only this option flips to true; the other two stay false. Degrade
-    // gracefully if option_id is absent (e.g. deep link).
+    // The one meaningful write: mark the chosen option selected. Idempotent.
     async function recordSelection() {
       if (!option_id) {
         if (active) setWriteNote('Not linked to your three meals, but it’s yours to make');
@@ -51,12 +52,19 @@ export default function Handled() {
       }
       const { data } = await supabase
         .from('meals')
-        .select('name, cook_time_min, est_cost, image_url')
+        .select('name, cook_time_min, est_cost')
         .eq('id', id)
         .single();
       if (active) {
         setMeal(data ?? null);
         setMealLoading(false);
+      }
+      // The pantry count — best-effort; a failure just hides the line.
+      try {
+        const counts = await loadGapCounts(id);
+        if (active) setGap(counts);
+      } catch {
+        // no count line
       }
     }
 
@@ -73,10 +81,17 @@ export default function Handled() {
 
   return (
     <Screen style={styles.screen}>
+      {/* Back to the recipe — no dead end. */}
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
+
       <View style={styles.block}>
-        {/* The commitment moment — the meal you're about to make, pictured.
-            Greige fallback (via MealImage) if the photo is null or slow. */}
-        <MealImage url={meal?.image_url ?? null} width="100%" height={140} />
         <Text variant="display">You&apos;re set</Text>
         {mealLoading ? (
           <LoadingState message="Getting your meal…" delayMs={250} />
@@ -85,9 +100,21 @@ export default function Handled() {
             <Text variant="title" style={styles.meal}>
               {`You’re making ${meal.name}`}
             </Text>
-            <Text variant="caption" color="textSecondary">
-              {`${meal.cook_time_min} min`} · {formatCost(meal.est_cost)}
+            <Text variant="caption" color="textSecondary" style={styles.metaCaption}>
+              {`${meal.cook_time_min} min · ${formatCost(meal.est_cost)}`}
             </Text>
+            {/* Pantry-memory payoff — what you already have for it. */}
+            {gap ? (
+              <View style={styles.gapRow}>
+                <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+                <Text variant="body" color="textSecondary">
+                  You have{' '}
+                </Text>
+                <Text variant="title" color="toast">
+                  {`${gap.have} of ${gap.total}`}
+                </Text>
+              </View>
+            ) : null}
           </>
         ) : null}
         {writeNote ? (
@@ -97,32 +124,29 @@ export default function Handled() {
         ) : null}
       </View>
 
-      {/* Taste feedback (free tier) — a POST-cook signal, so it lives here on
-          Handled. FeedbackControl renders its own "Your take" caption and writes
-          the same feedback row (loved_it / not_for_me), keyed per option. Shown
-          only when we arrived with an option_id (absent on a deep link). */}
+      {/* Taste feedback (free tier) — a POST-cook thumbs signal, keyed per option.
+          Shown only when we arrived with an option_id (absent on a deep link). */}
       {option_id ? <FeedbackControl optionId={option_id} /> : null}
 
-      <Pressable
-        onPress={() => router.replace('/')}
-        accessibilityRole="button"
-        style={styles.backLink}
-      >
-        <Text variant="caption" color="accent">
-          Back to start
-        </Text>
-      </Pressable>
+      {/* Clear exit — the payoff's done action. */}
+      <View style={styles.footer}>
+        <PrimaryButton label="Done" onPress={() => router.replace('/(tabs)/home')} />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    // Pinned to the top (was justifyContent:'center', which left ~a quarter of
-    // the screen empty above the hero). paddingTop gives breathing room since
-    // this screen has no back-arrow header.
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
     gap: spacing.xl,
+  },
+  backArrow: {
+    alignSelf: 'flex-start',
+    marginLeft: -spacing.md,
+    paddingRight: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   block: {
     gap: spacing.md,
@@ -130,14 +154,21 @@ const styles = StyleSheet.create({
   meal: {
     marginTop: spacing.sm,
   },
+  metaCaption: {
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
+  gapRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: spacing.xs,
+  },
   note: {
     marginTop: spacing.sm,
   },
-  backLink: {
-    marginTop: spacing.xl,
-    // Vertical centering only — no alignItems, to preserve the original
-    // (non-centered) horizontal alignment of this link.
-    justifyContent: 'center',
-    minHeight: 44,
+  // Push the Done button to the bottom of the screen.
+  footer: {
+    marginTop: 'auto',
+    paddingBottom: spacing.lg,
   },
 });

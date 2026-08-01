@@ -3,21 +3,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MealImage } from '../../components/MealImage';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { useSessionGate } from '../../components/RequireSession';
 import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
-import { formatCost } from '../../lib/format';
 import { loadGap, type GapData } from '../../lib/gap';
 import { addPantryItem } from '../../lib/pantry';
-import { colors, spacing } from '../../theme/tokens';
-
-const EFFORT_LABEL: Record<number, string> = {
-  1: 'Easy',
-  2: 'Medium',
-  3: 'Involved',
-};
+import { colors, layout, spacing } from '../../theme/tokens';
 
 // Bare procedural headers that carry no information. "For X:" is deliberately
 // NOT in this list — it marks a sub-recipe ("For Peanut Sauce:") and must survive.
@@ -26,6 +20,13 @@ const HEADER = 'Method|Directions|Instructions|Preparation';
 // Steps longer than this get a "Show all N steps" toggle; at/below it, all render.
 const STEP_THRESHOLD = 10;
 const STEP_CAP = 8;
+
+// Price bucket from est_cost — same rule as the Home cards (P1).
+function priceBucket(cost: number): string {
+  if (cost <= 5) return '$5 & under';
+  if (cost <= 10) return '$10 & under';
+  return 'Over $10';
+}
 
 /**
  * Display-only cleanup of Spoonacular's raw step text — NEVER written back to
@@ -36,15 +37,9 @@ const STEP_CAP = 8;
 function normalizeStep(s: string): string {
   return (
     s
-      // Run-on sentence. Requires lowercase/digit BEFORE the period so "U.S."
-      // (uppercase before) and decimals like "3.5" are never split.
       .replace(/([a-z0-9])\.([A-Z])/g, '$1. $2')
-      // Same for run-on colons: "Method:Marinate" -> "Method: Marinate".
       .replace(/([a-z]):([A-Z])/g, '$1: $2')
-      // Leading orphan headers, repeatedly: "For satay:Method:" -> "".
       .replace(new RegExp(`^(?:(?:For\\s[^:]{1,40}|${HEADER})\\s*:\\s*)+`, 'i'), '')
-      // Bare header as its own clause, anywhere. Case-SENSITIVE and anchored to a
-      // clause boundary, so a mid-sentence "using this method: stir" is untouched.
       .replace(new RegExp(`(^|[.:]\\s*)(?:${HEADER})\\s*:\\s*`, 'g'), '$1')
       .replace(/\s{2,}/g, ' ')
       .trim()
@@ -55,6 +50,8 @@ type State =
   | { status: 'loading' }
   | { status: 'ready'; gap: GapData }
   | { status: 'error' };
+
+type Tab = 'ingredients' | 'howto';
 
 export default function MealDetail() {
   const gate = useSessionGate();
@@ -68,6 +65,8 @@ export default function MealDetail() {
   const [pantryError, setPantryError] = useState<string | null>(null);
   // Steps collapse — local only, resets per meal. Nothing persisted.
   const [expanded, setExpanded] = useState(false);
+  // Which tab is showing. Ingredients is the default/active.
+  const [tab, setTab] = useState<Tab>('ingredients');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -104,7 +103,7 @@ export default function MealDetail() {
     } catch {
       setAdded((s) => {
         const n = new Set(s);
-        n.delete(name); // revert to original position in toBuy
+        n.delete(name);
         return n;
       });
       setPantryError('That didn’t make it in');
@@ -120,6 +119,8 @@ export default function MealDetail() {
   // Logged out (or unknown session) — redirect to Welcome before any data state.
   if (gate) return gate;
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
   if (state.status === 'loading') {
     return (
       <Screen style={styles.centered}>
@@ -131,206 +132,262 @@ export default function MealDetail() {
   if (state.status === 'error') {
     return (
       <Screen style={styles.centered}>
-        <ErrorState
-          title="Couldn't open this"
-          message="The details didn't come through"
-          onRetry={load}
-        />
+        <ErrorState title="Couldn't open this" message="The details didn't come through" onRetry={load} />
       </Screen>
     );
   }
 
   const { gap } = state;
-  const effort = EFFORT_LABEL[gap.effortLevel] ?? `Effort ${gap.effortLevel}`;
   // Apply the optimistic overlay on top of the RPC lists.
   const displayedToBuy = gap.toBuy.filter((n) => !added.has(n));
   const displayedHave = [...gap.have, ...gap.toBuy.filter((n) => added.has(n))];
   const haveCount = gap.have.length + added.size;
 
-  // Steps: normalize for display. The "How to make it" section always renders;
-  // a legitimate one-step recipe shows now, and a meal with NO steps shows a
-  // one-line note instead of silently vanishing — the old "< 2" gate was a
-  // junk-data workaround that let missing instructions (and rot) go unnoticed.
+  // Steps: normalize for display. A one-step recipe shows; a meal with NO steps
+  // shows a one-line note instead of silently vanishing.
   const steps = (gap.instructions ?? []).map(normalizeStep).filter(Boolean);
   const collapsible = steps.length > STEP_THRESHOLD;
   const visibleSteps = collapsible && !expanded ? steps.slice(0, STEP_CAP) : steps;
 
   return (
     <Screen>
-      <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-        accessibilityLabel="Go back"
-        hitSlop={12}
-        style={styles.backArrow}
-      >
-        <Ionicons name="chevron-back" size={28} color={colors.text} />
-      </Pressable>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          {gap.cuisineLabel ? (
-            <Text variant="caption" color="textSecondary">
-              {gap.cuisineLabel}
-            </Text>
-          ) : null}
-          <Text variant="title">{gap.name}</Text>
-          <Text variant="caption" color="textSecondary">
-            {`${gap.cookTimeMin} min`} · {effort} · {formatCost(gap.estCost)}
-          </Text>
-        </View>
-
-        {/* Pantry-memory payoff, one calm line. */}
-        <Text variant="title">{`You have ${haveCount} of ${gap.m}`}</Text>
-
-        {!gap.consistent ? (
-          <Text variant="body" color="textSecondary">
-            One ingredient didn&apos;t match either list — counts may be off.
-          </Text>
-        ) : null}
-
-        {displayedHave.length > 0 ? (
-          <View style={styles.section}>
-            <Text variant="caption" color="textSecondary">
-              What you have
-            </Text>
-            {displayedHave.map((name) => (
-              <View key={name} style={styles.row}>
-                {/* The ONLY place Sage appears. */}
-                <Text variant="body" color="have" style={styles.marker}>
-                  ✓
-                </Text>
-                <Text variant="body">{name}</Text>
-              </View>
-            ))}
+      <View style={styles.flex}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[1]}
+        >
+          {/* [0] Hero photo — full-bleed, Greige fallback. */}
+          <View style={styles.heroWrap}>
+            <MealImage url={gap.imageUrl} width="100%" height={192} />
           </View>
-        ) : null}
 
-        {displayedToBuy.length > 0 ? (
-          <View style={styles.section}>
-            <Text variant="caption" color="textSecondary">
-              What to buy
+          {/* [1] Sticky title bar — sticks to the top as the content scrolls
+              under it. The back chevron rides with it. */}
+          <View style={styles.stickyBar}>
+            <Pressable
+              onPress={goBack}
+              accessibilityLabel="Go back"
+              hitSlop={12}
+              style={styles.backArrow}
+            >
+              <Ionicons name="chevron-back" size={28} color={colors.text} />
+            </Pressable>
+            <Text variant="title" numberOfLines={1} style={styles.stickyTitle}>
+              {gap.name}
             </Text>
-            {displayedToBuy.map((name) => (
-              // Whole row is the add target (not just the "+"), so tapping the
-              // ingredient word adds it too. The "+" is now a plain visual marker.
-              <Pressable
-                key={name}
-                onPress={() => addToPantry(name)}
-                disabled={adding.has(name)}
-                accessibilityRole="button"
-                accessibilityLabel={`Add ${name} to pantry`}
-                // Row text is ~24px tall; pad the tap area to a ≥44px target
-                // (the "+" carried this via hitSlop before it became a marker).
-                hitSlop={{ top: 12, bottom: 12 }}
-                style={styles.row}
-              >
-                <Text variant="body" color="textSecondary" style={styles.marker}>
-                  +
-                </Text>
-                <Text variant="body" color="textSecondary">
-                  {name}
-                </Text>
-              </Pressable>
-            ))}
-            {pantryError ? (
-              <Text variant="body" color="textSecondary">
-                {pantryError}
+          </View>
+
+          {/* [2] Meta + tabs + the active tab's content. */}
+          <View style={styles.body}>
+            {gap.cuisineLabel ? (
+              <Text variant="caption" color="textSecondary">
+                {gap.cuisineLabel}
               </Text>
             ) : null}
+
+            {/* Meta line: price bucket · time · the pantry-memory count (Toast). */}
+            <View style={styles.metaRow}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+              <Text variant="body" color="textSecondary">
+                {`${priceBucket(gap.estCost)} · ${gap.cookTimeMin} min · You have `}
+              </Text>
+              <Text variant="title" color="toast">
+                {`${haveCount} of ${gap.m}`}
+              </Text>
+            </View>
+
+            {!gap.consistent ? (
+              <Text variant="body" color="textSecondary">
+                One ingredient didn&apos;t match either list — counts may be off.
+              </Text>
+            ) : null}
+
+            {/* Tabs — Ingredients (default) | How to make it. */}
+            <View style={styles.tabBar}>
+              <Pressable
+                onPress={() => setTab('ingredients')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: tab === 'ingredients' }}
+                style={[styles.tab, tab === 'ingredients' && styles.tabActive]}
+              >
+                <Text variant="body" color={tab === 'ingredients' ? 'text' : 'textSecondary'}>
+                  Ingredients
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setTab('howto')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: tab === 'howto' }}
+                style={[styles.tab, tab === 'howto' && styles.tabActive]}
+              >
+                <Text variant="body" color={tab === 'howto' ? 'text' : 'textSecondary'}>
+                  How to make it
+                </Text>
+              </Pressable>
+            </View>
+
+            {tab === 'ingredients' ? (
+              <View style={styles.section}>
+                {displayedHave.length > 0 ? (
+                  <View style={styles.section}>
+                    <Text variant="caption" color="textSecondary">
+                      What you have
+                    </Text>
+                    {displayedHave.map((name) => (
+                      <View key={name} style={styles.row}>
+                        {/* The ONLY place Sage appears. */}
+                        <Text variant="body" color="have" style={styles.marker}>
+                          ✓
+                        </Text>
+                        <Text variant="body">{name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                {displayedToBuy.length > 0 ? (
+                  <View style={styles.section}>
+                    <Text variant="caption" color="textSecondary">
+                      What to buy
+                    </Text>
+                    {displayedToBuy.map((name) => (
+                      <Pressable
+                        key={name}
+                        onPress={() => addToPantry(name)}
+                        disabled={adding.has(name)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add ${name} to pantry`}
+                        hitSlop={{ top: 12, bottom: 12 }}
+                        style={styles.row}
+                      >
+                        <Text variant="body" color="textSecondary" style={styles.marker}>
+                          +
+                        </Text>
+                        <Text variant="body" color="textSecondary">
+                          {name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    {pantryError ? (
+                      <Text variant="body" color="textSecondary">
+                        {pantryError}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.section}>
+                {steps.length > 0 ? (
+                  <>
+                    {visibleSteps.map((step, i) => (
+                      <View key={i} style={styles.row}>
+                        <Text variant="body" color="textSecondary" style={styles.marker}>
+                          {`${i + 1}`}
+                        </Text>
+                        <Text variant="body" style={styles.stepText}>
+                          {step}
+                        </Text>
+                      </View>
+                    ))}
+                    {collapsible ? (
+                      <Pressable
+                        onPress={() => setExpanded((v) => !v)}
+                        accessibilityRole="button"
+                        style={styles.showAll}
+                      >
+                        <Text variant="caption" color="accent">
+                          {expanded ? 'Show fewer steps' : `Show all ${steps.length} steps`}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text variant="body" color="textSecondary">
+                    Steps aren&apos;t available for this one
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
-        ) : null}
+        </ScrollView>
 
-        {/* Steps sit BEFORE "Make this" on purpose: you see what the cooking
-            involves while still deciding, not after committing. */}
-        <View style={styles.section}>
-          <Text variant="caption" color="textSecondary">
-            How to make it
-          </Text>
-          {steps.length > 0 ? (
-            <>
-              {visibleSteps.map((step, i) => (
-                <View key={i} style={styles.row}>
-                  <Text variant="body" color="textSecondary" style={styles.marker}>
-                    {`${i + 1}`}
-                  </Text>
-                  <Text variant="body" style={styles.stepText}>
-                    {step}
-                  </Text>
-                </View>
-              ))}
-              {collapsible ? (
-                <Pressable
-                  onPress={() => setExpanded((v) => !v)}
-                  accessibilityRole="button"
-                  style={styles.backLink}
-                >
-                  <Text variant="caption" color="accent">
-                    {expanded ? 'Show fewer steps' : `Show all ${steps.length} steps`}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </>
-          ) : (
-            <Text variant="body" color="textSecondary">
-              Steps aren&apos;t available for this one
-            </Text>
-          )}
+        {/* Primary CTA — pinned at the bottom. */}
+        <View style={styles.footer}>
+          <PrimaryButton
+            label="Make this"
+            onPress={() =>
+              router.push({
+                pathname: '/confirm/[id]',
+                params: { id, ...(option_id ? { option_id } : {}) },
+              })
+            }
+          />
         </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton
-          label="Make this"
-          onPress={() =>
-            router.push({
-              pathname: '/confirm/[id]',
-              params: { id, ...(option_id ? { option_id } : {}) },
-            })
-          }
-        />
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          style={styles.backLink}
-        >
-          <Text variant="caption" color="accent">
-            Back
-          </Text>
-        </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  backArrow: {
-    alignSelf: 'flex-start',
-    // Pull the arrow toward the screen edge (arrow only — headings keep their margin).
-    marginLeft: -spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: 0,
-    paddingRight: spacing.md,
+  flex: {
+    flex: 1,
   },
-  // Bounds the scroll region to the space ABOVE the pinned footer, so the last
-  // ingredient / step never scrolls under the fixed "Make this" button (the
-  // footer is an in-flow sibling with its own space — no overlay, so no
-  // clearance padding is needed, which would only add a dead gap).
   scroll: {
     flex: 1,
   },
   content: {
-    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
-    gap: spacing.xl,
   },
-  header: {
+  // Full-bleed hero: cancel the Screen's 24px side margins.
+  heroWrap: {
+    marginHorizontal: -layout.screenMargin,
+  },
+  // Sticky title bar — Bone bg (so content scrolls under it cleanly), a hairline
+  // underneath to read as a bar, and the back chevron beside the name.
+  stickyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
+    backgroundColor: colors.bg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
   },
-  description: {
-    marginTop: spacing.xs,
+  backArrow: {
+    marginLeft: -spacing.md,
+    paddingRight: spacing.xs,
+  },
+  stickyTitle: {
+    flex: 1,
+  },
+  body: {
+    paddingTop: spacing.lg,
+    gap: spacing.lg,
+  },
+  // Meta line: baseline-align the 24px Toast numeral with the body prose.
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    gap: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
+  },
+  tab: {
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    // Pull the active underline down onto the tab-bar hairline.
+    marginBottom: -1,
+  },
+  tabActive: {
+    borderBottomColor: colors.text,
   },
   section: {
     gap: spacing.md,
@@ -343,9 +400,12 @@ const styles = StyleSheet.create({
   marker: {
     width: spacing.lg,
   },
-  // Let a step wrap in the column beside the number, instead of overflowing.
   stepText: {
     flex: 1,
+  },
+  showAll: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   centered: {
     justifyContent: 'center',
@@ -354,11 +414,5 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
-    gap: spacing.lg,
-  },
-  backLink: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
   },
 });
