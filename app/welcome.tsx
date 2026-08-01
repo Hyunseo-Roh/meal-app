@@ -30,8 +30,7 @@ export default function Welcome() {
         {imageOk ? (
           <Image
             source={HERO}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
+            style={styles.heroImage}
             onError={() => setImageOk(false)}
             accessible={false}
           />
@@ -76,10 +75,22 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: -layout.screenMargin,
     marginTop: -spacing.xl,
-    height: 460,
+    height: 300,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     backgroundColor: colors.card, // shows through until the image paints
+  },
+  // The photo is a wide landscape with the plate low-left; `cover` can't lift it
+  // enough on a phone, so we draw the image oversized at its exact aspect
+  // (900×546 ≈ 1440×874) and offset it to frame the plate + near hand in the
+  // upper two-thirds, leaving the empty table beneath for the wordmark scrim.
+  // Tuned for the 375–390px content width.
+  heroImage: {
+    position: 'absolute',
+    width: 900,
+    height: 546,
+    left: -148,
+    top: -223,
   },
   heroFallback: {
     backgroundColor: colors.card, // Greige, same size — never bare/broken
