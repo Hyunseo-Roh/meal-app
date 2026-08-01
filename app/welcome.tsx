@@ -75,22 +75,22 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: -layout.screenMargin,
     marginTop: -spacing.xl,
-    height: 300,
+    height: 430,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     backgroundColor: colors.card, // shows through until the image paints
   },
   // The photo is a wide landscape with the plate low-left; `cover` can't lift it
   // enough on a phone, so we draw the image oversized at its exact aspect
-  // (900×546 ≈ 1440×874) and offset it to frame the plate + near hand in the
-  // upper two-thirds, leaving the empty table beneath for the wordmark scrim.
-  // Tuned for the 375–390px content width.
+  // (1066×647 ≈ 1440×874) and offset it to frame the plate + near hand, leaving
+  // the empty table beneath for the wordmark scrim. Tuned for the 375–390px
+  // content width and the 430px hero height.
   heroImage: {
     position: 'absolute',
-    width: 900,
-    height: 546,
-    left: -148,
-    top: -223,
+    width: 1066,
+    height: 647,
+    left: -203,
+    top: -213,
   },
   heroFallback: {
     backgroundColor: colors.card, // Greige, same size — never bare/broken
@@ -108,10 +108,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
     opacity: 0.55,
   },
-  // Entry paths, centered in the Bone area below the hero.
+  // Entry paths sit one comfortable gap below the wordmark (the Screen column's
+  // xl gap), NOT centered — so the leftover breathing room falls at the bottom
+  // and the screen reads as one connected top-to-bottom column.
   actions: {
-    flex: 1,
-    justifyContent: 'center',
     gap: spacing.lg,
   },
   link: {
