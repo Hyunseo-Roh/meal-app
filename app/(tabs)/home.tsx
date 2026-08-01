@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
+import { MealImage } from '../../components/MealImage';
 import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
+import { loadGapCounts } from '../../lib/gap';
 import { getPicksHeading } from '../../lib/greeting';
 import { consumeMealCompleted } from '../../lib/session';
 import {
@@ -40,56 +42,68 @@ const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
 const MOOD_OPTIONS = ['Tired', 'Comfort', 'Adventurous', 'Light', 'Quick'];
 
 const TIERS: Tier[] = ['familiar', 'adjacent', 'stretch'];
-// The three-tier thesis, surfaced on each card as a short eyebrow label.
-const TIER_EYEBROW: Record<Tier, string> = {
-  familiar: 'Familiar',
-  adjacent: 'One step over',
-  stretch: 'Something new',
+// The three-tier thesis, rendered as a Charcoal badge ON the card photo. These
+// EXACT uppercase words are probed by the user-test comprehension script — do
+// not reword.
+const TIER_BADGE: Record<Tier, string> = {
+  familiar: 'FAMILIAR',
+  adjacent: 'ONE STEP OVER',
+  stretch: 'SOMETHING NEW',
 };
 // Total "Not for me" swaps allowed per session, counted across all three cards.
 const SWAP_CAP = 3;
 
-// One recommendation card — a vertical card: image on top, text below (tier +
-// cuisine eyebrow, meal name, time/cost meta, and the one-line reason). The tier
-// eyebrow surfaces the product's three-tier thesis on the card itself. `footer`
-// (the swap affordance) sits right-aligned below the reason line.
+// Price bucket from est_cost — replaces the "≈$X.XX" format on the card meta.
+function priceBucket(cost: number): string {
+  if (cost <= 5) return '$5 & under';
+  if (cost <= 10) return '$10 & under';
+  return 'Over $10';
+}
+
+// Cuisine names arrive lowercase from the RPC ("italian"); Title-case for the
+// meta line. All 10 cuisines are single words, so first-letter capitalization
+// is sufficient.
+function titleCaseCuisine(name: string): string {
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+}
+
+// One recommendation card — a vertical card: photo on top with the tier badge
+// overlaid top-left, then meal name (Literata 24), a meta line (cuisine · time ·
+// price bucket), the one-line reason, and — once its ingredient counts resolve —
+// a gap row (Sage check + oversized Toast "have of total"). `footer` (the swap
+// affordance) sits right-aligned at the bottom.
 function RecCard({
   opt,
   explanation,
   imageUrl,
+  gap,
   onPress,
   footer,
 }: {
   opt: RecRow;
   explanation: string;
   imageUrl: string | null;
+  gap?: { have: number; total: number };
   onPress: () => void;
   footer?: ReactNode;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={styles.card}>
-      {imageUrl && !imageFailed ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.cardImage}
-          resizeMode="cover"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Ionicons name="restaurant-outline" size={28} color={colors.textSecondary} />
+      <View style={styles.imageWrap}>
+        <MealImage url={imageUrl} width="100%" height={160} />
+        {/* Tier badge ON the photo — Charcoal pill, Bone text. */}
+        <View style={styles.tierBadge}>
+          <Text variant="caption" color="bg">
+            {TIER_BADGE[opt.tier]}
+          </Text>
         </View>
-      )}
+      </View>
       <View style={styles.cardBody}>
-        <Text variant="caption" color="textSecondary" style={styles.cardEyebrow}>
-          {`${TIER_EYEBROW[opt.tier]} · ${opt.cuisine}`}
-        </Text>
-        <Text variant="title" numberOfLines={2}>
+        <Text variant="title" numberOfLines={3}>
           {opt.meal}
         </Text>
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-          {`${opt.cook_time_min} min · ≈$${opt.est_cost.toFixed(2)}`}
+          {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}
         </Text>
         <Text variant="body" color="textSecondary" numberOfLines={2}>
           {explanation}
@@ -98,6 +112,17 @@ function RecCard({
           <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
             A little longer, but close
           </Text>
+        ) : null}
+        {/* Gap row — appears only once counts resolve; no spinner, no shift. */}
+        {gap ? (
+          <View style={styles.gapRow}>
+            {/* The ONLY place Sage appears on Home (have/success). */}
+            <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+            <Text variant="body">You have </Text>
+            <Text variant="title" color="toast">
+              {`${gap.have} of ${gap.total}`}
+            </Text>
+          </View>
         ) : null}
         {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
       </View>
@@ -158,6 +183,12 @@ export default function Home() {
   // swapsUsed mirrors it for rendering.
   const swapsRef = useRef(0);
   const [swapsUsed, setSwapsUsed] = useState(0);
+
+  // Ingredient-gap counts per meal id for the card gap row. Cached for the whole
+  // session (keyed by meal id), so filter changes / swaps never refetch a count
+  // we already know. `gapInFlight` de-dupes concurrent fetches for the same meal.
+  const [gapCounts, setGapCounts] = useState<Record<string, { have: number; total: number }>>({});
+  const gapInFlight = useRef<Set<string>>(new Set());
 
   // Persistence seam. `matRef` memoizes the single materialize() call for the
   // current shown set; it's reset to null on every (re)fetch so the next
@@ -354,6 +385,27 @@ export default function Home() {
   const capped = swapsUsed >= SWAP_CAP;
   const hasCards = shownCards.length > 0;
 
+  // Once the shown cards are known, fetch ingredient-gap counts for each in
+  // parallel; each resolves into `gapCounts` and reveals that card's gap row.
+  // Skips meals already cached or in flight, so filter changes and swaps only
+  // fetch genuinely new meals. A failure is swallowed — the row just won't show.
+  const shownMealIds = shownCards.map((c) => c.card.meal_id).join(',');
+  useEffect(() => {
+    for (const { card } of shownCards) {
+      const id = card.meal_id;
+      if (gapCounts[id] || gapInFlight.current.has(id)) continue;
+      gapInFlight.current.add(id);
+      loadGapCounts(id)
+        .then((counts) => setGapCounts((prev) => ({ ...prev, [id]: counts })))
+        .catch(() => {
+          /* no row on error — no spinner, no shift */
+        })
+        .finally(() => gapInFlight.current.delete(id));
+    }
+    // shownMealIds captures exactly the identities we depend on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownMealIds]);
+
   // Compact filter summary (collapsed default). Unset dimensions read as "Any …".
   const timeLabel =
     time === null ? 'Any time' : (TIME_OPTIONS.find((o) => o.value === time)?.label ?? 'Any time');
@@ -365,7 +417,12 @@ export default function Home() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.flex}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.header}>
           {/* Address-by-name eyebrow above the unchanged heading, sentence case
               (body, not the uppercasing caption). Absent for legacy rows with no
@@ -386,30 +443,87 @@ export default function Home() {
             <Text variant="title">{getPicksHeading(new Date())}</Text>
           </View>
           <Text variant="body" color="textSecondary">
-            Filter to narrow them
+            Tap one, or filter down
           </Text>
         </View>
 
-        {/* Collapsed default: one compact summary row. Tap to expand the chip
-            groups in place; tap again (or the chevron) to collapse. */}
-        <Pressable
-          onPress={() => setFiltersOpen((o) => !o)}
-          accessibilityRole="button"
-          accessibilityLabel={`Filters: ${filterSummary}`}
-          style={styles.summaryRow}
-        >
-          <Text variant="body" color="textSecondary">
-            {filterSummary}
-          </Text>
-          <Ionicons
-            name={filtersOpen ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={colors.textSecondary}
+        {status === 'error' && !hasCards ? (
+          <ErrorState
+            title="That slipped away"
+            message="The three meals didn't come through"
+            onRetry={() => load({ time, budget, mood })}
           />
-        </Pressable>
+        ) : status === 'loading' && !hasCards ? (
+          <LoadingState message="Picking three meals…" />
+        ) : (
+          <View style={styles.cardsWrap}>
+            {/* Re-run failed — the cards below are the PREVIOUS result. Surface it
+                inline; keep the last-good cards; offer a retry. (Placeholder copy.) */}
+            {refreshError ? (
+              <ErrorState
+                title="Showing your previous picks"
+                message="The new set didn't come through"
+                onRetry={() => load({ time, budget, mood })}
+              />
+            ) : null}
+            {/* During a re-run the cards dim (no layout shift) with a spinner
+                overlaid, so it's clear new picks are coming without blanking. */}
+            <View style={[styles.cards, refreshing && styles.cardsDim]}>
+              {shownCards.map(({ tier, card, hasNext }) => (
+                <RecCard
+                  key={tier}
+                  opt={card}
+                  explanation={buildExplanation(card, favCuisines)}
+                  imageUrl={images[card.meal_id] ?? null}
+                  gap={gapCounts[card.meal_id]}
+                  onPress={() => onSelect(card)}
+                  // Swap affordance lives INSIDE the card. At the cap it disappears
+                  // entirely (not dimmed); when the lane is exhausted a muted,
+                  // borderless note takes its place.
+                  footer={
+                    capped ? null : !hasNext ? (
+                      <Text variant="caption" color="textSecondary" style={styles.swapNote}>
+                        Nothing else in this lane
+                      </Text>
+                    ) : (
+                      <Pressable
+                        onPress={() => onSwap(tier, card)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Not for me — swap ${card.meal}`}
+                        style={styles.swapPill}
+                      >
+                        <Text variant="caption" style={styles.swapPillText}>
+                          Not for me
+                        </Text>
+                      </Pressable>
+                    )
+                  }
+                />
+              ))}
+              {capped ? (
+                <Text variant="body" color="textSecondary">
+                  No more swaps — go with one of these
+                </Text>
+              ) : null}
+            </View>
+            {refreshing ? (
+              <View style={styles.refreshOverlay} pointerEvents="none">
+                <ActivityIndicator color={colors.textSecondary} />
+              </View>
+            ) : null}
+          </View>
+        )}
+      </ScrollView>
 
-        {filtersOpen ? (
-          <>
+      {/* Expanded chip panel — anchored ABOVE the floating bar. Same chips, same
+          behavior (swap-cap logic untouched). Scrolls if it outgrows its cap. */}
+      {filtersOpen ? (
+        <View style={styles.filterPanel}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.filterPanelContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.section}>
               <Text variant="caption" color="textSecondary">
                 Cook time
@@ -459,80 +573,43 @@ export default function Home() {
                 ))}
               </View>
             </View>
-          </>
-        ) : null}
+          </ScrollView>
+        </View>
+      ) : null}
 
-        {status === 'error' && !hasCards ? (
-          <ErrorState
-            title="That slipped away"
-            message="The three meals didn't come through"
-            onRetry={() => load({ time, budget, mood })}
-          />
-        ) : status === 'loading' && !hasCards ? (
-          <LoadingState message="Picking three meals…" />
-        ) : (
-          <View style={styles.cardsWrap}>
-            {/* Re-run failed — the cards below are the PREVIOUS result. Surface it
-                inline; keep the last-good cards; offer a retry. (Placeholder copy.) */}
-            {refreshError ? (
-              <ErrorState
-                title="Showing your previous picks"
-                message="The new set didn't come through"
-                onRetry={() => load({ time, budget, mood })}
-              />
-            ) : null}
-            {/* During a re-run the cards dim (no layout shift) with a spinner
-                overlaid, so it's clear new picks are coming without blanking. */}
-            <View style={[styles.cards, refreshing && styles.cardsDim]}>
-              {shownCards.map(({ tier, card, hasNext }) => (
-                <RecCard
-                  key={tier}
-                  opt={card}
-                  explanation={buildExplanation(card, favCuisines)}
-                  imageUrl={images[card.meal_id] ?? null}
-                  onPress={() => onSelect(card)}
-                  // Swap affordance lives INSIDE the card. At the cap it disappears
-                  // entirely (not dimmed); when the lane is exhausted a muted,
-                  // borderless note takes its place.
-                  footer={
-                    capped ? null : !hasNext ? (
-                      <Text variant="caption" color="textSecondary" style={styles.swapNote}>
-                        Nothing else in this lane
-                      </Text>
-                    ) : (
-                      <Pressable
-                        onPress={() => onSwap(tier, card)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Not for me — swap ${card.meal}`}
-                        style={styles.swapPill}
-                      >
-                        <Text variant="caption" style={styles.swapPillText}>
-                          Not for me
-                        </Text>
-                      </Pressable>
-                    )
-                  }
-                />
-              ))}
-              {capped ? (
-                <Text variant="body" color="textSecondary">
-                  No more swaps — go with one of these
-                </Text>
-              ) : null}
-            </View>
-            {refreshing ? (
-              <View style={styles.refreshOverlay} pointerEvents="none">
-                <ActivityIndicator color={colors.textSecondary} />
-              </View>
-            ) : null}
-          </View>
-        )}
-      </ScrollView>
+      {/* Floating filter bar — Charcoal pill fixed above the tab bar, in thumb
+          reach. Reflects the set values; tap to expand/collapse the panel. */}
+      <Pressable
+        onPress={() => setFiltersOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel={`Filters: ${filterSummary}`}
+        style={styles.filterBar}
+      >
+        <Text variant="body" color="bg">
+          {filterSummary}
+        </Text>
+        <Ionicons
+          name={filtersOpen ? 'chevron-down' : 'chevron-up'}
+          size={20}
+          color={colors.bg}
+        />
+      </Pressable>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  // Column: the scroll area (flex) sits above the docked filter bar, so the bar
+  // is pinned just above the tab bar and always in thumb reach without overlaying
+  // — and reliably receives taps (an absolute Pressable over a ScrollView loses
+  // the press on web).
+  flex: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
@@ -561,19 +638,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.md,
-  },
-  // Collapsed filter summary — a ghost row (1px border, no fill) that reads as a
-  // tappable control; the chevron signals it expands.
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    borderRadius: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
   },
   chipRow: {
     flexDirection: 'row',
@@ -633,28 +697,63 @@ const styles = StyleSheet.create({
     borderRadius: spacing.lg,
     overflow: 'hidden',
   },
-  cardImage: {
+  // Relative wrapper so the tier badge can overlay the photo top-left.
+  imageWrap: {
     width: '100%',
-    // Moderate — not the old 16:9 hero, not a thumbnail. Leaves room for the
-    // reasoning below while keeping the card from filling the viewport.
-    height: 140,
-    backgroundColor: colors.bg,
   },
-  cardImagePlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Tier badge ON the photo: Charcoal pill, Bone text (caption role supplies the
+  // uppercase + tracking). Absolute, pinned top-left over the image.
+  tierBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    backgroundColor: colors.text,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   cardBody: {
     padding: spacing.lg,
     gap: spacing.sm,
   },
   // Card meta + over-time note are DATA/PROSE, not labels — drop the caption
-  // role's uppercase + tracking so they read "30 min · ≈$1.50".
+  // role's uppercase + tracking so they read "Italian · 30 min · $5 & under".
   dataCaption: {
     textTransform: 'none',
     letterSpacing: 0,
   },
-  cardEyebrow: {
-    marginBottom: -spacing.xs,
+  // Gap row: Sage check + "You have " (body) + oversized Toast "N of M" (title).
+  // Baseline-aligned so the serif numerals sit on the body line.
+  gapRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: spacing.xs,
+  },
+  // Expanded chip panel — docked directly above the bar (normal flow), so its
+  // chips receive taps reliably. Capped height; chips scroll if they outgrow it.
+  filterPanel: {
+    maxHeight: 320,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
+  },
+  filterPanelContent: {
+    gap: spacing.lg,
+  },
+  // Docked Charcoal filter bar — pinned above the tab bar, in thumb reach.
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.text,
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
 });

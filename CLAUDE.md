@@ -39,6 +39,8 @@ Call these RPCs as-is. Do not reimplement recommendation logic in the client. Do
 
 **Semantic tokens (not brand colors, mirror Sage's rule):** **Error `#9E463A` (warm clay-red) + Error Surface `#F3E4E0` (pale warm tint) — validation/error states ONLY** (invalid-input border + surface fill + message text on the auth screens; error text on Error Surface is AA 5.0:1). Never decorative, never a general accent — the error counterpart to Sage's success-only rule.
 
+**Appetite accents — Toast `#C08A45` for oversized Literata numerals and selected states, Butter `#EAD9BA` for selected fills and quiet highlight chips; pinches only (max ~2 Toast moments per screen); never decorative boxes, never in the app icon.**
+
 **Type — locked 4-step ladder, no in-between sizes:** Screen Title 32/38 Semibold · Section Title 24/30 Medium · Body 16/24 Regular · Label 13/16 Medium UPPERCASE +6%. Never use 18, 20, or 15. Hierarchy comes from size + color, not from bolding everything.
 
 **Layout:** 390px content width baseline, 24px side margins, 4px spacing grid. Vertical scroll only; never fill empty space with a color block. No phone device frame in UI.

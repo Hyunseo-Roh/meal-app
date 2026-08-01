@@ -77,3 +77,20 @@ export async function loadGap(mealId: string): Promise<GapData> {
     consistent: n + toBuy.length === m,
   };
 }
+
+/**
+ * Lightweight have/total counts for the Home card gap row — the same
+ * get_ingredient_gap RPC as loadGap, but without the meal-row fetch (the card
+ * already has the meal). Returns { have, total }; callers cache per meal id and
+ * simply skip the row on any error (no spinner, no layout shift).
+ */
+export async function loadGapCounts(mealId: string): Promise<{ have: number; total: number }> {
+  const userId = await getCurrentUserId();
+  const { data: rows, error } = await supabase.rpc('get_ingredient_gap', {
+    p_user_id: userId,
+    p_meal_id: mealId,
+  });
+  if (error || !rows) throw new Error('gap_counts_failed');
+  const gapRows = rows as GapRow[];
+  return { have: gapRows.filter((r) => r.have).length, total: gapRows.length };
+}

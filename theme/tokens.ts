@@ -23,6 +23,8 @@ export const colors = {
   have: '#7C8A6B', // Sage — semantic "have"/success ONLY (Gap Tracker ✓). NEVER a general accent.
   error: '#9E463A', // Warm clay-red — semantic ERROR ONLY (invalid input border + message). Not decorative.
   errorSurface: '#F3E4E0', // Pale warm clay tint — invalid-input fill. error text on this: 5.0:1 (AA ✓).
+  toast: '#C08A45', // Appetite accent — oversized Literata numerals + selected states. Pinches only (~2/screen).
+  butter: '#EAD9BA', // Appetite accent — selected fills + quiet highlight chips. Never decorative boxes.
 } as const;
 
 export type ColorName = keyof typeof colors;
