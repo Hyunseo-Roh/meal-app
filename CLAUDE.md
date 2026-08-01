@@ -37,7 +37,7 @@ Call these RPCs as-is. Do not reimplement recommendation logic in the client. Do
 ## Design system — enforce exactly
 **Colors (only these):** Bone `#EDEAE3` (bg) · Greige `#DCD3C5` (cards) · Warm Gray `#C9C2B6` (borders) · Warm Gray Deep `#53544F` (muted text) · Cool Slate `#8A9AA6` (active nav tint only) · Charcoal Ink `#2E2E2C` (text, primary action buttons, and selected chips + feedback pills with Bone text for AA contrast; never pure black) · **Sage `#7C8A6B` (semantic "have/success" ONLY — the ✓ checks in the Gap Tracker; nowhere else).** These 7 are the base Quiet Authority palette; no other brand colors.
 
-**Semantic tokens (not brand colors, mirror Sage's rule):** **Error `#9E463A` (warm clay-red) + Error Surface `#F3E4E0` (pale warm tint) — validation/error states ONLY** (invalid-input border + surface fill + message text on the auth screens; error text on Error Surface is AA 5.0:1). Never decorative, never a general accent — the error counterpart to Sage's success-only rule.
+**Semantic tokens (not brand colors, mirror Sage's rule):** **Error `#9E463A` (warm clay-red) + Error Surface `#F3E4E0` (pale warm tint) — error, validation, and destructive-action states (e.g. the delete-account label) — never decorative** (invalid-input border + surface fill + message text on the auth screens; the Profile delete-account label; error text on Error Surface is AA 5.0:1). Never a general accent — the error counterpart to Sage's success-only rule.
 
 **Appetite accents — Toast `#C08A45` for oversized Literata numerals and selected states, Butter `#EAD9BA` for selected fills and quiet highlight chips; pinches only (max ~2 Toast moments per screen); never decorative boxes, never in the app icon.**
 
