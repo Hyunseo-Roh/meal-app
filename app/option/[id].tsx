@@ -65,7 +65,7 @@ export default function WhyWeChose() {
   if (state.status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Working out why…" />
+        <LoadingState message="Working out why…" delayMs={250} />
       </Screen>
     );
   }

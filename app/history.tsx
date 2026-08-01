@@ -112,7 +112,7 @@ export default function History() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Gathering what you've made…" />
+        <LoadingState message="Gathering what you've made…" delayMs={250} />
       </Screen>
     );
   }

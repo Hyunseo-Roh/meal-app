@@ -297,7 +297,7 @@ export default function Pantry() {
             zone; the add zone sits below it. */}
         <View style={styles.section}>
           {status === 'loading' ? (
-            <LoadingState message="Opening your pantry…" />
+            <LoadingState message="Opening your pantry…" delayMs={250} />
           ) : status === 'error' ? (
             <ErrorState message="Your pantry didn't open" onRetry={load} />
           ) : items.length === 0 ? (

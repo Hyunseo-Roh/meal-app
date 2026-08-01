@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { spacing } from '../theme/tokens';
 import { PrimaryButton } from './PrimaryButton';
 import { Text } from './Text';
+import { useDelayedFlag } from './useDelayedFlag';
 
 /**
  * Shared four-state primitives (loading / empty / error). Structure and the
@@ -17,7 +18,15 @@ import { Text } from './Text';
  * load error) reuses the same component with just a heading + line.
  */
 
-export function LoadingState({ message }: { message: string }) {
+/**
+ * `delayMs` suppresses brief loader flashes: LoadingState is mounted only while
+ * loading, so if the fetch resolves before `delayMs` the component unmounts and
+ * nothing is ever shown; a load still running past the delay shows the message.
+ * Default 0 → renders immediately (unchanged for callers that don't opt in).
+ */
+export function LoadingState({ message, delayMs = 0 }: { message: string; delayMs?: number }) {
+  const show = useDelayedFlag(true, delayMs);
+  if (!show) return null;
   return (
     <Text variant="body" color="textSecondary">
       {message}

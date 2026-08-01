@@ -126,7 +126,7 @@ export default function TasteEdit() {
   if (status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Getting your taste…" />
+        <LoadingState message="Getting your taste…" delayMs={250} />
       </Screen>
     );
   }

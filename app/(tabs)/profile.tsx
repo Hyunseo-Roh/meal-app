@@ -145,7 +145,7 @@ export default function Profile() {
             Account
           </Text>
           {account.status === 'loading' ? (
-            <LoadingState message="Getting your account…" />
+            <LoadingState message="Getting your account…" delayMs={250} />
           ) : account.status === 'error' ? (
             <ErrorState message="Your account didn't load" onRetry={loadAccount} />
           ) : (
@@ -187,7 +187,7 @@ export default function Profile() {
             Taste
           </Text>
           {taste.status === 'loading' ? (
-            <LoadingState message="Getting your taste…" />
+            <LoadingState message="Getting your taste…" delayMs={250} />
           ) : taste.status === 'error' ? (
             <ErrorState message="Your taste didn't load" onRetry={loadTaste} />
           ) : (
@@ -263,7 +263,7 @@ export default function Profile() {
             Meals you&apos;ve made
           </Text>
           {history.status === 'loading' ? (
-            <LoadingState message="Gathering what you've made…" />
+            <LoadingState message="Gathering what you've made…" delayMs={250} />
           ) : history.status === 'error' ? (
             <ErrorState message="Your meals didn't come through" onRetry={loadMade} />
           ) : (history.data?.length ?? 0) === 0 ? (

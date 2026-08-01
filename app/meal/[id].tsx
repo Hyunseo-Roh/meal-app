@@ -123,7 +123,7 @@ export default function MealDetail() {
   if (state.status === 'loading') {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Checking your pantry…" />
+        <LoadingState message="Checking your pantry…" delayMs={250} />
       </Screen>
     );
   }

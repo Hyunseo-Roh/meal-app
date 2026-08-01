@@ -82,7 +82,7 @@ export default function TasteSetup() {
 
         <View style={styles.section}>
           {status === 'loading' ? (
-            <LoadingState message="Getting the cuisines…" />
+            <LoadingState message="Getting the cuisines…" delayMs={250} />
           ) : status === 'error' ? (
             <ErrorState message="The cuisines didn't load" onRetry={load} />
           ) : (

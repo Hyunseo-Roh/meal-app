@@ -79,7 +79,7 @@ export default function Handled() {
         <MealImage url={meal?.image_url ?? null} width="100%" height={140} />
         <Text variant="display">You&apos;re set</Text>
         {mealLoading ? (
-          <LoadingState message="Getting your meal…" />
+          <LoadingState message="Getting your meal…" delayMs={250} />
         ) : meal ? (
           <>
             <Text variant="title" style={styles.meal}>
