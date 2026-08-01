@@ -22,6 +22,9 @@ create or replace function public.delete_user_data(p_user_id uuid)
  security definer
  set search_path = ''
 as $function$
+  -- FK-first: swap_rejections reference recommendation_options, so clear them
+  -- before the options they point at (else the options delete FK-blocks / 409s).
+  delete from public.swap_rejections where user_id = auth.uid();
   delete from public.feedback where user_id = auth.uid();
   delete from public.recommendation_options
     where request_id in (select id from public.recommendation_requests where user_id = auth.uid());
