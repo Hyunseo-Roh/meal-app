@@ -5,6 +5,7 @@ import {
   Animated,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,38 +34,65 @@ const ADDED_NOTICE_MS = 2500;
 
 type Status = 'loading' | 'ready' | 'error';
 
+// On react-native-web a bare drag element lets the browser own the gesture — a
+// mobile finger scrolls (touch-action) and a desktop pointer selects the title
+// text (user-select) — so the PanResponder is never granted and the drag does
+// nothing. Suppressing both on the drag region hands the gesture back to us.
+// No-op / ignored on native.
+const dragRegionStyle =
+  Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as object) : undefined;
+
 /**
  * Makes a bottom sheet swipe-to-dismiss. RN's Modal has no built-in drag gesture,
  * so we drive a translateY with a PanResponder that captures only DOWNWARD drags
- * (dy > 4) and clamps upward motion at 0. Release past 80px or a fast flick
- * (vy > 0.5) dismisses; anything shorter springs back. `panHandlers` must be
- * spread onto the handle/heading region ONLY so rows inside the sheet stay
- * tappable, and `reset()` should run whenever the sheet reopens (the value
- * persists across the Modal's mount/unmount otherwise). PanResponder works under
- * react-native-web, so the mouse drags the sheet in the browser too.
+ * (dy > 4) and clamps upward motion at 0. Release past 25% of the sheet's height
+ * or a fast flick (vy > 0.5) dismisses; anything shorter springs back.
+ *
+ * `panHandlers` must be spread onto the handle/heading region ONLY so rows inside
+ * the sheet stay tappable, that region must also carry `dragRegionStyle` (web
+ * touch-action fix, below), and `reset()` must run whenever the sheet reopens
+ * (the value persists across the Modal's mount/unmount otherwise). The
+ * capture-phase grab + refused termination keep the swipe from being stolen by
+ * the browser mid-drag on react-native-web, so the mouse/touch drags the sheet
+ * in the browser too; `onLayout` feeds the height used for the 25% threshold.
  */
 function useDismissibleSheet(onDismiss: () => void) {
   const translateY = useRef(new Animated.Value(0)).current;
+  const heightRef = useRef(0);
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
 
   const reset = useCallback(() => translateY.setValue(0), [translateY]);
+  const onLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    heightRef.current = e.nativeEvent.layout.height;
+  }, []);
+
+  const springBack = useCallback(() => {
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+  }, [translateY]);
 
   const responder = useRef(
     PanResponder.create({
+      // Claim the gesture on a downward drag on BOTH phases — mobile-web fires the
+      // capture phase first, and the bubble phase covers native.
       onMoveShouldSetPanResponder: (_e, g) => g.dy > 4,
+      onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 4,
+      // Once we own the drag, don't let the browser's scroll steal it mid-swipe.
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_e, g) => {
-        if (g.dy > 80 || g.vy > 0.5) {
+        const threshold = heightRef.current > 0 ? heightRef.current * 0.25 : 80;
+        if (g.dy > threshold || g.vy > 0.5) {
           dismissRef.current();
         } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+          springBack();
         }
       },
+      onPanResponderTerminate: () => springBack(),
     }),
   ).current;
 
-  return { translateY, panHandlers: responder.panHandlers, reset };
+  return { translateY, panHandlers: responder.panHandlers, reset, onLayout };
 }
 
 export default function Pantry() {
@@ -443,6 +471,7 @@ export default function Pantry() {
           <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Dismiss" />
           {sheetItem ? (
             <Animated.View
+              onLayout={editSheet.onLayout}
               style={[
                 styles.sheet,
                 { paddingBottom: insets.bottom + spacing.lg },
@@ -451,7 +480,7 @@ export default function Pantry() {
             >
               {/* Drag region — handle + title ONLY, so the controls below stay
                   tappable while a downward swipe on the top dismisses the sheet. */}
-              <View {...editSheet.panHandlers}>
+              <View {...editSheet.panHandlers} style={dragRegionStyle}>
                 <View style={styles.dragHandle} />
                 <Text variant="title" style={styles.sheetTitle}>
                   {toSentenceCase(sheetItem.name)}
@@ -524,13 +553,14 @@ export default function Pantry() {
             accessibilityLabel="Dismiss"
           />
           <Animated.View
+            onLayout={premiumSheet.onLayout}
             style={[
               styles.sheet,
               { paddingBottom: insets.bottom + spacing.lg },
               { transform: [{ translateY: premiumSheet.translateY }] },
             ]}
           >
-            <View {...premiumSheet.panHandlers}>
+            <View {...premiumSheet.panHandlers} style={dragRegionStyle}>
               <View style={styles.dragHandle} />
               <Text variant="title" style={styles.sheetTitle}>
                 With Premium
