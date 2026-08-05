@@ -406,14 +406,17 @@ export default function Profile() {
 const styles = StyleSheet.create({
   // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
   // decorative Ionicon centered in a 44×44 box, on a row with the title.
+  // Shared header layout (matches Home/Pantry): icon + serif title. The icon box
+  // is the glyph's size (not a wider 44px box) so it sits flush at the 24px
+  // content margin instead of indented by the box's centring slack.
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   titleIcon: {
-    width: 44,
-    height: 44,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },

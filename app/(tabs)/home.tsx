@@ -441,13 +441,17 @@ export default function Home() {
               {`Hi ${firstName}`}
             </Text>
           ) : null}
-          {/* No page icon on Home: the full "{Meal}, sorted for you" line needs
-              the width, and with the fork/knife glyph eating ~52px it wraps to a
-              second line on narrow phones (≤375px). Eyebrow above and subtitle
-              below are unchanged. */}
-          <Text variant="title" style={styles.heading}>
-            {getPicksHeading(new Date())}
-          </Text>
+          {/* Page-title icon + heading — same header structure as Pantry/Profile.
+              The title can wrap to two lines on narrow phones; the icon box is one
+              line tall and the row top-aligns, so the icon anchors to line 1. */}
+          <View style={[styles.titleRow, styles.heading]}>
+            <View style={styles.titleIcon}>
+              {/* Fork & knife — intentionally shares the glyph with the meal-card
+                  image placeholder on this screen; preferred over sparkles. */}
+              <Ionicons name="restaurant-outline" size={30} color={colors.textSecondary} />
+            </View>
+            <Text variant="title">{getPicksHeading(new Date())}</Text>
+          </View>
           <Text variant="body" color="textSecondary">
             Three picks from the cuisines you like. Filter or tap to start.
           </Text>
@@ -629,6 +633,22 @@ const styles = StyleSheet.create({
   heading: {
     // Clear space below the now two-line title so it doesn't crowd the subhead.
     marginBottom: spacing.md,
+  },
+  // Shared header layout (matches Pantry/Profile): icon + serif title. The icon
+  // box is the glyph's size (not a wider 44px box) so it sits flush at the 24px
+  // content margin instead of indented by the box's centring slack; the row
+  // top-aligns and the box is one line tall so the icon anchors to line 1 when
+  // the title wraps.
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  titleIcon: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
     gap: spacing.md,

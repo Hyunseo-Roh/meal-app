@@ -629,14 +629,17 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
+  // Shared header layout (matches Home/Profile): icon + serif title. The icon box
+  // is the glyph's size (not a wider 44px box) so it sits flush at the 24px
+  // content margin instead of indented by the box's centring slack.
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   titleIcon: {
-    width: 44,
-    height: 44,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
