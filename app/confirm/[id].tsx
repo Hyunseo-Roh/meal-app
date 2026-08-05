@@ -106,7 +106,12 @@ export default function Handled() {
             {/* Pantry-memory payoff — what you already have for it. */}
             {gap ? (
               <View style={styles.gapRow}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={colors.have}
+                  style={{ marginRight: spacing.sm }}
+                />
                 <Text variant="body" color="toast">
                   {`${gap.have} of ${gap.total}`}
                 </Text>

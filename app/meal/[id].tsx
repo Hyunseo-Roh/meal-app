@@ -200,7 +200,12 @@ export default function MealDetail() {
             {/* Meta line: price bucket · time · the pantry-memory count "n of N
                 ingredients" (count in Toast), all at body size. */}
             <View style={styles.metaRow}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={colors.have}
+                style={{ marginRight: spacing.sm }}
+              />
               <Text variant="body" color="textSecondary">
                 {`${priceBucket(gap.estCost)} · ${gap.cookTimeMin} min · `}
               </Text>

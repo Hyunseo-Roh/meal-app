@@ -117,11 +117,18 @@ function RecCard({
         {gap ? (
           <View style={styles.gapRow}>
             {/* The ONLY place Sage appears on Home (have/success). */}
-            <Ionicons name="checkmark-circle" size={18} color={colors.have} />
+            <Ionicons
+              name="checkmark-circle"
+              size={18}
+              color={colors.have}
+              style={{ marginRight: spacing.sm }}
+            />
             <Text variant="body" color="toast">
               {`${gap.have} of ${gap.total}`}
             </Text>
-            <Text variant="body"> ingredients</Text>
+            <Text variant="body" color="textSecondary">
+              {' ingredients'}
+            </Text>
           </View>
         ) : null}
         {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
