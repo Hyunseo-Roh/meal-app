@@ -106,8 +106,12 @@ export default function TabsLayout() {
         name="pantry"
         options={{
           title: 'Pantry',
-          // Custom shopping-basket-with-groceries glyph; `color` carries the tint.
-          tabBarIcon: ({ color, size }) => <BasketIcon color={color} size={size} />,
+          // Custom shopping-basket-with-groceries glyph; `color`/`focused` track
+          // the tint + filled state like the Ionicons tabs. Rendered a touch
+          // larger (26) so its lighter artwork matches their visual mass.
+          tabBarIcon: ({ color, focused }) => (
+            <BasketIcon color={color} focused={focused} size={26} />
+          ),
         }}
       />
       <Tabs.Screen
