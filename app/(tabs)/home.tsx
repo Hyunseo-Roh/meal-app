@@ -452,7 +452,7 @@ export default function Home() {
             <Text variant="title">{getPicksHeading(new Date())}</Text>
           </View>
           <Text variant="body" color="textSecondary">
-            Tap one, or filter down
+            Three picks from the cuisines you like. Filter or tap to start.
           </Text>
         </View>
 

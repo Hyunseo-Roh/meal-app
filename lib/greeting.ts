@@ -23,14 +23,15 @@ export function getMealBucket(date: Date): MealBucket {
   return 'dinner';
 }
 
-// Home now shows the answer, not the question, so its heading names the meal
-// slot instead of asking — same time-of-day thresholds as getMealBucket.
+// Home shows the answer, not the question, so its heading names the meal slot
+// ("Here's {meal}") — same time-of-day thresholds as getMealBucket. Late night
+// (17:00–04:59) rolls into dinner; there is no separate late-bite bucket.
 const SLOT_LABEL: Record<MealBucket, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
+  breakfast: 'breakfast',
+  lunch: 'lunch',
+  dinner: 'dinner',
 };
 
 export function getPicksHeading(date: Date): string {
-  return `${SLOT_LABEL[getMealBucket(date)]}: three picks`;
+  return `Here's ${SLOT_LABEL[getMealBucket(date)]}`;
 }
