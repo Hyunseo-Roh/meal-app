@@ -441,22 +441,13 @@ export default function Home() {
               {`Hi ${firstName}`}
             </Text>
           ) : null}
-          {/* Decorative page icon beside the heading (same treatment as
-              Pantry/Profile); eyebrow above and subtitle below are unchanged. */}
-          <View style={[styles.titleRow, styles.heading]}>
-            <View style={styles.titleIcon}>
-              {/* Fork & knife — intentionally shares the glyph with the meal-card
-                  image placeholder on this screen; preferred over sparkles. */}
-              <Ionicons name="restaurant-outline" size={30} color={colors.textSecondary} />
-            </View>
-            {/* Nudge the serif title down ~2px so its cap band (the heading's
-                optical centre) lands on the icon's centre — Literata's tall
-                ascent otherwise leaves the caps floating above the glyph even
-                with the row centred. Optical only; no layout/size change. */}
-            <Text variant="title" style={styles.titleHeading}>
-              {getPicksHeading(new Date())}
-            </Text>
-          </View>
+          {/* No page icon on Home: the full "{Meal}, sorted for you" line needs
+              the width, and with the fork/knife glyph eating ~52px it wraps to a
+              second line on narrow phones (≤375px). Eyebrow above and subtitle
+              below are unchanged. */}
+          <Text variant="title" style={styles.heading}>
+            {getPicksHeading(new Date())}
+          </Text>
           <Text variant="body" color="textSecondary">
             Three picks from the cuisines you like. Filter or tap to start.
           </Text>
@@ -638,28 +629,6 @@ const styles = StyleSheet.create({
   heading: {
     // Clear space below the now two-line title so it doesn't crowd the subhead.
     marginBottom: spacing.md,
-  },
-  // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
-  // decorative Ionicon centered in a 44×44 box, on a row with the title.
-  titleRow: {
-    flexDirection: 'row',
-    // Top-align so the icon anchors to the FIRST line of the two-line title,
-    // not the block centre.
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  // Optical centring: shift the serif title down so its cap band aligns with the
-  // icon centre (Literata's ascent makes the caps sit high in the line box).
-  titleHeading: {
-    transform: [{ translateY: 2 }],
-  },
-  titleIcon: {
-    width: 44,
-    // Height ≈ one title line so the centred glyph anchors to line 1 of the
-    // two-line heading (with the row top-aligned), not the whole block.
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   section: {
     gap: spacing.md,

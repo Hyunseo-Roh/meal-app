@@ -24,17 +24,17 @@ export function getMealBucket(date: Date): MealBucket {
 }
 
 // Home shows the answer, not the question, so its heading names the meal slot
-// ("Here's {meal}") — same time-of-day thresholds as getMealBucket. Late night
-// (17:00–04:59) rolls into dinner; there is no separate late-bite bucket.
+// ("{Meal}, sorted for you") — same time-of-day thresholds as getMealBucket.
+// Late night (17:00–04:59) rolls into dinner; there is no separate late-bite
+// bucket. Capitalised for the sentence-leading position.
 const SLOT_LABEL: Record<MealBucket, string> = {
-  breakfast: 'breakfast',
-  lunch: 'lunch',
-  dinner: 'dinner',
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
 };
 
 export function getPicksHeading(date: Date): string {
-  // Deterministic two-line break after the comma — the full phrase is too long
-  // for one line at 24px serif, so we control where it wraps instead of letting
-  // it break mid-word ("…for" clipped). Line 1: "Here's {meal},"  Line 2: "sorted for you".
-  return `Here's ${SLOT_LABEL[getMealBucket(date)]},\nsorted for you`;
+  // Single line: "{Meal}, sorted for you". SLOT_LABEL is capitalised for the
+  // sentence-leading position here (e.g. "Breakfast, sorted for you").
+  return `${SLOT_LABEL[getMealBucket(date)]}, sorted for you`;
 }
