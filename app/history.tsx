@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { MealImage } from '../components/MealImage';
 import { useSessionGate } from '../components/RequireSession';
@@ -10,7 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '../components/states';
 import { Text } from '../components/Text';
 import { formatDate, monthKey, monthLabel } from '../lib/format';
 import { HISTORY_PAGE_SIZE, loadHistory, type HistoryEntry } from '../lib/history';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -40,6 +40,8 @@ export default function History() {
   const router = useRouter();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [status, setStatus] = useState<Status>('loading');
+  // Client-side search over the already-loaded list, by meal name. No re-query.
+  const [query, setQuery] = useState('');
   // Whether another page might exist (last fetch returned a full page).
   const [hasMore, setHasMore] = useState(false);
   // Paging in progress — drives the inline "Load more" label WITHOUT swapping
@@ -133,7 +135,12 @@ export default function History() {
     );
   }
 
-  const groups = groupByMonth(entries);
+  // Live client-side filter by meal name (case-insensitive substring) over the
+  // already-loaded entries — no server re-query. Empty query = the full list.
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+  const filtered = searching ? entries.filter((e) => e.name.toLowerCase().includes(q)) : entries;
+  const groups = groupByMonth(filtered);
 
   return (
     <Screen>
@@ -145,8 +152,30 @@ export default function History() {
       >
         <Ionicons name="chevron-back" size={28} color={colors.text} />
       </Pressable>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text variant="title">History</Text>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search your meals"
+          placeholderTextColor={colors.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search your meals by name"
+          style={styles.search}
+        />
+        {/* A search that matches nothing gets its own light line — distinct from
+            the full-screen empty state for an empty history. */}
+        {searching && filtered.length === 0 ? (
+          <Text variant="body" color="textSecondary">
+            No meals match
+          </Text>
+        ) : null}
         {groups.map((g) => (
           <View key={g.key} style={styles.group}>
             <Text variant="caption" color="textSecondary" style={styles.monthHeader}>
@@ -172,7 +201,10 @@ export default function History() {
           </View>
         ))}
 
-        {hasMore ? (
+        {/* Paging is for the full list; hide it while searching (search only
+            filters what's already loaded — loading more unfiltered rows here
+            would be confusing). */}
+        {hasMore && !searching ? (
           <View>
             <Pressable
               onPress={loadMore}
@@ -205,6 +237,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     marginLeft: -spacing.xs,
     alignSelf: 'flex-start',
+  },
+  // Search field — same treatment as the taste editor / pantry inputs.
+  search: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.card,
   },
   content: {
     paddingTop: spacing.xl,
