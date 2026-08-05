@@ -70,7 +70,7 @@ function titleCaseCuisine(name: string): string {
 // One recommendation card — a vertical card: photo on top with the tier badge
 // overlaid top-left, then meal name (Literata 24), a meta line (cuisine · time ·
 // price bucket), the one-line reason, and — once its ingredient counts resolve —
-// a gap row (Sage check + oversized Toast "have of total"). `footer` (the swap
+// a gap row (Sage check + Toast "n of N ingredients" at body size). `footer` (the swap
 // affordance) sits right-aligned at the bottom.
 function RecCard({
   opt,
@@ -118,10 +118,10 @@ function RecCard({
           <View style={styles.gapRow}>
             {/* The ONLY place Sage appears on Home (have/success). */}
             <Ionicons name="checkmark-circle" size={18} color={colors.have} />
-            <Text variant="body">You have </Text>
-            <Text variant="title" color="toast">
+            <Text variant="body" color="toast">
               {`${gap.have} of ${gap.total}`}
             </Text>
+            <Text variant="body"> ingredients</Text>
           </View>
         ) : null}
         {footer ? <View style={styles.cardFooter}>{footer}</View> : null}
@@ -722,8 +722,8 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     letterSpacing: 0,
   },
-  // Gap row: Sage check + "You have " (body) + oversized Toast "N of M" (title).
-  // Baseline-aligned so the serif numerals sit on the body line.
+  // Gap row: Sage check + Toast "N of M" + " ingredients", all at body size.
+  // Baseline-aligned so the count sits on the body line.
   gapRow: {
     flexDirection: 'row',
     alignItems: 'baseline',

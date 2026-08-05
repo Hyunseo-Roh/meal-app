@@ -197,14 +197,18 @@ export default function MealDetail() {
               </Text>
             ) : null}
 
-            {/* Meta line: price bucket · time · the pantry-memory count (Toast). */}
+            {/* Meta line: price bucket · time · the pantry-memory count "n of N
+                ingredients" (count in Toast), all at body size. */}
             <View style={styles.metaRow}>
               <Ionicons name="checkmark-circle" size={18} color={colors.have} />
               <Text variant="body" color="textSecondary">
-                {`${priceBucket(gap.estCost)} · ${gap.cookTimeMin} min · You have `}
+                {`${priceBucket(gap.estCost)} · ${gap.cookTimeMin} min · `}
               </Text>
-              <Text variant="title" color="toast">
+              <Text variant="body" color="toast">
                 {`${haveCount} of ${gap.m}`}
+              </Text>
+              <Text variant="body" color="textSecondary">
+                {' ingredients'}
               </Text>
             </View>
 
@@ -386,7 +390,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  // Meta line: baseline-align the 24px Toast numeral with the body prose.
+  // Meta line: all body size; baseline-align the Toast count with the prose.
   metaRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
