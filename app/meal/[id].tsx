@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MealImage } from '../../components/MealImage';
 import { PrimaryButton } from '../../components/PrimaryButton';
@@ -57,6 +58,7 @@ export default function MealDetail() {
   const gate = useSessionGate();
   const { id, option_id } = useLocalSearchParams<{ id: string; option_id?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [state, setState] = useState<State>({ status: 'loading' });
   // Optimistic overlay: names moved have←toBuy by tapping "+", plus an in-flight
   // guard and a subtle error. These sit on top of the RPC's gap (read-only).
@@ -150,30 +152,38 @@ export default function MealDetail() {
   const visibleSteps = collapsible && !expanded ? steps.slice(0, STEP_CAP) : steps;
 
   return (
-    <Screen>
+    // Screen owns left/right/bottom insets; the header below owns the TOP inset
+    // so the hero no longer touches the notch and the back button seats in it.
+    <Screen edges={['left', 'right', 'bottom']}>
       <View style={styles.flex}>
+        {/* Top header bar — seated in the top safe-area inset (Bone bg so nothing
+            is clipped), holding only the back button. Sits ABOVE the hero and
+            stays put while the content scrolls. */}
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Pressable
+            onPress={goBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={8}
+            style={styles.headerBack}
+          >
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </Pressable>
+        </View>
+
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           stickyHeaderIndices={[1]}
         >
-          {/* [0] Hero photo — full-bleed, Greige fallback. */}
+          {/* [0] Hero photo — full-bleed, Greige fallback. Starts BELOW the header. */}
           <View style={styles.heroWrap}>
             <MealImage url={gap.imageUrl} width="100%" height={192} />
           </View>
 
-          {/* [1] Sticky title bar — sticks to the top as the content scrolls
-              under it. The back chevron rides with it. */}
+          {/* [1] Sticky title bar — sticks below the header as content scrolls. */}
           <View style={styles.stickyBar}>
-            <Pressable
-              onPress={goBack}
-              accessibilityLabel="Go back"
-              hitSlop={12}
-              style={styles.backArrow}
-            >
-              <Ionicons name="chevron-back" size={28} color={colors.text} />
-            </Pressable>
             <Text variant="title" numberOfLines={1} style={styles.stickyTitle}>
               {gap.name}
             </Text>
@@ -341,6 +351,19 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xl,
   },
+  // Top header bar — Bone bg, seated in the top safe-area inset (paddingTop is
+  // applied inline from useSafeAreaInsets().top). Holds only the back button.
+  header: {
+    backgroundColor: colors.bg,
+  },
+  // Back button — ≥44×44 tap target, nudged toward the screen edge.
+  headerBack: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -spacing.sm,
+  },
   // Full-bleed hero: cancel the Screen's 24px side margins.
   heroWrap: {
     marginHorizontal: -layout.screenMargin,
@@ -355,10 +378,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
-  },
-  backArrow: {
-    marginLeft: -spacing.md,
-    paddingRight: spacing.xs,
   },
   stickyTitle: {
     flex: 1,

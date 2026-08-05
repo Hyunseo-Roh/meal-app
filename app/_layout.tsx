@@ -21,6 +21,20 @@ const LightTheme = {
   colors: { ...DefaultTheme.colors, background: colors.bg },
 };
 
+// Web-only, at module load (BEFORE the safe-area provider mounts and measures):
+// `web.output: "single"` (app.json) makes Expo IGNORE app/+html.tsx, so the built
+// index.html ships WITHOUT viewport-fit=cover. Without it, env(safe-area-inset-*)
+// — and therefore react-native-safe-area-context's insets — read 0 on iOS, so
+// content bleeds under the notch / home indicator. Setting it here (not in an
+// effect) means the first inset measurement already sees the real values.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const vp = document.querySelector('meta[name="viewport"]');
+  const content = vp?.getAttribute('content') ?? '';
+  if (vp && !content.includes('viewport-fit=cover')) {
+    vp.setAttribute('content', `${content}, viewport-fit=cover`);
+  }
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
