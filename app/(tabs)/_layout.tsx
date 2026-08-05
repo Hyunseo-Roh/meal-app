@@ -110,7 +110,7 @@ export default function TabsLayout() {
           // the tint + filled state like the Ionicons tabs. Rendered a touch
           // larger (26) so its lighter artwork matches their visual mass.
           tabBarIcon: ({ color, focused }) => (
-            <BasketIcon color={color} focused={focused} size={26} />
+            <BasketIcon color={color} bg={colors.bg} focused={focused} size={26} />
           ),
         }}
       />
