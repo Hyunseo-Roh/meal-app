@@ -47,6 +47,38 @@ function NavRow({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
+// Label/value chevron row (muted label · Charcoal value · chevron) — the "Edit
+// taste ›" pattern with a value shown, tappable to edit.
+function NavValueRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={styles.navRow}>
+      <Text variant="body" color="textSecondary">
+        {label}
+      </Text>
+      <View style={styles.valueGroup}>
+        <Text variant="body" style={styles.value} numberOfLines={1}>
+          {value}
+        </Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+      </View>
+    </Pressable>
+  );
+}
+
+// Read-only label/value row (muted label · Charcoal value, no chevron).
+function ValueRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text variant="body" color="textSecondary">
+        {label}
+      </Text>
+      <Text variant="body" style={[styles.value, styles.readonlyValue]} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 /**
  * One made-meal row with a reliable trailing delete control. Swipe-to-delete via
  * PanResponder proved un-drivable/unverifiable on web here (same as the filter
@@ -235,9 +267,6 @@ export default function Profile() {
 
   const firstName = account.data?.firstName ?? null;
   const email = account.data?.email ?? null;
-  const initials =
-    (((account.data?.firstName ?? '')[0] ?? '') + ((account.data?.lastName ?? '')[0] ?? ''))
-      .toUpperCase() || null;
   const madeCount = history.data?.length ?? 0;
 
   let madeBody: ReactNode;
@@ -287,31 +316,25 @@ export default function Profile() {
           <Text variant="title">Profile</Text>
         </View>
 
-        {/* Name row: initials avatar (Cool Slate fill, Bone initials) + first name,
-            with the signed-in email as a small line directly beneath the name (so
-            the screen shows which account is signed in without an extra row).
-            Shown once the account loads; a load failure just omits it. */}
-        {account.status === 'ready' && (initials || firstName || email) ? (
-          <View style={styles.nameRow}>
-            <View style={styles.avatar}>
-              <Text variant="body" color="bg">
-                {initials ?? '·'}
-              </Text>
-            </View>
-            <View style={styles.nameText}>
-              {firstName ? <Text variant="body">{firstName}</Text> : null}
-              {email ? (
-                <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                  {email}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-
-        {/* ACCOUNT */}
+        {/* ACCOUNT — name (editable) + email (read-only) merged in here, above the
+            editors. No second avatar; the page header above is the only icon. */}
         <View style={styles.section}>
           <SectionHeader label="Account" />
+          {/* Shown once the account loads; a load failure just omits these two and
+              leaves the editors below usable. */}
+          {account.status === 'ready' ? (
+            <>
+              {/* Name → the name editor; writes users.first_name (the greeting). */}
+              <NavValueRow
+                label="Name"
+                value={firstName ?? 'Not set'}
+                onPress={() => router.push('/name/edit')}
+              />
+              {/* Email is the auth login identifier — read-only (changing it needs a
+                  reauth/verify flow, out of scope). */}
+              {email ? <ValueRow label="Email" value={email} /> : null}
+            </>
+          ) : null}
           <NavRow label="Edit taste" onPress={() => router.push('/taste/edit')} />
           <NavRow label="Change password" onPress={() => router.push('/change-password')} />
           {pwChanged ? (
@@ -426,29 +449,6 @@ const styles = StyleSheet.create({
     // Large gap BETWEEN sections — this is what groups them (no card surfaces).
     gap: spacing.xl,
   },
-  // Name row under the H1: avatar + first name.
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    // Pull it up toward the H1 (the content gap would otherwise float it away).
-    marginTop: -spacing.md,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Name stacked above the small email line, beside the avatar.
-  nameText: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
   // Section = header + tight rows. gap 0 so the rows abut (the section header
   // carries its own space below); the content gap (24) separates whole sections.
   section: {
@@ -475,6 +475,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 44,
+  },
+  // Trailing value + chevron group on a NavValueRow; shrinks so a long value
+  // truncates instead of pushing the label.
+  valueGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 1,
+    marginLeft: spacing.md,
+  },
+  // The value text (right-aligned, Charcoal); truncates on overflow.
+  value: {
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  // Read-only value (no chevron beside it) keeps a gap from the label.
+  readonlyValue: {
+    marginLeft: spacing.md,
   },
   historyError: {
     marginTop: spacing.sm,

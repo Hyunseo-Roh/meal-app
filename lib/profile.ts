@@ -132,3 +132,29 @@ export async function saveTasteProfile(
   );
   if (error) throw new Error('taste_save_failed');
 }
+
+/** Current first name, for the name editor to seed its input. Trimmed; '' if unset. */
+export async function loadFirstName(): Promise<string> {
+  const userId = await getCurrentUserId();
+  const { data, error } = await withTimeout(
+    supabase.from('users').select('first_name').eq('id', userId).single(),
+  );
+  if (error || !data) throw new Error('name_load_failed');
+  return ((data.first_name as string | null) ?? '').trim();
+}
+
+/**
+ * Persist the first name — the SAME `users.first_name` column Home's
+ * "Hi {firstName}" greeting reads, so editing it updates the greeting. Leaves
+ * `last_name` untouched. Caller trims/validates before calling.
+ */
+export async function saveFirstName(firstName: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  const { error } = await withTimeout(
+    supabase
+      .from('users')
+      .update({ first_name: firstName, updated_at: new Date().toISOString() })
+      .eq('id', userId),
+  );
+  if (error) throw new Error('name_save_failed');
+}

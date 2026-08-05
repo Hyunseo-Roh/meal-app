@@ -312,6 +312,26 @@ export default function Home() {
         swapsRef.current = 0;
         setSwapsUsed(0);
       }
+      // Re-read the greeting name on every focus (cheap single-column select), so
+      // editing it in Profile → the name editor is reflected here — Home is a
+      // persistent tab, so the mount-only load above won't pick up the change.
+      let active = true;
+      (async () => {
+        try {
+          const userId = await getCurrentUserId();
+          const { data: u } = await supabase
+            .from('users')
+            .select('first_name')
+            .eq('id', userId)
+            .single();
+          if (active) setFirstName(((u?.first_name as string | null) ?? '').trim() || null);
+        } catch {
+          // Keep the current name on a transient read failure.
+        }
+      })();
+      return () => {
+        active = false;
+      };
     }, []),
   );
 
