@@ -444,7 +444,7 @@ export default function Home() {
           {/* Page-title icon + heading — same header structure as Pantry/Profile.
               The title can wrap to two lines on narrow phones; the icon box is one
               line tall and the row top-aligns, so the icon anchors to line 1. */}
-          <View style={[styles.titleRow, styles.heading]}>
+          <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
               {/* Fork & knife — intentionally shares the glyph with the meal-card
                   image placeholder on this screen; preferred over sparkles. */}
@@ -627,12 +627,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
-  },
-  // Extra heading→subtitle breathing room; now carried by the title row so the
-  // centered text isn't nudged off the icon's vertical center.
-  heading: {
-    // Clear space below the now two-line title so it doesn't crowd the subhead.
-    marginBottom: spacing.md,
   },
   // Shared header layout (matches Pantry/Profile): icon + serif title. The icon
   // box is the glyph's size (not a wider 44px box) so it sits flush at the 24px
