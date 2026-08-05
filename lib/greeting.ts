@@ -33,5 +33,5 @@ const SLOT_LABEL: Record<MealBucket, string> = {
 };
 
 export function getPicksHeading(date: Date): string {
-  return `Here's ${SLOT_LABEL[getMealBucket(date)]}`;
+  return `Here's ${SLOT_LABEL[getMealBucket(date)]}, sorted for you`;
 }

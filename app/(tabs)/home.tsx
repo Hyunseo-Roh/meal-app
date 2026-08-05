@@ -449,7 +449,13 @@ export default function Home() {
                   image placeholder on this screen; preferred over sparkles. */}
               <Ionicons name="restaurant-outline" size={30} color={colors.textSecondary} />
             </View>
-            <Text variant="title">{getPicksHeading(new Date())}</Text>
+            {/* Nudge the serif title down ~2px so its cap band (the heading's
+                optical centre) lands on the icon's centre — Literata's tall
+                ascent otherwise leaves the caps floating above the glyph even
+                with the row centred. Optical only; no layout/size change. */}
+            <Text variant="title" style={styles.titleHeading}>
+              {getPicksHeading(new Date())}
+            </Text>
           </View>
           <Text variant="body" color="textSecondary">
             Three picks from the cuisines you like. Filter or tap to start.
@@ -638,6 +644,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  // Optical centring: shift the serif title down so its cap band aligns with the
+  // icon centre (Literata's ascent makes the caps sit high in the line box).
+  titleHeading: {
+    transform: [{ translateY: 2 }],
   },
   titleIcon: {
     width: 44,
