@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, Text } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BasketIcon } from '../../components/BasketIcon';
 import { Screen } from '../../components/Screen';
 import { Text as AppText } from '../../components/Text';
 import { getAuthUser, isOnboarded, withTimeout } from '../../lib/currentUser';
@@ -12,32 +13,10 @@ import { colors } from '../../theme/tokens';
 /**
  * Bottom tab navigation — Home / Pantry / Profile (History merged into Profile).
  * Quiet Authority: flat bar on the Bone bg, a single 1px Warm Gray top border,
- * no shadow/elevation. Active = solid Charcoal (filled glyph), inactive = Warm
- * Gray Deep (outline glyph).
- *
- * Labels are rendered with a custom RN <Text> (nav chrome, not screen content)
- * so they size to their own content — react-navigation's default label sits in
- * a fixed-height container that cropped the text bottom on iOS web. The `color`
- * arg carries the active/inactive tint automatically.
+ * no shadow/elevation. Icon-only (no labels); active = solid Charcoal, inactive
+ * = Warm Gray Deep. Home/Profile swap filled/outline glyphs on focus; Pantry's
+ * custom basket is stroke-only and tracks the tint via its `color`.
  */
-function tabLabel(text: string) {
-  return ({ color }: { color: string }) => (
-    <Text
-      style={{
-        color,
-        fontSize: 13,
-        lineHeight: 16,
-        textTransform: 'uppercase',
-        letterSpacing: 0.78,
-        textAlign: 'center',
-        includeFontPadding: false,
-        paddingBottom: 2,
-      }}
-    >
-      {text}
-    </Text>
-  );
-}
 
 /**
  * Defense-in-depth guard for direct (web/deep-link) access to a tab that
@@ -96,6 +75,8 @@ export default function TabsLayout() {
       initialRouteName="home"
       screenOptions={{
         headerShown: false,
+        // Icon-only bar — no text labels under the tabs.
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
@@ -106,7 +87,8 @@ export default function TabsLayout() {
           elevation: 0,
           shadowOpacity: 0,
           height: isWeb ? 64 : 58 + insets.bottom,
-          paddingTop: 8,
+          // No labels: pad top and bottom evenly so the lone icon sits centred.
+          paddingTop: isWeb ? 10 : 8,
           paddingBottom: isWeb ? 10 : insets.bottom + 8,
         },
       }}
@@ -115,7 +97,6 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Home',
-          tabBarLabel: tabLabel('Home'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
           ),
@@ -125,19 +106,14 @@ export default function TabsLayout() {
         name="pantry"
         options={{
           title: 'Pantry',
-          tabBarLabel: tabLabel('Pantry'),
-          tabBarIcon: ({ color, focused, size }) => (
-            // A container/box reads as pantry storage (not a bag or cart), and is
-            // distinct from the in-page title's stacked-tray shelf glyph.
-            <Ionicons name={focused ? 'cube' : 'cube-outline'} size={size} color={color} />
-          ),
+          // Custom shopping-basket-with-groceries glyph; `color` carries the tint.
+          tabBarIcon: ({ color, size }) => <BasketIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarLabel: tabLabel('Profile'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),

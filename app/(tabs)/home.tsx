@@ -105,7 +105,9 @@ function RecCard({
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
           {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}
         </Text>
-        <Text variant="body" color="textSecondary" numberOfLines={2}>
+        {/* Card body copy — second in hierarchy after the title, so primary
+            Charcoal (the meta + gap rows below stay muted/secondary). */}
+        <Text variant="body" color="text" numberOfLines={2}>
           {explanation}
         </Text>
         {opt.over_time ? (
