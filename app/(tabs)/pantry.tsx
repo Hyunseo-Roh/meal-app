@@ -176,19 +176,24 @@ export default function Pantry() {
 
   const has = (name: string) => items.some((i) => i.name === name.trim().toLowerCase());
 
-  // Add into the SELECTED category: writing category explicitly means the new
-  // item lands in the current view immediately (fixes "where did it go?").
+  // Add with NO explicit category: it stores NULL, so categoryOf() derives the
+  // category from the ingredient NAME (categorize). An explicit category is a
+  // user PIN, written only by a manual "move". After the insert, jump the view to
+  // where the item actually landed — its derived category — so the add is visible.
   async function add(name: string) {
     const v = name.trim().toLowerCase();
     if (!v || adding || has(v)) return;
     setAdding(true);
     setError(null);
     try {
-      const row = await addPantryItem(v, 'manual', selectedCategory);
+      const row = await addPantryItem(v);
       if (row) {
         setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
         qtyRef.current[row.id] = row.quantity;
         setJustAddedId(row.id);
+        // Follow the item to its derived category (row.category is NULL here, so
+        // categoryOf === categorize(name)) — the same key the list groups by.
+        setSelectedCategory(categoryOf(row));
       }
     } catch {
       setError('That didn’t make it in');
