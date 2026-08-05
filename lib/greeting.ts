@@ -33,5 +33,8 @@ const SLOT_LABEL: Record<MealBucket, string> = {
 };
 
 export function getPicksHeading(date: Date): string {
-  return `Here's ${SLOT_LABEL[getMealBucket(date)]}, sorted for you`;
+  // Deterministic two-line break after the comma — the full phrase is too long
+  // for one line at 24px serif, so we control where it wraps instead of letting
+  // it break mid-word ("…for" clipped). Line 1: "Here's {meal},"  Line 2: "sorted for you".
+  return `Here's ${SLOT_LABEL[getMealBucket(date)]},\nsorted for you`;
 }

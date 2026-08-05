@@ -636,13 +636,16 @@ const styles = StyleSheet.create({
   // Extra heading→subtitle breathing room; now carried by the title row so the
   // centered text isn't nudged off the icon's vertical center.
   heading: {
-    marginBottom: spacing.xs,
+    // Clear space below the now two-line title so it doesn't crowd the subhead.
+    marginBottom: spacing.md,
   },
   // Page-title icon treatment (shared across Pantry/Profile/Home): a 30px
   // decorative Ionicon centered in a 44×44 box, on a row with the title.
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // Top-align so the icon anchors to the FIRST line of the two-line title,
+    // not the block centre.
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   // Optical centring: shift the serif title down so its cap band aligns with the
@@ -652,7 +655,9 @@ const styles = StyleSheet.create({
   },
   titleIcon: {
     width: 44,
-    height: 44,
+    // Height ≈ one title line so the centred glyph anchors to line 1 of the
+    // two-line heading (with the row top-aligned), not the whole block.
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
