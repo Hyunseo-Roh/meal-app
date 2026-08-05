@@ -107,11 +107,11 @@ export default function Handled() {
             {gap ? (
               <View style={styles.gapRow}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.have} />
-                <Text variant="body" color="textSecondary">
-                  You have{' '}
-                </Text>
-                <Text variant="title" color="toast">
+                <Text variant="body" color="toast">
                   {`${gap.have} of ${gap.total}`}
+                </Text>
+                <Text variant="body" color="textSecondary">
+                  {' ingredients'}
                 </Text>
               </View>
             ) : null}
