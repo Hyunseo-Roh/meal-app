@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MealImage } from '../../components/MealImage';
 import { Screen } from '../../components/Screen';
@@ -246,6 +246,14 @@ export default function Profile() {
     }
   }
 
+  // Dismiss the confirm modal (Cancel / scrim / Android back) — never mid-delete,
+  // so an in-flight destructive call can't be abandoned or double-fired.
+  function closeDeleteModal() {
+    if (deleting) return;
+    setConfirmingDelete(false);
+    setDeleteError(null);
+  }
+
   // Swipe-to-delete: optimistically drop the entry (the row unmounts and the
   // "See all N" count decrements immediately), then call the auth.uid()-guarded
   // RPC. On failure, revert and surface a small note. Another user's entries are
@@ -372,56 +380,72 @@ export default function Profile() {
           </Pressable>
         </View>
 
-        {/* DELETE ACCOUNT — alone at the very bottom, in clay (destructive). */}
+        {/* DELETE ACCOUNT — alone at the very bottom, in clay (destructive). The
+            row just opens the confirmation modal below; the destructive action
+            itself lives in a blocking dialog so it can't be missed. */}
         <View style={styles.deleteZone}>
-          {!confirmingDelete ? (
-            <Pressable
-              onPress={() => setConfirmingDelete(true)}
-              accessibilityRole="button"
-              style={styles.link}
-            >
-              <Text variant="body" color="error">
-                Delete account
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={styles.deleteConfirm}>
-              <Text variant="caption" color="textSecondary" style={styles.warning}>
-                This permanently removes your taste and pantry, and this email can&apos;t be used to
-                sign up again. You can&apos;t undo this.
-              </Text>
-              {/* The destructive confirm reads in clay; the explicit two-step tap
-                  is the safeguard. */}
-              <Pressable
-                onPress={handleDelete}
-                disabled={deleting}
-                accessibilityRole="button"
-                style={styles.link}
-              >
-                <Text variant="body" color="error">
-                  {deleting ? 'Deleting…' : 'Delete permanently'}
-                </Text>
-              </Pressable>
-              {/* Cancel is the safe default — the present (accent) action. */}
-              <Pressable
-                onPress={() => setConfirmingDelete(false)}
-                disabled={deleting}
-                accessibilityRole="button"
-                style={styles.link}
-              >
-                <Text variant="body" color="accent">
-                  Cancel
-                </Text>
-              </Pressable>
-              {deleteError ? (
-                <Text variant="body" color="error">
-                  {deleteError}
-                </Text>
-              ) : null}
-            </View>
-          )}
+          <Pressable
+            onPress={() => setConfirmingDelete(true)}
+            accessibilityRole="button"
+            style={styles.link}
+          >
+            <Text variant="body" color="error">
+              Delete account
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
+
+      {/* Delete confirmation — a CENTERED dialog over a dimmed scrim (not a bottom
+          sheet): a destructive confirm should block and hold focus, and must not
+          be swipe-dismissable. Scrim / Cancel / Android-back dismiss without
+          deleting; taps on the dialog don't reach the scrim (it's rendered on
+          top of it). */}
+      <Modal
+        visible={confirmingDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteModal}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.scrim} onPress={closeDeleteModal} accessibilityLabel="Dismiss" />
+          <View style={styles.dialog}>
+            <Text variant="title">Delete your account?</Text>
+            <Text variant="body" color="textSecondary">
+              This permanently removes your taste and pantry, and this email can&apos;t be used to
+              sign up again. You can&apos;t undo this.
+            </Text>
+            {/* Destructive CTA — filled Clay (the palette's destructive-only
+                colour); pending/disabled while the delete runs so it can't
+                double-fire, reusing the app's dim-when-disabled button pattern. */}
+            <Pressable
+              onPress={handleDelete}
+              disabled={deleting}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: deleting }}
+              style={[styles.deleteBtn, deleting && styles.btnDisabled]}
+            >
+              <Text variant="body" color="bg">
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </Text>
+            </Pressable>
+            {/* Cancel — ghost (1px border, Charcoal), the safe default. */}
+            <Pressable
+              onPress={closeDeleteModal}
+              disabled={deleting}
+              accessibilityRole="button"
+              style={[styles.cancelBtn, deleting && styles.btnDisabled]}
+            >
+              <Text variant="body">Cancel</Text>
+            </Pressable>
+            {deleteError ? (
+              <Text variant="body" color="error" style={styles.dialogError}>
+                {deleteError}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -561,12 +585,50 @@ const styles = StyleSheet.create({
   deleteZone: {
     marginTop: spacing.lg,
   },
-  deleteConfirm: {
-    gap: spacing.sm,
+  // Centered confirm dialog over a dimmed scrim (same scrim as the pantry sheet,
+  // but centered rather than bottom-anchored).
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
   },
-  warning: {
-    // Supporting sentence at 13/secondary — drop the caption role's uppercase + tracking.
-    textTransform: 'none',
-    letterSpacing: 0,
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.text,
+    opacity: 0.4,
+  },
+  dialog: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.bg,
+    borderRadius: spacing.lg,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  // Destructive CTA — filled Clay, 52px like the primary button.
+  deleteBtn: {
+    height: 52,
+    borderRadius: spacing.md,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  // Ghost cancel — 1px Warm Gray border, Charcoal label.
+  cancelBtn: {
+    height: 52,
+    borderRadius: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // App's dim-when-disabled button pattern (mirrors PrimaryButton).
+  btnDisabled: {
+    opacity: 0.4,
+  },
+  dialogError: {
+    textAlign: 'center',
   },
 });
