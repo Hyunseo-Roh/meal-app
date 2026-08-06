@@ -14,7 +14,6 @@ import { getPicksHeading } from '../../lib/greeting';
 import { TIER_REASON } from '../../lib/reasons';
 import { consumeMealCompleted } from '../../lib/session';
 import {
-  buildExplanation,
   fetchRecommendations,
   materializeSelection,
   recordSwapRejection,
@@ -75,14 +74,12 @@ function titleCaseCuisine(name: string): string {
 // affordance) sits right-aligned at the bottom.
 function RecCard({
   opt,
-  explanation,
   imageUrl,
   gap,
   onPress,
   footer,
 }: {
   opt: RecRow;
-  explanation: string;
   imageUrl: string | null;
   gap?: { have: number; total: number };
   onPress: () => void;
@@ -111,11 +108,6 @@ function RecCard({
         </Text>
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
           {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}
-        </Text>
-        {/* Card body copy — second in hierarchy after the title, so primary
-            Charcoal (the meta + gap rows below stay muted/secondary). */}
-        <Text variant="body" color="text" numberOfLines={2}>
-          {explanation}
         </Text>
         {opt.over_time ? (
           <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
@@ -167,11 +159,11 @@ export default function Home() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [images, setImages] = useState<Record<string, string>>({});
   // The user's favorite cuisine NAMES (from pref_cuisine_ids), loaded once —
-  // favorites don't change mid-session. Gates whether an explanation may claim a
-  // cuisine is "familiar" to the user; empty (default AND failure fallback) →
-  // honest, taste-neutral copy. The ref mirror keeps materialize() current
-  // without adding a dependency that would churn its memo.
-  const [favCuisines, setFavCuisines] = useState<Set<string>>(new Set());
+  // favorites don't change mid-session. Feeds materialize() → the persisted
+  // per-meal explanation shown on the "Why we chose this" screen (gates whether
+  // it may claim a cuisine is "familiar"); empty (default AND failure fallback)
+  // → honest, taste-neutral copy. A ref, not state: the Home card no longer
+  // renders the explanation, so nothing needs to re-render when favorites load.
   const favCuisinesRef = useRef<Set<string>>(new Set());
   // The user's first name for the header eyebrow. Null/empty → no eyebrow (legacy
   // rows unchanged). Read alongside the favorites lookup — no extra fetch.
@@ -297,7 +289,6 @@ export default function Home() {
         if (!active) return;
         const set = new Set((cs ?? []).map((c) => c.name as string));
         favCuisinesRef.current = set;
-        setFavCuisines(set);
       } catch {
         // leave the set empty → honest, taste-neutral copy
       }
@@ -510,7 +501,6 @@ export default function Home() {
                 <RecCard
                   key={tier}
                   opt={card}
-                  explanation={buildExplanation(card, favCuisines)}
                   imageUrl={images[card.meal_id] ?? null}
                   gap={gapCounts[card.meal_id]}
                   onPress={() => onSelect(card)}
