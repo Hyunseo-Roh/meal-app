@@ -345,16 +345,16 @@ export default function Pantry() {
                   </View>
                   {catItems.map((item) => (
                     <View key={item.id} style={styles.itemRow}>
-                      <Pressable
-                        onPress={() => openSheet(item)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Options for ${item.name}`}
+                      {/* Name is plain text (not the tap target); the trailing ⋯
+                          button is the explicit, discoverable entry to the sheet. */}
+                      <Text
+                        variant="body"
+                        color={justAddedId === item.id ? 'accent' : 'text'}
+                        numberOfLines={1}
                         style={styles.itemName}
                       >
-                        <Text variant="body" color={justAddedId === item.id ? 'accent' : 'text'}>
-                          {toSentenceCase(item.name)}
-                        </Text>
-                      </Pressable>
+                        {toSentenceCase(item.name)}
+                      </Text>
                       <View style={styles.stepper}>
                         <Pressable
                           onPress={() => changeQty(item, -1)}
@@ -383,6 +383,16 @@ export default function Pantry() {
                           <Ionicons name="add" size={20} color={colors.text} />
                         </Pressable>
                       </View>
+                      {/* Overflow → the Move / Remove / Cancel sheet (unchanged). */}
+                      <Pressable
+                        onPress={() => openSheet(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Options for ${item.name}`}
+                        hitSlop={8}
+                        style={styles.overflowBtn}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                      </Pressable>
                     </View>
                   ))}
                 </View>
@@ -648,10 +658,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
   },
+  // Name takes the remaining width (truncates at one line); it's plain text now.
   itemName: {
     flex: 1,
+  },
+  // Trailing overflow control — a 32px tap target after the stepper, small left
+  // margin so it doesn't crowd the "+" button.
+  overflowBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    marginLeft: spacing.sm,
   },
   stepper: {
     flexDirection: 'row',
