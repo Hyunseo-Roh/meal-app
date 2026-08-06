@@ -719,12 +719,12 @@ const styles = StyleSheet.create({
   },
   // Vertical card: image on top, text below.
   card: {
-    // Deeper Warm Gray fill + a 1px textSecondary hairline so the card reads as a
-    // distinct surface and the boundary passes WCAG 1.4.11 (3:1): border vs Bone
-    // = 6.36:1, Charcoal text vs fill = 7.69:1. (textSecondary — not Charcoal,
-    // which is reserved for badges/primary buttons.)
+    // Warm Butter fill + a 1px deep-Toast hairline so the card reads as a distinct,
+    // appetite-friendly surface and the boundary passes WCAG 1.4.11 (3:1): border
+    // vs Bone = 3.75:1, Charcoal text vs fill = 9.81:1. (Warm accent family — not
+    // gray textSecondary, not Charcoal which is reserved for badges/primary buttons.)
     backgroundColor: colors.recCard,
-    borderColor: colors.textSecondary,
+    borderColor: colors.recCardBorder,
     borderWidth: 1,
     borderRadius: spacing.lg,
     overflow: 'hidden',
