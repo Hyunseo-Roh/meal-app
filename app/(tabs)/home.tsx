@@ -719,8 +719,12 @@ const styles = StyleSheet.create({
   },
   // Vertical card: image on top, text below.
   card: {
-    backgroundColor: colors.card,
-    borderColor: colors.chipBorder,
+    // Deeper Warm Gray fill + a 1px textSecondary hairline so the card reads as a
+    // distinct surface and the boundary passes WCAG 1.4.11 (3:1): border vs Bone
+    // = 6.36:1, Charcoal text vs fill = 7.69:1. (textSecondary — not Charcoal,
+    // which is reserved for badges/primary buttons.)
+    backgroundColor: colors.recCard,
+    borderColor: colors.textSecondary,
     borderWidth: 1,
     borderRadius: spacing.lg,
     overflow: 'hidden',

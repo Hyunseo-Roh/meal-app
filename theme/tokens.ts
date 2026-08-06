@@ -16,6 +16,7 @@
 export const colors = {
   bg: '#EDEAE3', // Bone — screen background
   card: '#DCD3C5', // Greige — cards
+  recCard: '#C9C2B6', // Warm Gray — recommendation-card fill (deeper than `card` so it reads as a distinct surface). Same hex as `chipBorder`; paired with a 1px `textSecondary` border that earns the 3:1 boundary (WCAG 1.4.11) vs Bone. Tweak here to fine-tune the shade.
   chipBorder: '#C9C2B6', // Warm Gray — borders
   textSecondary: '#53544F', // Warm Gray Deep — muted text (AA: 6.36:1 on Bone, 5.15:1 on Greige)
   accent: '#8A9AA6', // Cool Slate — single accent (selected chips, primary buttons, active nav)
