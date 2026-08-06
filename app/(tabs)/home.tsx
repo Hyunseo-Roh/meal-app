@@ -408,6 +408,9 @@ export default function Home() {
   }).filter((x): x is { tier: Tier; card: RecRow; hasNext: boolean } => Boolean(x.card));
 
   const capped = swapsUsed >= SWAP_CAP;
+  // Surface the remaining budget on the pill only when ONE swap is left before
+  // the cap, so the wall isn't a surprise (2+ left stays the plain label).
+  const swapLabel = swapsUsed === SWAP_CAP - 1 ? 'Show another (1 left)' : 'Show another';
   const hasCards = shownCards.length > 0;
 
   // Once the shown cards are known, fetch ingredient-gap counts for each in
@@ -596,11 +599,12 @@ export default function Home() {
                       <Pressable
                         onPress={() => onSwap(tier, card)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Not for me — swap ${card.meal}`}
+                        accessibilityLabel={`Show another ${tier} pick instead of ${card.meal}`}
                         style={styles.swapPill}
                       >
+                        <Ionicons name="refresh" size={14} color={colors.text} />
                         <Text variant="caption" style={styles.swapPillText}>
-                          Not for me
+                          {swapLabel}
                         </Text>
                       </Pressable>
                     )
@@ -609,7 +613,7 @@ export default function Home() {
               ))}
               {capped ? (
                 <Text variant="body" color="textSecondary">
-                  No more swaps — go with one of these
+                  That&apos;s the set — pick one to start
                 </Text>
               ) : null}
             </View>
@@ -724,12 +728,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginTop: spacing.xs,
   },
-  // "Not for me" — a low-emphasis ghost pill: Charcoal text at 13, Warm Gray
-  // hairline border, pill radius, no fill. Reads as tappable on the Greige card.
+  // "Show another" — a secondary pill: refresh icon + Charcoal 13px text, Warm
+  // Gray hairline, and a subtle Bone fill so it separates from the Butter card
+  // and is findable without competing with the whole-card tap (not Charcoal).
   swapPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: 999,
+    backgroundColor: colors.bg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
