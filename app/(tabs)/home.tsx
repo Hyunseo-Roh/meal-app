@@ -151,9 +151,10 @@ export default function Home() {
   const [time, setTime] = useState<number | null>(null);
   const [budget, setBudget] = useState<BudgetLevel | null>(null);
   const [mood, setMood] = useState<string | null>(null);
-  // Filters are collapsed to a summary row by default; tapping expands the chip
-  // groups in place. Starts collapsed on every arrival (see the focus effect).
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Three always-visible summary chips (Time/Budget/Mood) live above the cards.
+  // Tapping one expands ONLY its options inline; `openFilter` is which one is
+  // expanded (or null = just the three chips). No force-collapse on arrival.
+  const [openFilter, setOpenFilter] = useState<'time' | 'budget' | 'mood' | null>(null);
 
   const [rows, setRows] = useState<RecRow[] | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -303,9 +304,6 @@ export default function Home() {
   // budget. Filter changes don't refocus the screen, so they never refill it.
   useFocusEffect(
     useCallback(() => {
-      // Every arrival at Home starts with filters collapsed. Filter chip taps
-      // don't refocus the screen, so adjusting filters keeps the panel open.
-      setFiltersOpen(false);
       if (consumeMealCompleted()) {
         swapsRef.current = 0;
         setSwapsUsed(0);
@@ -433,14 +431,14 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownMealIds]);
 
-  // Compact filter summary (collapsed default). Unset dimensions read as "Any …".
+  // Labels for the always-visible summary chips. Unset reads as "Any …".
   const timeLabel =
     time === null ? 'Any time' : (TIME_OPTIONS.find((o) => o.value === time)?.label ?? 'Any time');
   const budgetLabel =
     budget === null
       ? 'Any budget'
       : (BUDGET_OPTIONS.find((o) => o.value === budget)?.label ?? 'Any budget');
-  const filterSummary = `${timeLabel} · ${budgetLabel} · ${mood ?? 'Any mood'}`;
+  const moodLabel = mood ?? 'Any mood';
 
   return (
     <Screen>
@@ -473,6 +471,72 @@ export default function Home() {
           <Text variant="body" color="textSecondary">
             Three picks from the cuisines you like. Filter or tap to start.
           </Text>
+        </View>
+
+        {/* Filters — three always-visible summary chips (Time / Budget / Mood)
+            directly under the header, ABOVE the cards, so all three are
+            discoverable on arrival without scrolling or hunting. Tapping a chip
+            expands ONLY that filter's options inline (pushing the cards down
+            while open); an active chip reads selected (Charcoal). */}
+        <View style={styles.filters}>
+          <View style={styles.chipRow}>
+            <Chip
+              label={timeLabel}
+              selected={time !== null}
+              onPress={() => setOpenFilter((o) => (o === 'time' ? null : 'time'))}
+            />
+            <Chip
+              label={budgetLabel}
+              selected={budget !== null}
+              onPress={() => setOpenFilter((o) => (o === 'budget' ? null : 'budget'))}
+            />
+            <Chip
+              label={moodLabel}
+              selected={mood !== null}
+              onPress={() => setOpenFilter((o) => (o === 'mood' ? null : 'mood'))}
+            />
+          </View>
+
+          {openFilter === 'time' ? (
+            <View style={styles.chipRow}>
+              {TIME_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  label={opt.label}
+                  selected={time === opt.value}
+                  // Tap again to clear — unset means no time constraint.
+                  onPress={() => setTime((prev) => (prev === opt.value ? null : opt.value))}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {openFilter === 'budget' ? (
+            <View style={styles.chipRow}>
+              {BUDGET_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  label={opt.label}
+                  selected={budget === opt.value}
+                  // Tap again to clear — unset falls back to your saved budget.
+                  onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {openFilter === 'mood' ? (
+            <View style={styles.chipRow}>
+              {MOOD_OPTIONS.map((m) => (
+                <Chip
+                  key={m}
+                  label={m}
+                  selected={mood === m}
+                  onPress={() => setMood((prev) => (prev === m ? null : m))}
+                />
+              ))}
+            </View>
+          ) : null}
         </View>
 
         {status === 'error' && !hasCards ? (
@@ -541,96 +605,13 @@ export default function Home() {
           </View>
         )}
       </ScrollView>
-
-      {/* Expanded chip panel — anchored ABOVE the floating bar. Same chips, same
-          behavior (swap-cap logic untouched). Scrolls if it outgrows its cap. */}
-      {filtersOpen ? (
-        <View style={styles.filterPanel}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.filterPanelContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Cook time
-              </Text>
-              <View style={styles.chipRow}>
-                {TIME_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt.value}
-                    label={opt.label}
-                    selected={time === opt.value}
-                    // Tap again to clear — unset means no time constraint.
-                    onPress={() => setTime((prev) => (prev === opt.value ? null : opt.value))}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Budget
-              </Text>
-              <View style={styles.chipRow}>
-                {BUDGET_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt.value}
-                    label={opt.label}
-                    selected={budget === opt.value}
-                    // Tap again to clear — unset falls back to your saved budget.
-                    onPress={() => setBudget((prev) => (prev === opt.value ? null : opt.value))}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text variant="caption" color="textSecondary">
-                Mood — optional
-              </Text>
-              <View style={styles.chipRow}>
-                {MOOD_OPTIONS.map((m) => (
-                  <Chip
-                    key={m}
-                    label={m}
-                    selected={mood === m}
-                    onPress={() => setMood((prev) => (prev === m ? null : m))}
-                  />
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {/* Floating filter bar — Charcoal pill fixed above the tab bar, in thumb
-          reach. Reflects the set values; tap to expand/collapse the panel. */}
-      <Pressable
-        onPress={() => setFiltersOpen((o) => !o)}
-        accessibilityRole="button"
-        accessibilityLabel={`Filters: ${filterSummary}`}
-        style={styles.filterBar}
-      >
-        <Text variant="body" color="bg">
-          {filterSummary}
-        </Text>
-        <Ionicons
-          name={filtersOpen ? 'chevron-down' : 'chevron-up'}
-          size={20}
-          color={colors.bg}
-        />
-      </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  // Column: the scroll area (flex) sits above the docked filter bar, so the bar
-  // is pinned just above the tab bar and always in thumb reach without overlaying
-  // — and reliably receives taps (an absolute Pressable over a ScrollView loses
-  // the press on web).
+  // Full-height column wrapping the scroll area.
   flex: {
     flex: 1,
   },
@@ -661,8 +642,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  section: {
-    gap: spacing.md,
+  // Filter block under the header: the three summary chips, then (when one is
+  // open) its options row inline below them.
+  filters: {
+    gap: spacing.sm,
   },
   chipRow: {
     flexDirection: 'row',
@@ -757,32 +740,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     marginTop: spacing.xs,
-  },
-  // Expanded chip panel — docked directly above the bar (normal flow), so its
-  // chips receive taps reliably. Capped height; chips scroll if they outgrow it.
-  filterPanel: {
-    maxHeight: 320,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    borderRadius: spacing.lg,
-    padding: spacing.lg,
-  },
-  filterPanelContent: {
-    gap: spacing.lg,
-  },
-  // Docked Charcoal filter bar — pinned above the tab bar, in thumb reach.
-  filterBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.text,
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
   },
 });
