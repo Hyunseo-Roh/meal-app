@@ -27,10 +27,12 @@ const BUDGET_CEILING: Record<BudgetLevel, number> = {
   high: Infinity,
 };
 
-const TIER_REASON: Record<Tier, string> = {
-  familiar: 'Right in your usual lane.',
-  adjacent: 'A small step from what you know.',
-  stretch: 'A little further than usual — worth a try.',
+// Per-tier meaning, shown on the Home card (under the title) AND in the why
+// lines. Single source of truth — imported by home.tsx, not duplicated.
+export const TIER_REASON: Record<Tier, string> = {
+  familiar: 'The closest fit to your taste.',
+  adjacent: 'A different cuisine, still a strong match.',
+  stretch: 'A bigger change of pace.',
 };
 
 /**
@@ -91,12 +93,10 @@ export async function loadWhy(optionId: string): Promise<WhyData> {
   const favoriteIds = (user.pref_cuisine_ids as string[] | null) ?? [];
   const isFavorite = !!(meal.cuisine_id && favoriteIds.includes(meal.cuisine_id));
 
-  // tier line — a habit claim ("your usual lane" / "what you know" / "than
-  // usual"), so it only holds when the cuisine is genuinely a favorite. No
-  // match → render nothing; the effort/time/budget reasons carry the screen.
-  if (isFavorite) {
-    reasons.push(TIER_REASON[tier]);
-  }
+  // tier line — describes what the tier means (fit / different cuisine / change
+  // of pace), true of every pick, so it ALWAYS shows regardless of favorite
+  // status. (No longer a favorites-only habit claim.)
+  reasons.push(TIER_REASON[tier]);
 
   // cuisine match — fires when the meal's cuisine is one of the user's favorites
   if (isFavorite && cuisineLabel) {

@@ -11,6 +11,7 @@ import { Text } from '../../components/Text';
 import { getCurrentUserId, withTimeout } from '../../lib/currentUser';
 import { loadGapCounts } from '../../lib/gap';
 import { getPicksHeading } from '../../lib/greeting';
+import { TIER_REASON } from '../../lib/reasons';
 import { consumeMealCompleted } from '../../lib/session';
 import {
   buildExplanation,
@@ -42,12 +43,12 @@ const BUDGET_OPTIONS: { label: string; value: BudgetLevel }[] = [
 const MOOD_OPTIONS = ['Tired', 'Comfort', 'Adventurous', 'Light', 'Quick'];
 
 const TIERS: Tier[] = ['familiar', 'adjacent', 'stretch'];
-// The three-tier thesis, rendered as a Charcoal badge ON the card photo. These
-// EXACT uppercase words are probed by the user-test comprehension script — do
-// not reword.
+// The three-tier thesis, rendered as a Charcoal badge ON the card photo. Labels
+// describe the selection logic: familiar = top-scoring match, adjacent = a strong
+// pick in a different cuisine, stretch = a lower-ranked change of pace.
 const TIER_BADGE: Record<Tier, string> = {
-  familiar: 'FAMILIAR',
-  adjacent: 'ONE STEP OVER',
+  familiar: 'BEST MATCH',
+  adjacent: 'WORTH A TRY',
   stretch: 'SOMETHING NEW',
 };
 // Total "Not for me" swaps allowed per session, counted across all three cards.
@@ -101,6 +102,12 @@ function RecCard({
       <View style={styles.cardBody}>
         <Text variant="title" numberOfLines={3}>
           {opt.meal}
+        </Text>
+        {/* Tier reason — one 13px Inter (sentence-case) line in textSecondary,
+            directly under the title and above the meta. Single source of truth:
+            TIER_REASON in lib/reasons.ts (also used by the why screen). */}
+        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+          {TIER_REASON[opt.tier]}
         </Text>
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
           {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}

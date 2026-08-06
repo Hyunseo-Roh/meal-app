@@ -29,12 +29,6 @@ export type RecParams = {
   mood: string | null;
 };
 
-export const TIER_LABEL: Record<Tier, string> = {
-  familiar: 'Familiar',
-  adjacent: 'Adjacent',
-  stretch: 'Stretch',
-};
-
 export const TIER_RANK: Record<Tier, number> = { familiar: 0, adjacent: 1, stretch: 2 };
 
 function capitalize(s: string) {
