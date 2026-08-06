@@ -27,7 +27,7 @@ import {
   type PantryItem,
 } from '../../lib/pantry';
 import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
-import { colors, layout, spacing, typography } from '../../theme/tokens';
+import { colors, spacing, typography } from '../../theme/tokens';
 
 // How long the just-added row stays highlighted.
 const ADDED_NOTICE_MS = 2500;
@@ -112,8 +112,6 @@ export default function Pantry() {
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
-  // Which category the swipe row has selected — the list shows only its items.
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   // The just-added item id — highlights its row briefly. Transient.
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   // Synchronous mirror of each item's quantity, so rapid stepper taps accumulate
@@ -175,39 +173,23 @@ export default function Pantry() {
     return () => clearTimeout(t);
   }, [justAddedId]);
 
-  // Categories that currently hold at least one item, in display order, w/ counts.
-  const catCounts = CATEGORY_ORDER.map((cat) => ({
+  // Vertical sections: every non-empty category in CATEGORY_ORDER, its items
+  // sorted by name (case-insensitive). Grouping key is categoryOf (stored
+  // override ?? name heuristic). The whole pantry renders at once — no tab to
+  // reveal a slice, no horizontal clipping.
+  const sections = CATEGORY_ORDER.map((cat) => ({
     cat,
-    count: items.filter((i) => categoryOf(i) === cat).length,
-  })).filter((c) => c.count > 0);
-  const presentKey = catCounts.map((c) => c.cat).join(',');
-
-  // Default-select the first present category, and keep the selection valid as
-  // categories come and go (add / remove / move). Runs only when the SET of
-  // present categories changes, so it never fights a manual selection.
-  useEffect(() => {
-    if (catCounts.length === 0) {
-      setSelectedCategory(null);
-      return;
-    }
-    if (!catCounts.some((c) => c.cat === selectedCategory)) {
-      setSelectedCategory(catCounts[0].cat);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presentKey]);
-
-  const selectedItems = selectedCategory
-    ? items
-        .filter((i) => categoryOf(i) === selectedCategory)
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-    : [];
+    catItems: items
+      .filter((i) => categoryOf(i) === cat)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+  })).filter((s) => s.catItems.length > 0);
 
   const has = (name: string) => items.some((i) => i.name === name.trim().toLowerCase());
 
   // Add with NO explicit category: it stores NULL, so categoryOf() derives the
   // category from the ingredient NAME (categorize). An explicit category is a
-  // user PIN, written only by a manual "move". After the insert, jump the view to
-  // where the item actually landed — its derived category — so the add is visible.
+  // user PIN, written only by a manual "move". The new item appears under its
+  // auto section; the justAdded accent shows where it landed.
   async function add(name: string) {
     const v = name.trim().toLowerCase();
     if (!v || adding || has(v)) return;
@@ -219,9 +201,6 @@ export default function Pantry() {
         setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
         qtyRef.current[row.id] = row.quantity;
         setJustAddedId(row.id);
-        // Follow the item to its derived category (row.category is NULL here, so
-        // categoryOf === categorize(name)) — the same key the list groups by.
-        setSelectedCategory(categoryOf(row));
       }
     } catch {
       setError('That didn’t make it in');
@@ -275,7 +254,6 @@ export default function Pantry() {
     setSheetError(null);
     const prev = items;
     setItems((cur) => cur.map((i) => (i.id === item.id ? { ...i, category: target } : i)));
-    setSelectedCategory(target); // follow the item so it stays visible
     try {
       await setPantryItemCategory(item.id, target);
       closeSheet();
@@ -350,90 +328,71 @@ export default function Pantry() {
         ) : status === 'error' ? (
           <ErrorState message="Your pantry didn't open" onRetry={load} />
         ) : (
-          <>
-            {/* CATEGORY SWIPE ROW — a horizontal, edge-to-edge card strip; one card
-                per category that has items. Selected = Butter fill + Toast border. */}
-            {catCounts.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.catScroll}
-                contentContainerStyle={styles.catRow}
-              >
-                {catCounts.map(({ cat, count }) => {
-                  const selected = cat === selectedCategory;
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => setSelectedCategory(cat)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${toSentenceCase(cat)}, ${count} items`}
-                      style={[styles.catCard, selected && styles.catCardSelected]}
-                    >
-                      <Text variant="body" numberOfLines={1}>
-                        {toSentenceCase(cat)}
-                      </Text>
-                      <Text variant="caption" color="textSecondary" style={styles.catCount}>
-                        {`${count} item${count === 1 ? '' : 's'}`}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : null}
-
-            {/* ITEM LIST — only the selected category's items, each with a stepper. */}
-            <View style={styles.section}>
-              {items.length === 0 ? (
-                <EmptyState message="Nothing here yet — add a staple below" />
-              ) : (
-                selectedItems.map((item) => (
-                  <View key={item.id} style={styles.itemRow}>
-                    <Pressable
-                      onPress={() => openSheet(item)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Options for ${item.name}`}
-                      style={styles.itemName}
-                    >
-                      <Text variant="body" color={justAddedId === item.id ? 'accent' : 'text'}>
-                        {toSentenceCase(item.name)}
-                      </Text>
-                    </Pressable>
-                    <View style={styles.stepper}>
-                      <Pressable
-                        onPress={() => changeQty(item, -1)}
-                        disabled={item.quantity <= 1}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Fewer ${item.name}`}
-                        hitSlop={8}
-                        style={styles.stepBtn}
-                      >
-                        <Ionicons
-                          name="remove"
-                          size={20}
-                          color={item.quantity <= 1 ? colors.chipBorder : colors.text}
-                        />
-                      </Pressable>
-                      <Text variant="title" color="toast" style={styles.qtyNum}>
-                        {item.quantity}
-                      </Text>
-                      <Pressable
-                        onPress={() => changeQty(item, 1)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`More ${item.name}`}
-                        hitSlop={8}
-                        style={styles.stepBtn}
-                      >
-                        <Ionicons name="add" size={20} color={colors.text} />
-                      </Pressable>
-                    </View>
+          <View style={styles.body}>
+            {/* VERTICAL SECTIONS — every non-empty category as a quiet header with
+                its items stacked under it; the whole pantry in one scroll. */}
+            {items.length === 0 ? (
+              <EmptyState message="Nothing here yet — add a staple below" />
+            ) : (
+              sections.map(({ cat, catItems }) => (
+                <View key={cat}>
+                  {/* Quiet category header (Profile pattern): 13px uppercase caption
+                      + Warm Gray hairline, with the count, e.g. "PROTEINS · 1". */}
+                  <View style={styles.sectionHeader}>
+                    <Text variant="caption" color="textSecondary">
+                      {`${cat} · ${catItems.length}`}
+                    </Text>
                   </View>
-                ))
-              )}
+                  {catItems.map((item) => (
+                    <View key={item.id} style={styles.itemRow}>
+                      <Pressable
+                        onPress={() => openSheet(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Options for ${item.name}`}
+                        style={styles.itemName}
+                      >
+                        <Text variant="body" color={justAddedId === item.id ? 'accent' : 'text'}>
+                          {toSentenceCase(item.name)}
+                        </Text>
+                      </Pressable>
+                      <View style={styles.stepper}>
+                        <Pressable
+                          onPress={() => changeQty(item, -1)}
+                          disabled={item.quantity <= 1}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Fewer ${item.name}`}
+                          hitSlop={8}
+                          style={styles.stepBtn}
+                        >
+                          <Ionicons
+                            name="remove"
+                            size={20}
+                            color={item.quantity <= 1 ? colors.chipBorder : colors.text}
+                          />
+                        </Pressable>
+                        <Text variant="title" color="toast" style={styles.qtyNum}>
+                          {item.quantity}
+                        </Text>
+                        <Pressable
+                          onPress={() => changeQty(item, 1)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`More ${item.name}`}
+                          hitSlop={8}
+                          style={styles.stepBtn}
+                        >
+                          <Ionicons name="add" size={20} color={colors.text} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ))
+            )}
 
-              {/* + Add an item — at the bottom of the current category's list.
-                  Adding writes the selected category so it appears right here. */}
-              {addOpen ? (
+            {/* + Add an item — at the BOTTOM, after every section. Auto-categorized
+                by name (stores NULL), so it appears under its own section with the
+                justAdded accent showing where it landed. */}
+            {addOpen ? (
                 <View style={styles.addFields}>
                   <TextInput
                     value={draft}
@@ -460,8 +419,7 @@ export default function Pantry() {
                 </Pressable>
               )}
               {error ? <Text variant="body">{error}</Text> : null}
-            </View>
-          </>
+          </View>
         )}
       </ScrollView>
 
@@ -643,37 +601,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  section: {
-    gap: spacing.md,
+  // The list body: category sections (and the add area) spaced generously apart,
+  // matching the Profile settings rhythm.
+  body: {
+    gap: spacing.xl,
   },
-  // Category strip breaks out of the screen's 24px side margins so cards can be
-  // cut by the screen edge (the peek), while the first card still aligns to the
-  // content column via the contentContainer's padding.
-  catScroll: {
-    marginHorizontal: -layout.screenMargin,
-  },
-  catRow: {
-    paddingHorizontal: layout.screenMargin,
-    gap: spacing.sm,
-  },
-  catCard: {
-    width: 116,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    backgroundColor: colors.card,
-    gap: spacing.xs,
-  },
-  // Selected: Butter fill + Toast border (the selection accent).
-  catCardSelected: {
-    backgroundColor: colors.butter,
-    borderColor: colors.toast,
-  },
-  catCount: {
-    textTransform: 'none',
-    letterSpacing: 0,
+  // Quiet category header — 13px uppercase caption over a Warm Gray hairline, with
+  // room below before the rows. Same treatment as the Profile section headers.
+  sectionHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.chipBorder,
+    paddingBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   input: {
     ...typography.body,
