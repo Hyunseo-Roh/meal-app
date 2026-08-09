@@ -33,6 +33,15 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   if (vp && !content.includes('viewport-fit=cover')) {
     vp.setAttribute('content', `${content}, viewport-fit=cover`);
   }
+
+  // react-native-web sets no `outline` on TextInput, so focused inputs fall back
+  // to the browser's amber UA outline. The design system uses Cool Slate
+  // (colors.accent) as the single focus token. One injected rule — TEXT INPUTS
+  // ONLY, never buttons/Pressables/links — swaps that ring app-wide. Hex is read
+  // from the token, never hardcoded. Web only.
+  const focusStyle = document.createElement('style');
+  focusStyle.textContent = `input:focus, textarea:focus { outline: 2px solid ${colors.accent}; outline-offset: 2px; }`;
+  document.head.appendChild(focusStyle);
 }
 
 export default function RootLayout() {
