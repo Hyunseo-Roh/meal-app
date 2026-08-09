@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip } from '../../components/Chip';
 import { MealImage } from '../../components/MealImage';
@@ -198,6 +198,30 @@ export default function Home() {
   // we already know. `gapInFlight` de-dupes concurrent fetches for the same meal.
   const [gapCounts, setGapCounts] = useState<Record<string, { have: number; total: number }>>({});
   const gapInFlight = useRef<Set<string>>(new Set());
+  // The currently shown meal ids, mirrored into a ref (synced by an effect further
+  // down, once shownMealIds is computed) so the focus/visibility listeners always
+  // see the latest shown cards.
+  const shownIdsRef = useRef<string[]>([]);
+
+  // Gap-only refresh: re-fetch get_ingredient_gap counts for the CURRENTLY SHOWN
+  // meals and OVERWRITE just those gapCounts entries (bypassing the cache skip-
+  // guard that otherwise freezes a count for the session). Never touches the rec
+  // rows / shownRank / swapsUsed / matRef — the 3 cards stay identical; only the
+  // numbers move. Reads shownIdsRef + stable setter/ref/import, so useCallback([])
+  // stays fresh with no stale rows/shownRank closure. gapInFlight de-dupes so an
+  // in-flight refresh isn't doubled.
+  const refreshShownGaps = useCallback(() => {
+    for (const id of shownIdsRef.current) {
+      if (gapInFlight.current.has(id)) continue; // a refresh already running — don't double
+      gapInFlight.current.add(id);
+      loadGapCounts(id)
+        .then((counts) => setGapCounts((prev) => ({ ...prev, [id]: counts })))
+        .catch(() => {
+          /* leave the existing count in place on a transient error */
+        })
+        .finally(() => gapInFlight.current.delete(id));
+    }
+  }, []);
 
   // Persistence seam. `matRef` memoizes the single materialize() call for the
   // current shown set; it's reset to null on every (re)fetch so the next
@@ -308,6 +332,9 @@ export default function Home() {
         swapsRef.current = 0;
         setSwapsUsed(0);
       }
+      // Case A — app-tab switch (e.g. Pantry → Home). Refresh the shown cards' gap
+      // counts so a pantry edit is reflected. Gap-only: no rec refetch, no reshuffle.
+      refreshShownGaps();
       // Re-read the greeting name on every focus (cheap single-column select), so
       // editing it in Profile → the name editor is reflected here — Home is a
       // persistent tab, so the mount-only load above won't pick up the change.
@@ -328,7 +355,7 @@ export default function Home() {
       return () => {
         active = false;
       };
-    }, []),
+    }, [refreshShownGaps]),
   );
 
   // Persist once for the current shown set, then reuse. The seam swap will share.
@@ -433,6 +460,31 @@ export default function Home() {
     // shownMealIds captures exactly the identities we depend on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownMealIds]);
+
+  // Keep shownIdsRef in step with the shown cards, so the once-registered focus/
+  // visibility listeners read the LATEST shown ids (swaps change them) rather than
+  // a mount-time snapshot. Same identity list the fetch effect keys on — no second
+  // notion of "shown". (uuids never contain commas, so splitting the join is safe.)
+  useEffect(() => {
+    shownIdsRef.current = shownMealIds ? shownMealIds.split(',') : [];
+  }, [shownMealIds]);
+
+  // Case B — browser tab/window switch. The route stays mounted, so useFocusEffect
+  // does NOT fire; only the DOM signals the return. On becoming visible/focused
+  // again, refresh the shown cards' gap counts. Web-only; registered once (handler
+  // is stable and reads shownIdsRef, so it's never a mount-time snapshot).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshShownGaps();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshShownGaps);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshShownGaps);
+    };
+  }, [refreshShownGaps]);
 
   // Compact filter summary shown on the bar. Unset dimensions read as "Any …".
   const timeLabel =
