@@ -103,6 +103,10 @@ export default function Pantry() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
+  // Latest draft value for listeners registered once (case-B window/focus below)
+  // and the focus effect — reading state directly there would snapshot '' at
+  // mount. Kept in sync by the effect just below.
+  const draftRef = useRef('');
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
   // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
@@ -147,6 +151,10 @@ export default function Pantry() {
   // Silent refresh on focus — keep showing current items, never flash "Loading…".
   useFocusEffect(
     useCallback(() => {
+      // Case A — app-tab switch (Pantry → other tab → back). The screen stays
+      // mounted, so addOpen survives; collapse it on return, but ONLY when empty
+      // (read draftRef, not draft — this callback is memoized with []).
+      if (!draftRef.current.trim()) setAddOpen(false);
       let active = true;
       (async () => {
         try {
@@ -172,6 +180,32 @@ export default function Pantry() {
     const t = setTimeout(() => setJustAddedId(null), ADDED_NOTICE_MS);
     return () => clearTimeout(t);
   }, [justAddedId]);
+
+  // Keep draftRef in step with draft so the once-registered listeners below read
+  // the current value, not a mount-time snapshot.
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  // Case B — browser window/tab switch. The route stays mounted, so useFocusEffect
+  // does NOT fire; only the DOM signals the return. On becoming visible/focused
+  // again, collapse the add-form — but ONLY when empty (never discard typed text).
+  // Web-only; registered once, so the handler reads draftRef (not a stale draft).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const collapseIfEmpty = () => {
+      if (!draftRef.current.trim()) setAddOpen(false);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') collapseIfEmpty();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', collapseIfEmpty);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', collapseIfEmpty);
+    };
+  }, []);
 
   // Vertical sections: every non-empty category in CATEGORY_ORDER, its items
   // sorted by name (case-insensitive). Grouping key is categoryOf (stored
