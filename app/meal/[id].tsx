@@ -11,7 +11,7 @@ import { Screen } from '../../components/Screen';
 import { ErrorState, LoadingState } from '../../components/states';
 import { Text } from '../../components/Text';
 import { loadGap, type GapData } from '../../lib/gap';
-import { addPantryItem } from '../../lib/pantry';
+import { addPantryItem, deletePantryItem } from '../../lib/pantry';
 import { colors, layout, spacing } from '../../theme/tokens';
 
 // Bare procedural headers that carry no information. "For X:" is deliberately
@@ -60,10 +60,13 @@ export default function MealDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<State>({ status: 'loading' });
-  // Optimistic overlay: names moved have←toBuy by tapping "+", plus an in-flight
-  // guard and a subtle error. These sit on top of the RPC's gap (read-only).
-  const [added, setAdded] = useState<Set<string>>(new Set());
+  // Optimistic overlay: names moved toBuy→have by tapping "+", mapped to the
+  // pantry_items row id the insert created (null while in flight) so the ✕ undo
+  // can delete exactly that row. Plus in-flight guards and a subtle error. These
+  // sit on top of the RPC's gap (read-only).
+  const [added, setAdded] = useState<Map<string, string | null>>(new Map());
   const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState<Set<string>>(new Set());
   const [pantryError, setPantryError] = useState<string | null>(null);
   // Steps collapse — local only, resets per meal. Nothing persisted.
   const [expanded, setExpanded] = useState(false);
@@ -89,8 +92,9 @@ export default function MealDetail() {
   // since a just-added item now comes back inside gap.have. No duplicate/flicker.
   useEffect(() => {
     if (state.status === 'ready') {
-      setAdded(new Set());
+      setAdded(new Map());
       setAdding(new Set());
+      setRemoving(new Set());
       setPantryError(null);
     }
   }, [state]);
@@ -98,19 +102,47 @@ export default function MealDetail() {
   async function addToPantry(name: string) {
     if (adding.has(name) || added.has(name)) return; // guard double-tap / already moved
     setAdding((s) => new Set(s).add(name));
-    setAdded((s) => new Set(s).add(name)); // optimistic: toBuy → have
+    setAdded((prev) => new Map(prev).set(name, null)); // optimistic: toBuy → have (id pending)
     setPantryError(null);
     try {
-      await addPantryItem(name); // lowercases/trims internally
+      const row = await addPantryItem(name); // lowercases/trims internally; returns the row (with id)
+      setAdded((prev) => new Map(prev).set(name, row?.id ?? null));
     } catch {
-      setAdded((s) => {
-        const n = new Set(s);
-        n.delete(name);
-        return n;
+      setAdded((prev) => {
+        const m = new Map(prev);
+        m.delete(name);
+        return m;
       });
       setPantryError('That didn’t make it in');
     } finally {
       setAdding((s) => {
+        const n = new Set(s);
+        n.delete(name);
+        return n;
+      });
+    }
+  }
+
+  // Undo a "+" from this mount: delete exactly the row that insert created and
+  // send the ingredient back to "What to buy". Scoped to `added` — pre-existing
+  // owned ingredients have no id here and are never removable this way.
+  async function removeFromPantry(name: string) {
+    const id = added.get(name);
+    if (!id || removing.has(name) || adding.has(name)) return; // need a settled id
+    setRemoving((s) => new Set(s).add(name));
+    setAdded((prev) => {
+      const m = new Map(prev);
+      m.delete(name);
+      return m;
+    }); // optimistic: have → toBuy
+    setPantryError(null);
+    try {
+      await deletePantryItem(id);
+    } catch {
+      setAdded((prev) => new Map(prev).set(name, id)); // rollback
+      setPantryError('Couldn’t remove that — try again.');
+    } finally {
+      setRemoving((s) => {
         const n = new Set(s);
         n.delete(name);
         return n;
@@ -261,6 +293,22 @@ export default function MealDetail() {
                           ✓
                         </Text>
                         <Text variant="body">{name}</Text>
+                        {/* Only items added THIS mount are removable; pre-existing
+                            owned ingredients render exactly as before, no control. */}
+                        {added.has(name) ? (
+                          <Pressable
+                            onPress={() => removeFromPantry(name)}
+                            disabled={
+                              removing.has(name) || adding.has(name) || added.get(name) == null
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove ${name}`}
+                            hitSlop={12}
+                            style={styles.removeBtn}
+                          >
+                            <Ionicons name="close" size={18} color={colors.textSecondary} />
+                          </Pressable>
+                        ) : null}
                       </View>
                     ))}
                   </View>
@@ -427,6 +475,10 @@ const styles = StyleSheet.create({
   },
   marker: {
     width: spacing.lg,
+  },
+  // Trailing ✕ undo on an added-this-mount have row — pushed to the right edge.
+  removeBtn: {
+    marginLeft: 'auto',
   },
   stepText: {
     flex: 1,
