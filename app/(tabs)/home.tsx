@@ -107,13 +107,10 @@ function RecCard({
           {TIER_REASON[opt.tier]}
         </Text>
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-          {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}
+          {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}${
+            opt.over_time ? ' · over your time' : ''
+          }`}
         </Text>
-        {opt.over_time ? (
-          <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-            A little longer, but close
-          </Text>
-        ) : null}
         {/* Gap row — appears only once counts resolve; no spinner, no shift. */}
         {gap ? (
           <View style={styles.gapRow}>
@@ -605,6 +602,12 @@ export default function Home() {
                     ))}
                   </View>
                 </View>
+
+                {/* Honesty line: time and mood are soft ranking signals, not hard
+                    filters (matches the RPC — only disliked cuisine is a hard cut). */}
+                <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                  Time and mood guide your picks — they&apos;re not strict filters.
+                </Text>
               </ScrollView>
             </View>
           ) : null}
