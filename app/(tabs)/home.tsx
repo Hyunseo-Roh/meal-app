@@ -106,11 +106,20 @@ function RecCard({
         <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
           {TIER_REASON[opt.tier]}
         </Text>
-        <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-          {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}${
-            opt.over_time ? ' · over your time' : ''
-          }`}
-        </Text>
+        <View style={styles.metaRow}>
+          <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+            {`${titleCaseCuisine(opt.cuisine)} · ${opt.cook_time_min} min · ${priceBucket(opt.est_cost)}`}
+          </Text>
+          {/* Over-time marker as a quiet Warm Gray pill, separated from the meta
+              prose. Wraps below when the row is tight. Only when over_time. */}
+          {opt.over_time ? (
+            <View style={styles.overTimePill}>
+              <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                over your time
+              </Text>
+            </View>
+          ) : null}
+        </View>
         {/* Gap row — appears only once counts resolve; no spinner, no shift. */}
         {gap ? (
           <View style={styles.gapRow}>
@@ -553,6 +562,14 @@ export default function Home() {
                 contentContainerStyle={styles.filterPanelContent}
                 keyboardShouldPersistTaps="handled"
               >
+                {/* Honesty line — first thing in the panel: time and mood are soft
+                    ranking signals, not hard filters (matches the RPC — only
+                    disliked cuisine is a hard cut). The panel's gap:16 spaces it
+                    off the COOK TIME section below. */}
+                <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
+                  Time and mood guide your picks — they&apos;re not strict filters.
+                </Text>
+
                 <View style={styles.section}>
                   <Text variant="caption" color="textSecondary">
                     Cook time
@@ -602,12 +619,6 @@ export default function Home() {
                     ))}
                   </View>
                 </View>
-
-                {/* Honesty line: time and mood are soft ranking signals, not hard
-                    filters (matches the RPC — only disliked cuisine is a hard cut). */}
-                <Text variant="caption" color="textSecondary" style={styles.dataCaption}>
-                  Time and mood guide your picks — they&apos;re not strict filters.
-                </Text>
               </ScrollView>
             </View>
           ) : null}
@@ -843,6 +854,23 @@ const styles = StyleSheet.create({
   dataCaption: {
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  // Meta prose + the optional over-time pill on one row; the pill wraps below
+  // when the line is tight. sm gap keeps the pill clear of the prose.
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // Quiet Warm Gray pill — NOT Sage/Toast (those are reserved). Full-radius, no
+  // border, no gradient; matches the pantry badge's compact rhythm.
+  overTimePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.chipBorder,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
   },
   // Gap row: Sage check + Toast "N of M" + " ingredients", all at body size.
   // Baseline-aligned so the count sits on the body line.
