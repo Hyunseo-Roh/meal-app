@@ -90,21 +90,6 @@ export async function setPantryItemCategory(id: string, category: string): Promi
   if (error) throw new Error('pantry_move_failed');
 }
 
-/**
- * Set an item's on-hand quantity (the stepper on the Pantry list). Display/edit
- * only — the recommendation engine never reads quantity, so this can't shift any
- * pick. Callers clamp to >= 1 before calling. Throws on failure.
- */
-export async function setPantryItemQuantity(id: string, quantity: number): Promise<void> {
-  const { error } = await withTimeout(
-    supabase
-      .from('pantry_items')
-      .update({ quantity, updated_at: new Date().toISOString() })
-      .eq('id', id),
-  );
-  if (error) throw new Error('pantry_quantity_failed');
-}
-
 /** Delete one item by id, scoped to the current user (defensive even with RLS off). */
 export async function deletePantryItem(id: string): Promise<void> {
   const userId = await getCurrentUserId();

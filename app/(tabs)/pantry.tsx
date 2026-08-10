@@ -23,7 +23,6 @@ import {
   deletePantryItem,
   listPantry,
   setPantryItemCategory,
-  setPantryItemQuantity,
   type PantryItem,
 } from '../../lib/pantry';
 import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
@@ -118,12 +117,6 @@ export default function Pantry() {
   const [moveOpen, setMoveOpen] = useState(false);
   // The just-added item id — highlights its row briefly. Transient.
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
-  // Synchronous mirror of each item's quantity, so rapid stepper taps accumulate
-  // (each tap reads the latest target, not a stale render closure).
-  const qtyRef = useRef<Record<string, number>>({});
-  // Per-item write chain: serialize quantity writes so rapid taps persist in
-  // order (last value wins) instead of racing to an out-of-order final value.
-  const qtyWriteChain = useRef<Record<string, Promise<unknown>>>({});
 
   // Swipe-to-dismiss for each bottom sheet (closeSheet/setPremiumOpen are hoisted).
   const editSheet = useDismissibleSheet(() => closeSheet());
@@ -141,7 +134,6 @@ export default function Pantry() {
     try {
       const rows = await listPantry();
       setItems(rows);
-      qtyRef.current = Object.fromEntries(rows.map((i) => [i.id, i.quantity]));
       setStatus('ready');
     } catch {
       setStatus('error');
@@ -161,7 +153,6 @@ export default function Pantry() {
           const rows = await listPantry();
           if (active) {
             setItems(rows);
-            qtyRef.current = Object.fromEntries(rows.map((i) => [i.id, i.quantity]));
             setStatus('ready');
           }
         } catch {
@@ -233,7 +224,6 @@ export default function Pantry() {
       const row = await addPantryItem(v);
       if (row) {
         setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [row, ...prev]));
-        qtyRef.current[row.id] = row.quantity;
         setJustAddedId(row.id);
       }
     } catch {
@@ -247,27 +237,6 @@ export default function Pantry() {
     const v = draft;
     setDraft('');
     await add(v);
-  }
-
-  // Quantity stepper. Optimistic; floors at 1; reverts on error. Never feeds the
-  // recommendation engine — quantity is display/edit only.
-  function changeQty(item: PantryItem, delta: number) {
-    // Read the latest target from the ref (accumulates across rapid taps), floor
-    // at 1, and write it back synchronously so a fast next tap sees it.
-    const current = qtyRef.current[item.id] ?? item.quantity;
-    const next = Math.max(1, current + delta);
-    if (next === current) return;
-    qtyRef.current[item.id] = next;
-    setItems((cur) => cur.map((i) => (i.id === item.id ? { ...i, quantity: next } : i)));
-    setError(null);
-    // Chain this write after any pending write for the same item, so the DB ends
-    // up at the FINAL tapped value rather than whichever concurrent write lands
-    // last. A failure surfaces a note; the next focus/reload reconciles to truth.
-    const prev = qtyWriteChain.current[item.id] ?? Promise.resolve();
-    qtyWriteChain.current[item.id] = prev
-      .catch(() => {})
-      .then(() => setPantryItemQuantity(item.id, qtyRef.current[item.id]))
-      .catch(() => setError('That didn’t save'));
   }
 
   function openSheet(item: PantryItem) {
@@ -389,34 +358,6 @@ export default function Pantry() {
                       >
                         {toSentenceCase(item.name)}
                       </Text>
-                      <View style={styles.stepper}>
-                        <Pressable
-                          onPress={() => changeQty(item, -1)}
-                          disabled={item.quantity <= 1}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Fewer ${item.name}`}
-                          hitSlop={8}
-                          style={styles.stepBtn}
-                        >
-                          <Ionicons
-                            name="remove"
-                            size={20}
-                            color={item.quantity <= 1 ? colors.chipBorder : colors.text}
-                          />
-                        </Pressable>
-                        <Text variant="title" color="toast" style={styles.qtyNum}>
-                          {item.quantity}
-                        </Text>
-                        <Pressable
-                          onPress={() => changeQty(item, 1)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`More ${item.name}`}
-                          hitSlop={8}
-                          style={styles.stepBtn}
-                        >
-                          <Ionicons name="add" size={20} color={colors.text} />
-                        </Pressable>
-                      </View>
                       {/* Overflow → the Move / Remove / Cancel sheet (unchanged). */}
                       <Pressable
                         onPress={() => openSheet(item)}
@@ -683,7 +624,7 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
   },
-  // Item row: name (tappable → sheet) left, quantity stepper right, hairline below.
+  // Item row: name left, ⋯ overflow (→ sheet) right, hairline below.
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -704,22 +645,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing.sm,
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  stepBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Literata 24 Toast numeral — fixed width so the buttons don't shift 1↔10.
-  qtyNum: {
-    minWidth: 28,
-    textAlign: 'center',
   },
   modalRoot: {
     flex: 1,
