@@ -21,8 +21,9 @@ const CATEGORIES: { label: string; keywords: string[] }[] = [
   { label: 'Seasonings', keywords: ['salt', 'black pepper', 'sauce', 'soy', 'vinegar', 'spice', 'cumin', 'paprika', 'oregano', 'basil', 'cinnamon', 'honey', 'sugar', 'sesame', 'chili', 'curry', 'stock', 'broth', 'ketchup', 'mustard', 'mayo'] },
 ];
 
-// Display order (independent of the precedence order above).
-export const CATEGORY_ORDER = ['Proteins', 'Produce', 'Grains', 'Dairy', 'Fats & oils', 'Seasonings', 'Other'];
+// Display order (independent of the precedence order above): alphabetical, with
+// 'Other' pinned last. Also drives the "Move to category" dropdown order.
+export const CATEGORY_ORDER = ['Dairy', 'Fats & oils', 'Grains', 'Produce', 'Proteins', 'Seasonings', 'Other'];
 
 /** Name-keyword heuristic fallback; first hit wins, else 'Other'. */
 export function categorize(name: string): string {
