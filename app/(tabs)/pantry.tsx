@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CategoryIcon } from '../../components/CategoryIcon';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../../components/states';
@@ -340,12 +339,10 @@ export default function Pantry() {
             ) : (
               sections.map(({ cat, catItems }) => (
                 <View key={cat} style={styles.categoryBox}>
-                  {/* Butter header band: category icon (Toast Deep) + the existing
-                      "CATEGORY · N" caption. The band separates header from items,
-                      so no hairline; the box's rounded border + overflow:hidden
-                      clip the band's corners. */}
+                  {/* Butter header band: text-only "CATEGORY · N" caption. The band
+                      separates header from items, so no hairline; the box's rounded
+                      border + overflow:hidden clip the band's corners. */}
                   <View style={styles.categoryHeader}>
-                    <CategoryIcon category={cat} size={18} color={colors.recCardBorder} />
                     <Text variant="caption" color="textSecondary">
                       {`${cat} · ${catItems.length}`}
                     </Text>
