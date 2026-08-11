@@ -31,6 +31,19 @@ import { colors, spacing, typography } from '../../theme/tokens';
 // How long the just-added row stays highlighted.
 const ADDED_NOTICE_MS = 2500;
 
+// One Ionicons glyph per category for the card-box header band. Keyed by the
+// CATEGORY_ORDER labels; every label is covered, `grid-outline` is the neutral
+// fallback. Ionicons has no grain glyph, so Grains borrows the generic food one.
+const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Proteins: 'egg-outline',
+  Produce: 'nutrition-outline',
+  Grains: 'fast-food-outline',
+  Dairy: 'pint-outline',
+  'Fats & oils': 'water-outline',
+  Seasonings: 'sparkles-outline',
+  Other: 'grid-outline',
+};
+
 type Status = 'loading' | 'ready' | 'error';
 
 // On react-native-web a bare drag element lets the browser own the gesture — a
@@ -338,16 +351,29 @@ export default function Pantry() {
               <EmptyState message="Nothing here yet — add a staple below" />
             ) : (
               sections.map(({ cat, catItems }) => (
-                <View key={cat}>
-                  {/* Quiet category header (Profile pattern): 13px uppercase caption
-                      + Warm Gray hairline, with the count, e.g. "PROTEINS · 1". */}
-                  <View style={styles.sectionHeader}>
+                <View key={cat} style={styles.categoryBox}>
+                  {/* Butter header band: category icon (Toast Deep) + the existing
+                      "CATEGORY · N" caption. The band separates header from items,
+                      so no hairline; the box's rounded border + overflow:hidden
+                      clip the band's corners. */}
+                  <View style={styles.categoryHeader}>
+                    <Ionicons
+                      name={CATEGORY_ICON[cat] ?? 'grid-outline'}
+                      size={18}
+                      color={colors.recCardBorder}
+                    />
                     <Text variant="caption" color="textSecondary">
                       {`${cat} · ${catItems.length}`}
                     </Text>
                   </View>
-                  {catItems.map((item) => (
-                    <View key={item.id} style={styles.itemRow}>
+                  {catItems.map((item, idx) => (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.itemRow,
+                        idx === catItems.length - 1 && styles.itemRowLast,
+                      ]}
+                    >
                       {/* Name is plain text (not the tap target); the trailing ⋯
                           button is the explicit, discoverable entry to the sheet. */}
                       <Text
@@ -591,13 +617,23 @@ const styles = StyleSheet.create({
   body: {
     gap: spacing.xl,
   },
-  // Quiet category header — 13px uppercase caption over a Warm Gray hairline, with
-  // room below before the rows. Same treatment as the Profile section headers.
-  sectionHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.chipBorder,
-    paddingBottom: spacing.xs,
-    marginBottom: spacing.sm,
+  // Category card box — Greige surface, 12px radius, hairline border; overflow
+  // hidden so the Butter header band's top corners clip to the radius.
+  categoryBox: {
+    backgroundColor: colors.card,
+    borderRadius: spacing.md,
+    borderWidth: 0.5,
+    borderColor: colors.chipBorder,
+    overflow: 'hidden',
+  },
+  // Butter header band — icon + "CATEGORY · N" caption, full width across the box top.
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.butter,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   input: {
     ...typography.body,
@@ -624,14 +660,20 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
   },
-  // Item row: name left, ⋯ overflow (→ sheet) right, hairline below.
+  // Item row: name left, ⋯ overflow (→ sheet) right. Inside the box now, so it
+  // carries its own horizontal padding; interior rows keep a divider.
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 52,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.chipBorder,
+  },
+  // Last row in a box: the box border closes it, so drop the divider.
+  itemRowLast: {
+    borderBottomWidth: 0,
   },
   // Name takes the remaining width (truncates at one line); it's plain text now.
   itemName: {
