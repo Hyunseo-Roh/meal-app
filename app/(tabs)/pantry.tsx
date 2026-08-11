@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CategoryIcon } from '../../components/CategoryIcon';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { EmptyState, ErrorState, LoadingState } from '../../components/states';
@@ -30,19 +31,6 @@ import { colors, spacing, typography } from '../../theme/tokens';
 
 // How long the just-added row stays highlighted.
 const ADDED_NOTICE_MS = 2500;
-
-// One Ionicons glyph per category for the card-box header band. Keyed by the
-// CATEGORY_ORDER labels; every label is covered, `grid-outline` is the neutral
-// fallback. Ionicons has no grain glyph, so Grains borrows the generic food one.
-const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Proteins: 'egg-outline',
-  Produce: 'nutrition-outline',
-  Grains: 'fast-food-outline',
-  Dairy: 'pint-outline',
-  'Fats & oils': 'water-outline',
-  Seasonings: 'sparkles-outline',
-  Other: 'grid-outline',
-};
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -357,11 +345,7 @@ export default function Pantry() {
                       so no hairline; the box's rounded border + overflow:hidden
                       clip the band's corners. */}
                   <View style={styles.categoryHeader}>
-                    <Ionicons
-                      name={CATEGORY_ICON[cat] ?? 'grid-outline'}
-                      size={18}
-                      color={colors.recCardBorder}
-                    />
+                    <CategoryIcon category={cat} size={18} color={colors.recCardBorder} />
                     <Text variant="caption" color="textSecondary">
                       {`${cat} · ${catItems.length}`}
                     </Text>
