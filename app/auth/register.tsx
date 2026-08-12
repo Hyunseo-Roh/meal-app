@@ -140,9 +140,12 @@ export default function Register() {
           <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
             <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
           </Pressable>
+          <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Facebook" style={styles.socialIcon}>
+            <Ionicons name="logo-facebook" size={22} color={colors.text} />
+          </Pressable>
         </View>
         {comingSoon ? (
-          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.sm, lineHeight: 28, paddingBottom: 2 }}>Coming soon</Text>
+          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.xs, lineHeight: 22, paddingBottom: 2 }}>Social login coming soon</Text>
         ) : null}
         <View style={styles.orRow}>
           <View style={styles.hairline} />
@@ -378,6 +381,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.lg,
+    // Breathing room between the header subtitle and the social icons.
+    marginTop: spacing.lg,
   },
   socialIcon: {
     width: 48,
