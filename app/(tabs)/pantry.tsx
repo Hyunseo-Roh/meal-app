@@ -320,7 +320,7 @@ export default function Pantry() {
             </View>
             <Text variant="body">Barcode scan and AI Chef</Text>
             <Text variant="body" color="textSecondary">
-              Conveniences on top of the free app
+              Fill your pantry by scanning, and cook from leftovers.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -517,7 +517,7 @@ export default function Pantry() {
               </Text>
             </View>
             <Text variant="body" color="textSecondary">
-              You&apos;ve got what you need for free — these two just save steps
+              Two ways to move faster: scan to fill your pantry, and turn leftovers into recipes.
             </Text>
 
             <Pressable
