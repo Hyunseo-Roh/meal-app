@@ -319,7 +319,7 @@ export default function Pantry() {
             <Text variant="title">Pantry</Text>
           </View>
           <Text variant="body" color="textSecondary">
-            What&apos;s in your kitchen. Sate tracks what you&apos;re missing, so you know before you cook.
+            What&apos;s in your kitchen. Sate uses it to fill the gaps in each recipe.
           </Text>
         </View>
 
