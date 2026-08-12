@@ -89,8 +89,9 @@ export function PremiumFeatureList() {
 }
 
 const styles = StyleSheet.create({
+  // Generous vertical separation so the three rows read as distinct, not stacked.
   features: {
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   featureRow: {
     flexDirection: 'row',
