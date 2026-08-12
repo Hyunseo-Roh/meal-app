@@ -1,11 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PremiumFeatureList } from '../components/PremiumFeatureList';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 
 /**
  * Post-onboarding soft-sell. Shown AFTER the 3-step onboarding (constraints has
@@ -21,6 +22,14 @@ export default function PremiumIntro() {
 
   return (
     <Screen>
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+        style={styles.backArrow}
+      >
+        <Ionicons name="chevron-back" size={28} color={colors.text} />
+      </Pressable>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="display">One more thing</Text>
@@ -37,15 +46,31 @@ export default function PremiumIntro() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={() => router.replace('/')} />
+        <PrimaryButton label="Go Premium" onPress={() => router.push('/subscription')} />
+        <Pressable
+          onPress={() => router.replace('/')}
+          accessibilityRole="button"
+          style={styles.link}
+        >
+          <Text variant="body" color="textSecondary">
+            Continue
+          </Text>
+        </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  backArrow: {
+    alignSelf: 'flex-start',
+    marginLeft: -spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: 0,
+    paddingRight: spacing.md,
+  },
   content: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
@@ -58,5 +83,11 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  link: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
