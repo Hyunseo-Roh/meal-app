@@ -282,11 +282,11 @@ export default function Register() {
             <Ionicons name="logo-google" size={22} color={colors.text} />
           </Pressable>
           <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
-            <Ionicons name="logo-apple" size={22} color={colors.text} />
+            <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
           </Pressable>
         </View>
         {comingSoon ? (
-          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.md }}>Coming soon</Text>
+          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.md, lineHeight: 28, paddingBottom: 2 }}>Coming soon</Text>
         ) : null}
       </ScrollView>
 
