@@ -271,28 +271,23 @@ export default function Register() {
           </View>
         ) : null}
 
-        {/* Social sign-in — visual only, not wired. Tap shows a calm note. */}
-        <View style={styles.social}>
-          <Pressable
-            onPress={() => setComingSoon(true)}
-            accessibilityRole="button"
-            style={styles.ghost}
-          >
-            <Text variant="body">Continue with Google</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setComingSoon(true)}
-            accessibilityRole="button"
-            style={styles.ghost}
-          >
-            <Text variant="body">Continue with Apple</Text>
-          </Pressable>
-          {comingSoon ? (
-            <Text variant="body" color="textSecondary">
-              Coming soon
-            </Text>
-          ) : null}
+        {/* Social sign-in — visual only, not wired */}
+        <View style={styles.orRow}>
+          <View style={styles.hairline} />
+          <Text variant="body" color="textSecondary">or</Text>
+          <View style={styles.hairline} />
         </View>
+        <View style={styles.socialRow}>
+          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Google" style={styles.socialIcon}>
+            <Ionicons name="logo-google" size={22} color={colors.text} />
+          </Pressable>
+          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
+            <Ionicons name="logo-apple" size={22} color={colors.text} />
+          </Pressable>
+        </View>
+        {comingSoon ? (
+          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.md }}>Coming soon</Text>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -363,16 +358,34 @@ const styles = StyleSheet.create({
   errorBlock: {
     gap: spacing.xs,
   },
-  social: {
+  // "or" divider between the email form and the secondary social row.
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  ghost: {
-    height: 52,
-    borderRadius: spacing.md,
+  hairline: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.chipBorder,
+  },
+  // Secondary social sign-in — a centered row of small circular icon buttons.
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.lg,
+  },
+  socialIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.chipBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.card,
   },
   link: {
     minHeight: 44,
