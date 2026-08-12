@@ -162,7 +162,7 @@ export default function Login() {
         ) : null}
 
         <Pressable
-          onPress={() => router.replace('/auth/register')}
+          onPress={() => router.replace('/auth/sign-up')}
           accessibilityRole="button"
           style={styles.link}
         >

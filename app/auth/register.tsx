@@ -26,9 +26,6 @@ export default function Register() {
     'first' | 'last' | 'email' | 'password' | 'confirm' | null
   >(null);
   const [emailInUse, setEmailInUse] = useState(false);
-  // Non-functional social sign-in: tapping shows a calm "coming soon" note,
-  // same pattern as the Pantry premium cards. No OAuth is wired.
-  const [comingSoon, setComingSoon] = useState(false);
   // Per-field password visibility (display only — no auth logic).
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -127,7 +124,7 @@ export default function Register() {
         <View style={styles.header}>
           <Text variant="title">Create your account</Text>
           <Text variant="body" color="textSecondary">
-            You can start right away.
+            Just a few details.
           </Text>
         </View>
 
@@ -271,28 +268,6 @@ export default function Register() {
           </View>
         ) : null}
 
-        {/* Social sign-in — visual only, not wired. Tap shows a calm note. */}
-        <View style={styles.social}>
-          <Pressable
-            onPress={() => setComingSoon(true)}
-            accessibilityRole="button"
-            style={styles.ghost}
-          >
-            <Text variant="body">Continue with Google</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setComingSoon(true)}
-            accessibilityRole="button"
-            style={styles.ghost}
-          >
-            <Text variant="body">Continue with Apple</Text>
-          </Pressable>
-          {comingSoon ? (
-            <Text variant="body" color="textSecondary">
-              Coming soon
-            </Text>
-          ) : null}
-        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -362,17 +337,6 @@ const styles = StyleSheet.create({
   },
   errorBlock: {
     gap: spacing.xs,
-  },
-  social: {
-    gap: spacing.md,
-  },
-  ghost: {
-    height: 52,
-    borderRadius: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   link: {
     minHeight: 44,
