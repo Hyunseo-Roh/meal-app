@@ -56,7 +56,7 @@ export default function Subscription() {
         <View style={styles.header}>
           <Text variant="title">Premium</Text>
           <Text variant="body" color="textSecondary">
-            {"You've got what you need for free. Premium adds a few conveniences on top."}
+            {'Premium adds three things: barcode scan, AI Chef, and a monthly summary.'}
           </Text>
           <Text variant="title" style={styles.price}>
             $4.99 a month

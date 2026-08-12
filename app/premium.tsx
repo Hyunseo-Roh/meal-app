@@ -25,7 +25,7 @@ export default function PremiumIntro() {
         <View style={styles.header}>
           <Text variant="display">One more thing</Text>
           <Text variant="body" color="textSecondary">
-            The app works free — Premium adds a couple of conveniences on top.
+            Premium adds two things the free app can&apos;t do on its own.
           </Text>
         </View>
 
@@ -43,7 +43,7 @@ export default function PremiumIntro() {
             </View>
             <Text variant="body">Barcode scan and AI Chef</Text>
             <Text variant="body" color="textSecondary">
-              Optional — they just save steps
+              Scan instead of type, and cook from what&apos;s left over.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
