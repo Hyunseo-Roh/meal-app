@@ -51,7 +51,7 @@ export default function Welcome() {
       </View>
 
       <View style={styles.actions}>
-        <PrimaryButton label="Sign up" onPress={() => router.push('/auth/sign-up')} />
+        <PrimaryButton label="Sign up" onPress={() => router.push('/auth/register')} />
         <Pressable
           onPress={() => router.push('/auth/login')}
           accessibilityRole="button"
