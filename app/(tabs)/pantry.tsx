@@ -110,6 +110,10 @@ export default function Pantry() {
   // <input>, so we can scrollIntoView on focus to lift it above the soft keyboard
   // (KeyboardAvoidingView is a no-op on RN-web). Native: the handler no-ops.
   const inputRef = useRef<TextInput>(null);
+  // Soft-keyboard height on web, measured from visualViewport. Applied as extra
+  // scroll-content bottom padding so the bottom-anchored add input can scroll
+  // above the keyboard. Stays 0 on native (no visualViewport) → layout unchanged.
+  const [kbInset, setKbInset] = useState(0);
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
   // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
@@ -202,6 +206,31 @@ export default function Pantry() {
     };
   }, []);
 
+  // Keyboard-avoidance (web). KeyboardAvoidingView is a no-op on react-native-web,
+  // so track the soft keyboard via window.visualViewport: when it opens the visual
+  // viewport shrinks, and innerHeight − viewport.height − offsetTop is the covered
+  // (keyboard) height. Feed that into `kbInset` (extra scroll padding) and, while
+  // the add input is focused, recenter it — this fires at the RELIABLE moment the
+  // keyboard is actually up, not a guessed delay. Native has no visualViewport, so
+  // the effect returns early and kbInset stays 0.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onResize = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKbInset(inset);
+      const node = inputRef.current as unknown as {
+        scrollIntoView?: (opts: { block: string; behavior: string }) => void;
+      } | null;
+      const active = typeof document !== 'undefined' ? document.activeElement : null;
+      if (inset > 0 && node && (active as unknown) === (node as unknown)) {
+        node.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+      }
+    };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+
   // Vertical sections: every non-empty category in CATEGORY_ORDER, its items
   // sorted by name (case-insensitive). Grouping key is categoryOf (stored
   // override ?? name heuristic). The whole pantry renders at once — no tab to
@@ -243,18 +272,18 @@ export default function Pantry() {
     await add(v);
   }
 
-  // On focus (web only), lift the input above the soft keyboard. RN-web resolves
-  // the ref to the DOM node, which has scrollIntoView; native has no such method,
-  // so the Platform guard makes this a safe no-op there. The short delay lets the
-  // keyboard begin to appear and layout settle before we center the field.
+  // On focus (web only), take an immediate pass at centering the input on the next
+  // frame — covers the case where the keyboard is already open (no fresh resize
+  // fires). The visualViewport 'resize' effect above is the primary, reliable
+  // mechanism once the keyboard actually opens. Native: no-op (Platform guard).
   function scrollAddInputIntoView() {
-    if (Platform.OS !== 'web') return;
-    setTimeout(() => {
+    if (Platform.OS !== 'web' || typeof requestAnimationFrame === 'undefined') return;
+    requestAnimationFrame(() => {
       const node = inputRef.current as unknown as {
         scrollIntoView?: (opts: { block: string; behavior: string }) => void;
       } | null;
       node?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-    }, 80);
+    });
   }
 
   function openSheet(item: PantryItem) {
@@ -305,7 +334,7 @@ export default function Pantry() {
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + kbInset }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
