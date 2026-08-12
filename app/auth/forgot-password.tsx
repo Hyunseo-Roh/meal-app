@@ -158,11 +158,12 @@ const styles = StyleSheet.create({
   input: {
     ...typography.body,
     color: colors.text,
+    height: 52,
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 0,
     backgroundColor: colors.card,
   },
   inputError: {
