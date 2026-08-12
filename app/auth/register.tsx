@@ -141,7 +141,7 @@ export default function Register() {
             <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
           </Pressable>
           <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Facebook" style={styles.socialIcon}>
-            <Ionicons name="logo-facebook" size={22} color={colors.text} />
+            <Ionicons name="logo-facebook" size={25} color={colors.text} style={{ marginTop: -1 }} />
           </Pressable>
         </View>
         {comingSoon ? (
