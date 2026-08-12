@@ -131,6 +131,24 @@ export default function Register() {
           </Text>
         </View>
 
+        {/* Social sign-in — visual only, not wired */}
+        <View style={styles.orRow}>
+          <View style={styles.hairline} />
+          <Text variant="body" color="textSecondary">or</Text>
+          <View style={styles.hairline} />
+        </View>
+        <View style={styles.socialRow}>
+          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Google" style={styles.socialIcon}>
+            <Ionicons name="logo-google" size={22} color={colors.text} />
+          </Pressable>
+          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
+            <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
+          </Pressable>
+        </View>
+        {comingSoon ? (
+          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.md, lineHeight: 28, paddingBottom: 2 }}>Coming soon</Text>
+        ) : null}
+
         <View style={styles.field}>
           <Text variant="caption" color="textSecondary">
             First name
@@ -270,24 +288,6 @@ export default function Register() {
             ) : null}
           </View>
         ) : null}
-
-        {/* Social sign-in — visual only, not wired */}
-        <View style={styles.orRow}>
-          <View style={styles.hairline} />
-          <Text variant="body" color="textSecondary">or</Text>
-          <View style={styles.hairline} />
-        </View>
-        <View style={styles.socialRow}>
-          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Google" style={styles.socialIcon}>
-            <Ionicons name="logo-google" size={22} color={colors.text} />
-          </Pressable>
-          <Pressable onPress={() => setComingSoon(true)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
-            <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
-          </Pressable>
-        </View>
-        {comingSoon ? (
-          <Text variant="body" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing.md, lineHeight: 28, paddingBottom: 2 }}>Coming soon</Text>
-        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -363,7 +363,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginTop: spacing.lg,
+    // No marginTop — the ScrollView content's gap:lg already spaces it under the
+    // header. marginBottom keeps clear separation before the first form field.
     marginBottom: spacing.lg,
   },
   hairline: {
