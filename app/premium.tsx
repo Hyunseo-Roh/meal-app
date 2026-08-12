@@ -25,7 +25,7 @@ export default function PremiumIntro() {
         <View style={styles.header}>
           <Text variant="display">One more thing</Text>
           <Text variant="body" color="textSecondary">
-            Premium adds two things the free app can&apos;t do on its own.
+            Premium does what the free app can&apos;t.
           </Text>
         </View>
 
