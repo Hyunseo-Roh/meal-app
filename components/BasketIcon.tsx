@@ -39,17 +39,17 @@ export function BasketIcon({ color, bg = colors.bg, focused = false, size = 26 }
       <Svg width={size} height={size} viewBox="1.5 0.25 21 21" fill="none">
         <G strokeLinecap="round" strokeLinejoin="round">
           {/* Items + body, filled Charcoal (items closed so they read solid). */}
-          <Path d={`${BOTTLE} Z`} fill={color} stroke={color} strokeWidth={1.9} />
-          <Path d={`${ROUND} Z`} fill={color} stroke={color} strokeWidth={1.9} />
-          <Path d={`${BODY} Z`} fill={color} stroke={color} strokeWidth={1.9} />
+          <Path d={`${BOTTLE} Z`} fill={color} stroke={color} strokeWidth={1.3} />
+          <Path d={`${ROUND} Z`} fill={color} stroke={color} strokeWidth={1.3} />
+          <Path d={`${BODY} Z`} fill={color} stroke={color} strokeWidth={1.3} />
           {/* Rim: light band cut out of the fill — the divider between items and
               body — with a thin colour stroke to keep its edges crisp. */}
-          <Rect x={2.5} y={8.5} width={19} height={3.2} rx={1.4} fill={bg} stroke={color} strokeWidth={1.4} />
+          <Rect x={2.5} y={8.5} width={19} height={3.2} rx={1.4} fill={bg} stroke={color} strokeWidth={0.95} />
           {/* Knock-out slats — light verticals following the body's taper, so the
               solid body reads as a basket. */}
-          <Line x1={8.95} y1={12.3} x2={9.68} y2={18.8} stroke={bg} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={12} y1={12.3} x2={12} y2={18.8} stroke={bg} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={15.05} y1={12.3} x2={14.32} y2={18.8} stroke={bg} strokeWidth={1.6} strokeLinecap="round" />
+          <Line x1={8.95} y1={12.3} x2={9.68} y2={18.8} stroke={bg} strokeWidth={1.1} strokeLinecap="round" />
+          <Line x1={12} y1={12.3} x2={12} y2={18.8} stroke={bg} strokeWidth={1.1} strokeLinecap="round" />
+          <Line x1={15.05} y1={12.3} x2={14.32} y2={18.8} stroke={bg} strokeWidth={1.1} strokeLinecap="round" />
         </G>
       </Svg>
     );
@@ -57,7 +57,7 @@ export function BasketIcon({ color, bg = colors.bg, focused = false, size = 26 }
   // Unfocused — unchanged outline (57d292c).
   return (
     <Svg width={size} height={size} viewBox="1.5 0.25 21 21" fill="none">
-      <G stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none">
+      <G stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" fill="none">
         <Path d={BOTTLE} />
         <Path d={ROUND} />
         <Rect x={2.5} y={8.5} width={19} height={3.2} rx={1.4} />
