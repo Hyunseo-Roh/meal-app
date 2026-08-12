@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { PremiumFeatureList } from '../components/PremiumFeatureList';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
-import { colors, spacing } from '../theme/tokens';
+import { spacing } from '../theme/tokens';
 
 /**
  * Post-onboarding soft-sell. Shown AFTER the 3-step onboarding (constraints has
@@ -13,8 +13,8 @@ import { colors, spacing } from '../theme/tokens';
  * and killing the app here just resumes at Home next launch. NOT an onboarding
  * step — lives outside app/onboarding/, so the 3-step progress bar is untouched.
  *
- * One merged card (same treatment as the Pantry premium card) that routes to
- * /subscription for the detail — cheaper than reproducing the pantry popup here.
+ * Renders the same shared PremiumFeatureList as /subscription so the two read
+ * identically; [Continue] moves on without upgrading.
  */
 export default function PremiumIntro() {
   const router = useRouter();
@@ -29,25 +29,11 @@ export default function PremiumIntro() {
           </Text>
         </View>
 
-        <Pressable
-          onPress={() => router.push('/subscription')}
-          accessibilityRole="button"
-          accessibilityLabel="Barcode scan and AI Chef — see Premium"
-          style={styles.premiumCard}
-        >
-          <View style={styles.premiumBody}>
-            <View style={styles.badge}>
-              <Text variant="caption" color="textSecondary">
-                Premium
-              </Text>
-            </View>
-            <Text variant="body">Barcode scan and AI Chef</Text>
-            <Text variant="body" color="textSecondary">
-              Scan instead of type, and cook from what&apos;s left over.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-        </Pressable>
+        <PremiumFeatureList />
+
+        <Text variant="title" style={styles.price}>
+          $4.99 a month
+        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -66,28 +52,8 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
-  premiumCard: {
-    flexDirection: 'row',
-    alignItems: 'center', // vertically centers the chevron against the content column
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    borderRadius: spacing.md,
-    padding: spacing.lg,
-  },
-  premiumBody: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  badge: {
-    // Hug the label instead of stretching to the column width.
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: colors.chipBorder,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  price: {
+    marginTop: spacing.xs,
   },
   footer: {
     paddingTop: spacing.lg,
