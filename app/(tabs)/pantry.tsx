@@ -106,6 +106,10 @@ export default function Pantry() {
   // and the focus effect — reading state directly there would snapshot '' at
   // mount. Kept in sync by the effect just below.
   const draftRef = useRef('');
+  // The add-item TextInput node. On react-native-web the ref resolves to the DOM
+  // <input>, so we can scrollIntoView on focus to lift it above the soft keyboard
+  // (KeyboardAvoidingView is a no-op on RN-web). Native: the handler no-ops.
+  const inputRef = useRef<TextInput>(null);
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
   // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
@@ -237,6 +241,20 @@ export default function Pantry() {
     const v = draft;
     setDraft('');
     await add(v);
+  }
+
+  // On focus (web only), lift the input above the soft keyboard. RN-web resolves
+  // the ref to the DOM node, which has scrollIntoView; native has no such method,
+  // so the Platform guard makes this a safe no-op there. The short delay lets the
+  // keyboard begin to appear and layout settle before we center the field.
+  function scrollAddInputIntoView() {
+    if (Platform.OS !== 'web') return;
+    setTimeout(() => {
+      const node = inputRef.current as unknown as {
+        scrollIntoView?: (opts: { block: string; behavior: string }) => void;
+      } | null;
+      node?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    }, 80);
   }
 
   function openSheet(item: PantryItem) {
@@ -387,9 +405,11 @@ export default function Pantry() {
             {addOpen ? (
                 <View style={styles.addFields}>
                   <TextInput
+                    ref={inputRef}
                     value={draft}
                     onChangeText={setDraft}
                     onSubmitEditing={addDraft}
+                    onFocus={scrollAddInputIntoView}
                     placeholder="Type an item, press enter"
                     placeholderTextColor={colors.textSecondary}
                     autoCapitalize="none"
@@ -619,11 +639,12 @@ const styles = StyleSheet.create({
   input: {
     ...typography.body,
     color: colors.text,
+    height: 52,
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 0,
     backgroundColor: colors.card,
   },
   addFields: {
