@@ -107,9 +107,10 @@ export default function ConstraintsSetup() {
     // is onboarded here with an empty pantry.
     await setLocalOnboarded(true);
 
-    // Onboarding (3 steps) is complete. Hand off to the post-onboarding premium
-    // intro — a separate, skippable soft-sell, not a 4th step.
-    router.replace('/premium');
+    // Onboarding (3 steps) is complete. Hand off to the premium screen as a
+    // skippable soft-sell (not a 4th step) — the onboarding=1 param hides its back
+    // arrow and swaps in a "Maybe later" skip into the app.
+    router.replace({ pathname: '/subscription', params: { onboarding: '1' } });
   }
 
   return (

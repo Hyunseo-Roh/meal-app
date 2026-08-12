@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -14,6 +14,11 @@ import { colors, spacing } from '../../theme/tokens';
 export default function Subscription() {
   const gate = useSessionGate();
   const router = useRouter();
+  // Onboarding hands off here (constraints replaces to /subscription?onboarding=1)
+  // instead of a separate screen. In that context there's no prior screen to
+  // return to, so we hide the back arrow and offer an explicit "Maybe later" skip.
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
+  const isOnboarding = onboarding === '1';
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
   // Re-read the plan on focus: this screen stays mounted while payment / cancel
   // are pushed on top, so it won't re-render on its own when they flip the flag.
@@ -24,9 +29,11 @@ export default function Subscription() {
 
   return (
     <Screen>
-      <Pressable onPress={back} accessibilityLabel="Go back" hitSlop={12} style={styles.backArrow}>
-        <Ionicons name="chevron-back" size={28} color={colors.text} />
-      </Pressable>
+      {isOnboarding ? null : (
+        <Pressable onPress={back} accessibilityLabel="Go back" hitSlop={12} style={styles.backArrow}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </Pressable>
+      )}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="title">Premium</Text>
@@ -56,6 +63,17 @@ export default function Subscription() {
         ) : (
           <PrimaryButton label="Go Premium" onPress={() => router.push('/subscription/payment')} />
         )}
+        {isOnboarding ? (
+          <Pressable
+            onPress={() => router.replace('/')}
+            accessibilityRole="button"
+            style={styles.secondary}
+          >
+            <Text variant="body" color="textSecondary">
+              Maybe later
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </Screen>
   );
