@@ -628,14 +628,12 @@ const styles = StyleSheet.create({
   },
   addFields: {
     gap: spacing.md,
-    marginTop: spacing.sm,
   },
   addToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: 52,
-    marginTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
     borderColor: colors.chipBorder,
