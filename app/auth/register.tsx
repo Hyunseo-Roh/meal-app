@@ -135,10 +135,10 @@ export default function Register() {
             header; the "or" divider below separates it from the email form. */}
         <View style={styles.socialRow}>
           <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Google" style={styles.socialIcon}>
-            <Ionicons name="logo-google" size={22} color={colors.text} />
+            <Ionicons name="logo-google" size={24} color={colors.text} />
           </Pressable>
           <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Apple" style={styles.socialIcon}>
-            <Ionicons name="logo-apple" size={22} color={colors.text} style={{ marginTop: -2 }} />
+            <Ionicons name="logo-apple" size={25} color={colors.text} style={{ marginTop: -2 }} />
           </Pressable>
           <Pressable onPress={() => setComingSoon((v) => !v)} accessibilityRole="button" accessibilityLabel="Continue with Facebook" style={styles.socialIcon}>
             <Ionicons name="logo-facebook" size={25} color={colors.text} style={{ marginTop: -1 }} />
