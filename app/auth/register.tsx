@@ -311,10 +311,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: spacing.sm,
-    // Clear the pinned footer button (a sibling View below the ScrollView, ~84px
-    // tall): enough bottom room that the last line ("Coming soon") scrolls fully
-    // clear of it rather than hiding beneath it.
-    paddingBottom: spacing.xl * 2,
+    paddingBottom: spacing.xl,
     // 2px of horizontal room so the browser focus ring (drawn outside the input
     // box) isn't clipped by the scroll container's overflow.
     paddingHorizontal: 2,
@@ -366,7 +363,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     marginBottom: spacing.lg,
   },
   hairline: {
@@ -397,5 +394,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+    // Opaque so any content scrolling underneath is cleanly occluded, never
+    // showing clipped behind the pinned button.
+    backgroundColor: colors.bg,
   },
 });
