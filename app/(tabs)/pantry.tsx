@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -107,18 +106,13 @@ export default function Pantry() {
   // and the focus effect — reading state directly there would snapshot '' at
   // mount. Kept in sync by the effect just below.
   const draftRef = useRef('');
-  // The add-item TextInput node. On react-native-web the ref resolves to the DOM
-  // <input>, so we can scrollIntoView on focus to lift it above the soft keyboard
-  // (KeyboardAvoidingView is a no-op on RN-web). Native: the handler no-ops.
-  const inputRef = useRef<TextInput>(null);
-  // Soft-keyboard height on web, measured from visualViewport. Applied as extra
-  // scroll-content bottom padding so the bottom-anchored add input can scroll
-  // above the keyboard. Stays 0 on native (no visualViewport) → layout unchanged.
-  const [kbInset, setKbInset] = useState(0);
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
   // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
   const [addOpen, setAddOpen] = useState(false);
+  // The centered add-item dialog. Positioned high so its input clears the web
+  // soft keyboard (a bottom sheet would be covered by it, like the old inline input).
+  const [addModalOpen, setAddModalOpen] = useState(false);
   // The item whose edit sheet is open (null = closed), plus a sheet-local error
   // and the move-to-category dropdown's open state.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
@@ -207,31 +201,6 @@ export default function Pantry() {
     };
   }, []);
 
-  // Keyboard-avoidance (web). KeyboardAvoidingView is a no-op on react-native-web,
-  // so track the soft keyboard via window.visualViewport: when it opens the visual
-  // viewport shrinks, and innerHeight − viewport.height − offsetTop is the covered
-  // (keyboard) height. Feed that into `kbInset` (extra scroll padding) and, while
-  // the add input is focused, recenter it — this fires at the RELIABLE moment the
-  // keyboard is actually up, not a guessed delay. Native has no visualViewport, so
-  // the effect returns early and kbInset stays 0.
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) return;
-    const vv = window.visualViewport;
-    const onResize = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKbInset(inset);
-      const node = inputRef.current as unknown as {
-        scrollIntoView?: (opts: { block: string; behavior: string }) => void;
-      } | null;
-      const active = typeof document !== 'undefined' ? document.activeElement : null;
-      if (inset > 0 && node && (active as unknown) === (node as unknown)) {
-        node.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-      }
-    };
-    vv.addEventListener('resize', onResize);
-    return () => vv.removeEventListener('resize', onResize);
-  }, []);
-
   // Vertical sections: every non-empty category in CATEGORY_ORDER, its items
   // sorted by name (case-insensitive). Grouping key is categoryOf (stored
   // override ?? name heuristic). The whole pantry renders at once — no tab to
@@ -273,19 +242,10 @@ export default function Pantry() {
     await add(v);
   }
 
-  // On focus (web only), take an immediate pass at centering the input on the next
-  // frame — covers the case where the keyboard is already open (no fresh resize
-  // fires). The visualViewport 'resize' effect above is the primary, reliable
-  // mechanism once the keyboard actually opens. Native: no-op (Platform guard).
-  function scrollAddInputIntoView() {
-    if (Platform.OS !== 'web' || typeof requestAnimationFrame === 'undefined') return;
-    requestAnimationFrame(() => {
-      const node = inputRef.current as unknown as {
-        scrollIntoView?: (opts: { block: string; behavior: string }) => void;
-      } | null;
-      node?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-    });
-  }
+  const closeAdd = () => {
+    setAddModalOpen(false);
+    setDraft('');
+  };
 
   function openSheet(item: PantryItem) {
     setSheetError(null);
@@ -334,18 +294,8 @@ export default function Pantry() {
 
   return (
     <Screen>
-      {/* Native keyboard-avoidance. On web this is an inert flex:1 passthrough
-          (behavior=undefined) so the visualViewport + kbInset path stays in charge;
-          on native it lifts the ScrollView above the soft keyboard. */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={
-          Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined
-        }
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-      >
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + kbInset }]}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -439,42 +389,21 @@ export default function Pantry() {
               ))
             )}
 
-            {/* + Add an item — at the BOTTOM, after every section. Auto-categorized
-                by name (stores NULL), so it appears under its own section with the
-                justAdded accent showing where it landed. */}
-            {addOpen ? (
-                <View style={styles.addFields}>
-                  <TextInput
-                    ref={inputRef}
-                    value={draft}
-                    onChangeText={setDraft}
-                    onSubmitEditing={addDraft}
-                    onFocus={scrollAddInputIntoView}
-                    placeholder="Type an item, press enter"
-                    placeholderTextColor={colors.textSecondary}
-                    autoCapitalize="none"
-                    autoFocus
-                    returnKeyType="done"
-                    style={styles.input}
-                  />
-                  <PrimaryButton label={adding ? 'Adding…' : 'Add'} onPress={addDraft} disabled={adding} />
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => setAddOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Add an item by name"
-                  style={styles.addToggle}
-                >
-                  <Ionicons name="add" size={20} color={colors.text} />
-                  <Text variant="body">Add an item</Text>
-                </Pressable>
-              )}
-              {error ? <Text variant="body">{error}</Text> : null}
+            {/* + Add an item — at the BOTTOM, after every section. Opens a centered
+                dialog; the added item is auto-categorized by name (stores NULL), so it
+                appears under its own section with the justAdded accent. */}
+            <Pressable
+              onPress={() => setAddModalOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add an item by name"
+              style={styles.addToggle}
+            >
+              <Ionicons name="add" size={20} color={colors.text} />
+              <Text variant="body">Add an item</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Edit sheet — Move via a select control + Remove. */}
       <Modal visible={sheetItem !== null} transparent animationType="fade" onRequestClose={closeSheet}>
@@ -627,6 +556,44 @@ export default function Pantry() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Add-item dialog — CENTERED and positioned HIGH (justify flex-start + a top
+          margin) so the input sits above the web soft keyboard. A bottom sheet would
+          be covered by the keyboard exactly like the old inline input. No pan hook. */}
+      <Modal visible={addModalOpen} transparent animationType="fade" onRequestClose={closeAdd}>
+        <View style={styles.addModalRoot}>
+          <Pressable style={styles.scrim} onPress={closeAdd} accessibilityLabel="Dismiss" />
+          <View style={[styles.addCard, { marginTop: insets.top + spacing.xl * 2 }]}>
+            <Text variant="title">Add an item</Text>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={addDraft}
+              placeholder="Type an item"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              autoFocus
+              returnKeyType="done"
+              style={styles.input}
+            />
+            {error ? <Text variant="body">{error}</Text> : null}
+            <View style={styles.addButtonRow}>
+              <Pressable onPress={closeAdd} accessibilityRole="button" style={styles.ghostButton}>
+                <Text variant="body" color="textSecondary">
+                  Cancel
+                </Text>
+              </Pressable>
+              <View style={styles.addPrimaryWrap}>
+                <PrimaryButton
+                  label={adding ? 'Adding…' : 'Add'}
+                  onPress={addDraft}
+                  disabled={adding}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -732,6 +699,39 @@ const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  // Add dialog root — centered horizontally, anchored HIGH (flex-start) so the card's
+  // input sits above the web soft keyboard instead of behind it.
+  addModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  // Centered add card — Greige surface, high on the screen (marginTop set inline
+  // from insets). Content stacked with a gap; the scrim sibling handles dismiss.
+  addCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.card,
+    borderRadius: spacing.md,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  addButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  // Ghost Cancel — sizes to its label; the primary Add fills the rest of the row.
+  ghostButton: {
+    height: 52,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPrimaryWrap: {
+    flex: 1,
   },
   scrim: {
     ...StyleSheet.absoluteFillObject,
