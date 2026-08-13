@@ -102,12 +102,16 @@ as $function$
       (p_time_available is null or m.cook_time_min <= p_time_available) as within_time,
       greatest(0, 30 - abs(m.effort_level - u.pref_effort) * 15)
       + case when m.cuisine_id = any(u.fav_ids) then 30 else 0 end
-      + case
-          when u.eff_budget = 'high' then 20
-          when u.eff_budget = 'medium' and m.est_cost <= 4.00 then 20
-          when u.eff_budget = 'medium' then 8
-          when u.eff_budget = 'low' and m.est_cost <= 2.50 then 20
-          when u.eff_budget = 'low' and m.est_cost <= 4.00 then 8
+      + case u.eff_budget
+          -- Continuous budget score in [0,20] (never exceeds the +30 taste/effort
+          -- anchors, so the app stays taste-first). No hard gate — every row scores,
+          -- just differently, so changing the Budget filter reshuffles the top picks.
+          -- LOW: cheaper is better, linearly. ~$1.20 -> 20, tapering to 0 by ~$5.20.
+          when 'low'    then greatest(0, round(20 - (m.est_cost - 1.20) * 5.0))::int
+          -- MEDIUM: peaks around mid prices ($3.40), gentle taper at both extremes.
+          when 'medium' then greatest(0, round(20 - abs(m.est_cost - 3.40) * 4.0))::int
+          -- HIGH: pricier tolerated; rises with price, capped at 20 (cheap still scores).
+          when 'high'   then least(20, greatest(0, round(6 + (m.est_cost - 1.20) * 3.0)))::int
           else 0
         end
       + coalesce((select sum(feedback_adj) from fb where fb.meal_id = m.id), 0)
