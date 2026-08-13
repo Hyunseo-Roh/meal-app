@@ -322,7 +322,7 @@ export default function Pantry() {
           >
             <View style={styles.premiumBody}>
               <View style={[styles.badge, styles.badgeOwned]}>
-                <Ionicons name="checkmark-circle-outline" size={14} color={colors.text} />
+                <Ionicons name="checkmark-circle" size={14} color={colors.have} />
                 <Text variant="caption" color="textSecondary">
                   Premium
                 </Text>
