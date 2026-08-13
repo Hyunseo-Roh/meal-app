@@ -26,6 +26,7 @@ import {
   type PantryItem,
 } from '../../lib/pantry';
 import { CATEGORY_ORDER, categoryOf, toSentenceCase } from '../../lib/pantryCategories';
+import { isPremiumActive } from '../../lib/session';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 // How long the just-added row stays highlighted.
@@ -104,6 +105,10 @@ export default function Pantry() {
   const [adding, setAdding] = useState(false);
   // The premium explainer popup (merged Barcode scan + AI Chef card → this).
   const [premiumOpen, setPremiumOpen] = useState(false);
+  // Client-only plan (non-reactive module boolean) — re-read on focus below so the
+  // top card flips from upsell to a direct scanner entry after upgrading. Premium's
+  // only working tool is the barcode scanner, and this tab is its sole entry point.
+  const [premium, setPremium] = useState(isPremiumActive());
   // The centered add-item dialog. Its card centers in the space ABOVE the soft
   // keyboard (kbHeight below), so the input never hides behind it and there's no
   // floaty dead gap — a bottom sheet would be covered by the keyboard instead.
@@ -166,6 +171,8 @@ export default function Pantry() {
   // Silent refresh on focus — keep showing current items, never flash "Loading…".
   useFocusEffect(
     useCallback(() => {
+      // Re-read the plan on return (e.g. after upgrading via Profile → subscription).
+      setPremium(isPremiumActive());
       let active = true;
       (async () => {
         try {
@@ -303,26 +310,46 @@ export default function Pantry() {
           </Text>
         </View>
 
-        {/* Premium — pinned near the top, unchanged. Tapping opens the explainer. */}
-        <Pressable
-          onPress={() => setPremiumOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Barcode scan and AI Chef — learn more"
-          style={styles.premiumCard}
-        >
-          <View style={styles.premiumBody}>
-            <View style={styles.badge}>
-              <Text variant="caption" color="textSecondary">
-                Premium
+        {/* Top card — premium-aware. Free: the upsell that opens the explainer sheet
+            (the only path to /scanner + AI Chef). Premium: a direct scanner entry,
+            reusing the same footprint so the top area stays stable. */}
+        {premium ? (
+          <Pressable
+            onPress={() => router.push('/scanner')}
+            accessibilityRole="button"
+            accessibilityLabel="Scan a barcode"
+            style={styles.premiumCard}
+          >
+            <Ionicons name="barcode-outline" size={24} color={colors.textSecondary} />
+            <View style={styles.premiumBody}>
+              <Text variant="body">Scan a barcode</Text>
+              <Text variant="body" color="textSecondary">
+                Fill your pantry by scanning — no typing
               </Text>
             </View>
-            <Text variant="body">Barcode scan and AI Chef</Text>
-            <Text variant="body" color="textSecondary">
-              Fill your pantry by scanning, and cook from leftovers.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-        </Pressable>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => setPremiumOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Barcode scan and AI Chef — learn more"
+            style={styles.premiumCard}
+          >
+            <View style={styles.premiumBody}>
+              <View style={styles.badge}>
+                <Text variant="caption" color="textSecondary">
+                  Premium
+                </Text>
+              </View>
+              <Text variant="body">Barcode scan and AI Chef</Text>
+              <Text variant="body" color="textSecondary">
+                Fill your pantry by scanning, and cook from leftovers.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        )}
 
         {status === 'loading' ? (
           <LoadingState message="Opening your pantry…" delayMs={250} />
