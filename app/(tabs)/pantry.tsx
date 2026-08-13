@@ -310,21 +310,25 @@ export default function Pantry() {
           </Text>
         </View>
 
-        {/* Top card — premium-aware. Free: the upsell that opens the explainer sheet
-            (the only path to /scanner + AI Chef). Premium: a direct scanner entry,
-            reusing the same footprint so the top area stays stable. */}
+        {/* Top card — premium-aware, both branches open the SAME explainer sheet
+            (which itself branches on `premium`). Free: an upsell. Premium: a
+            plan-status card. Same footprint, so the top area stays stable. */}
         {premium ? (
           <Pressable
-            onPress={() => router.push('/scanner')}
+            onPress={() => setPremiumOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Scan a barcode"
+            accessibilityLabel="Your premium features"
             style={styles.premiumCard}
           >
-            <Ionicons name="barcode-outline" size={24} color={colors.textSecondary} />
             <View style={styles.premiumBody}>
-              <Text variant="body">Scan a barcode</Text>
+              <View style={styles.badge}>
+                <Text variant="caption" color="textSecondary">
+                  Premium
+                </Text>
+              </View>
+              <Text variant="body">Your premium features</Text>
               <Text variant="body" color="textSecondary">
-                Fill your pantry by scanning — no typing
+                Barcode scan is ready. AI Chef and monthly summary are coming soon.
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -496,7 +500,9 @@ export default function Pantry() {
         </View>
       </Modal>
 
-      {/* Premium explainer — unchanged. */}
+      {/* Premium explainer — premium-aware. Free: a two-feature upsell with a
+          "See Premium" link. Premium: the full plan with honest statuses (barcode
+          ready, AI Chef + monthly summary coming soon) and no upsell link. */}
       <Modal
         visible={premiumOpen}
         transparent
@@ -523,51 +529,111 @@ export default function Pantry() {
                 With Premium
               </Text>
             </View>
-            <Text variant="body" color="textSecondary">
-              Two ways to move faster: scan to fill your pantry, and turn leftovers into recipes.
-            </Text>
 
-            <Pressable
-              onPress={() => {
-                setPremiumOpen(false);
-                router.push('/scanner');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Open barcode scanner"
-              style={styles.premiumFeatureRow}
-            >
-              <View style={styles.premiumFeatureBody}>
-                <Text variant="body">Barcode scan</Text>
+            {premium ? (
+              <>
                 <Text variant="body" color="textSecondary">
-                  Scan a barcode to fill your pantry — no typing
+                  What your plan includes. Barcode scan works now; the rest is on the way.
                 </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </Pressable>
 
-            <View style={styles.premiumFeatureRow}>
-              <View style={styles.premiumFeatureBody}>
-                <Text variant="body">AI Chef</Text>
+                {/* Barcode scan — the one working feature, still actionable. */}
+                <Pressable
+                  onPress={() => {
+                    setPremiumOpen(false);
+                    router.push('/scanner');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open barcode scanner"
+                  style={styles.premiumFeatureRow}
+                >
+                  <View style={styles.premiumFeatureBody}>
+                    <Text variant="body">Barcode scan</Text>
+                    <Text variant="body" color="textSecondary">
+                      Scan a barcode to fill your pantry — no typing
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+
+                {/* AI Chef — not built yet: "Coming soon", no affordance. */}
+                <View style={styles.premiumFeatureRow}>
+                  <View style={styles.premiumFeatureBody}>
+                    <View style={styles.soonTitleRow}>
+                      <Text variant="body">AI Chef</Text>
+                      <Text variant="caption" color="textSecondary" style={styles.soonLabel}>
+                        Coming soon
+                      </Text>
+                    </View>
+                    <Text variant="body" color="textSecondary">
+                      Pick what&apos;s left in your fridge and get recipes that use it up
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Monthly summary — not built yet: "Coming soon", no affordance. */}
+                <View style={styles.premiumFeatureRow}>
+                  <View style={styles.premiumFeatureBody}>
+                    <View style={styles.soonTitleRow}>
+                      <Text variant="body">Monthly summary</Text>
+                      <Text variant="caption" color="textSecondary" style={styles.soonLabel}>
+                        Coming soon
+                      </Text>
+                    </View>
+                    <Text variant="body" color="textSecondary">
+                      A look back at your month
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
                 <Text variant="body" color="textSecondary">
-                  Pick what&apos;s left in your fridge and get recipes that use it up
+                  Two ways to move faster: scan to fill your pantry, and turn leftovers into recipes.
                 </Text>
-              </View>
-            </View>
 
-            <Pressable
-              onPress={() => {
-                setPremiumOpen(false);
-                router.push('/subscription');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="See Premium"
-              style={styles.premiumFeatureRow}
-            >
-              <View style={styles.premiumFeatureBody}>
-                <Text variant="body">See Premium</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setPremiumOpen(false);
+                    router.push('/scanner');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open barcode scanner"
+                  style={styles.premiumFeatureRow}
+                >
+                  <View style={styles.premiumFeatureBody}>
+                    <Text variant="body">Barcode scan</Text>
+                    <Text variant="body" color="textSecondary">
+                      Scan a barcode to fill your pantry — no typing
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+
+                <View style={styles.premiumFeatureRow}>
+                  <View style={styles.premiumFeatureBody}>
+                    <Text variant="body">AI Chef</Text>
+                    <Text variant="body" color="textSecondary">
+                      Pick what&apos;s left in your fridge and get recipes that use it up
+                    </Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  onPress={() => {
+                    setPremiumOpen(false);
+                    router.push('/subscription');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="See Premium"
+                  style={styles.premiumFeatureRow}
+                >
+                  <View style={styles.premiumFeatureBody}>
+                    <Text variant="body">See Premium</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+              </>
+            )}
 
             <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
           </Animated.View>
@@ -777,6 +843,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 44,
     paddingVertical: spacing.sm,
+  },
+  // Title line for a coming-soon feature: title left, "Coming soon" pushed to the
+  // right edge (mirrors components/PremiumFeatureList.tsx so both read identically).
+  soonTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  soonLabel: {
+    marginLeft: 'auto',
   },
   premiumFeatureBody: {
     flex: 1,
