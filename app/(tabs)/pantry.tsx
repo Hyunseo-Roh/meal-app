@@ -110,9 +110,14 @@ export default function Pantry() {
   const [premiumOpen, setPremiumOpen] = useState(false);
   // Add-by-name is collapsed behind a "+" row at the bottom of the current list.
   const [addOpen, setAddOpen] = useState(false);
-  // The centered add-item dialog. Positioned high so its input clears the web
-  // soft keyboard (a bottom sheet would be covered by it, like the old inline input).
+  // The centered add-item dialog. Its card centers in the space ABOVE the soft
+  // keyboard (kbHeight below), so the input never hides behind it and there's no
+  // floaty dead gap — a bottom sheet would be covered by the keyboard instead.
   const [addModalOpen, setAddModalOpen] = useState(false);
+  // Soft-keyboard height (web) while the add dialog is open, measured from
+  // visualViewport. Applied as bottom padding on the modal root so the card
+  // centers in the remaining visible area. Modal-scoped; stays 0 on native.
+  const [kbHeight, setKbHeight] = useState(0);
   // The item whose edit sheet is open (null = closed), plus a sheet-local error
   // and the move-to-category dropdown's open state.
   const [sheetItem, setSheetItem] = useState<PantryItem | null>(null);
@@ -130,6 +135,27 @@ export default function Pantry() {
   useEffect(() => {
     if (premiumOpen) premiumSheet.reset();
   }, [premiumOpen, premiumSheet]);
+
+  // Track the soft-keyboard height ONLY while the add dialog is open (web). When
+  // the keyboard opens, visualViewport shrinks; innerHeight − viewport.height −
+  // offsetTop is the covered height. Feeding it into the modal root's bottom
+  // padding centers the card in the visible area above the keyboard. The listener
+  // is added on open and torn down (with kbHeight reset) on close. Native/no
+  // visualViewport: the effect returns early and kbHeight stays 0.
+  useEffect(() => {
+    if (!addModalOpen) return;
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onResize = () => {
+      setKbHeight(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    };
+    onResize();
+    vv.addEventListener('resize', onResize);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      setKbHeight(0);
+    };
+  }, [addModalOpen]);
 
   // Manual retry (from the error state): show the loading line while refetching.
   const load = useCallback(async () => {
@@ -561,9 +587,9 @@ export default function Pantry() {
           margin) so the input sits above the web soft keyboard. A bottom sheet would
           be covered by the keyboard exactly like the old inline input. No pan hook. */}
       <Modal visible={addModalOpen} transparent animationType="fade" onRequestClose={closeAdd}>
-        <View style={styles.addModalRoot}>
+        <View style={[styles.addModalRoot, { paddingBottom: kbHeight }]}>
           <Pressable style={styles.scrim} onPress={closeAdd} accessibilityLabel="Dismiss" />
-          <View style={[styles.addCard, { marginTop: insets.top + spacing.xl * 2 }]}>
+          <View style={styles.addCard}>
             <Text variant="title">Add an item</Text>
             <TextInput
               value={draft}
@@ -702,14 +728,16 @@ const styles = StyleSheet.create({
   },
   // Add dialog root — centered horizontally, anchored HIGH (flex-start) so the card's
   // input sits above the web soft keyboard instead of behind it.
+  // Centers the card in the visible area; a bottom padding equal to the soft
+  // keyboard height (set inline) shrinks that area to the space above the keyboard.
   addModalRoot: {
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
-  // Centered add card — Greige surface, high on the screen (marginTop set inline
-  // from insets). Content stacked with a gap; the scrim sibling handles dismiss.
+  // Centered add card — Greige surface. Content stacked with a gap; the scrim
+  // sibling handles dismiss.
   addCard: {
     width: '100%',
     maxWidth: 420,
