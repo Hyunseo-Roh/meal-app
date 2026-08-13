@@ -321,7 +321,8 @@ export default function Pantry() {
             style={styles.premiumCard}
           >
             <View style={styles.premiumBody}>
-              <View style={styles.badge}>
+              <View style={[styles.badge, styles.badgeOwned]}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={colors.text} />
                 <Text variant="caption" color="textSecondary">
                   Premium
                 </Text>
@@ -526,40 +527,36 @@ export default function Pantry() {
             <View {...premiumSheet.panHandlers} style={dragRegionStyle}>
               <View style={styles.dragHandle} />
               <Text variant="title" style={styles.sheetTitle}>
-                With Premium
+                {premium ? "You're on Premium" : 'With Premium'}
               </Text>
             </View>
 
             {premium ? (
               <>
                 <Text variant="body" color="textSecondary">
-                  What your plan includes. Barcode scan works now; the rest is on the way.
+                  Barcode scan is ready to use. AI Chef and monthly summary are on the way.
                 </Text>
 
-                {/* Barcode scan — the one working feature, still actionable. */}
-                <Pressable
+                {/* The one working feature — a primary action, not a list row. */}
+                <PrimaryButton
+                  label="Scan a barcode"
                   onPress={() => {
                     setPremiumOpen(false);
                     router.push('/scanner');
                   }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open barcode scanner"
-                  style={styles.premiumFeatureRow}
-                >
-                  <View style={styles.premiumFeatureBody}>
-                    <Text variant="body">Barcode scan</Text>
-                    <Text variant="body" color="textSecondary">
-                      Scan a barcode to fill your pantry — no typing
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </Pressable>
+                />
 
-                {/* AI Chef — not built yet: "Coming soon", no affordance. */}
+                <Text variant="caption" color="textSecondary" style={styles.alsoLabel}>
+                  Also in your plan
+                </Text>
+
+                {/* AI Chef — not built yet: muted row, "Coming soon", no affordance. */}
                 <View style={styles.premiumFeatureRow}>
                   <View style={styles.premiumFeatureBody}>
                     <View style={styles.soonTitleRow}>
-                      <Text variant="body">AI Chef</Text>
+                      <Text variant="body" color="textSecondary">
+                        AI Chef
+                      </Text>
                       <Text variant="caption" color="textSecondary" style={styles.soonLabel}>
                         Coming soon
                       </Text>
@@ -570,11 +567,13 @@ export default function Pantry() {
                   </View>
                 </View>
 
-                {/* Monthly summary — not built yet: "Coming soon", no affordance. */}
+                {/* Monthly summary — same muted coming-soon row. */}
                 <View style={styles.premiumFeatureRow}>
                   <View style={styles.premiumFeatureBody}>
                     <View style={styles.soonTitleRow}>
-                      <Text variant="body">Monthly summary</Text>
+                      <Text variant="body" color="textSecondary">
+                        Monthly summary
+                      </Text>
                       <Text variant="caption" color="textSecondary" style={styles.soonLabel}>
                         Coming soon
                       </Text>
@@ -584,11 +583,22 @@ export default function Pantry() {
                     </Text>
                   </View>
                 </View>
+
+                {/* Ghost close — not a second Charcoal button. */}
+                <Pressable
+                  onPress={() => setPremiumOpen(false)}
+                  accessibilityRole="button"
+                  style={styles.ghostButton}
+                >
+                  <Text variant="body" color="textSecondary">
+                    Close
+                  </Text>
+                </Pressable>
               </>
             ) : (
               <>
                 <Text variant="body" color="textSecondary">
-                  Two ways to move faster: scan to fill your pantry, and turn leftovers into recipes.
+                  Scan to fill your pantry, cook from leftovers, and see your month at a glance.
                 </Text>
 
                 <Pressable
@@ -618,6 +628,16 @@ export default function Pantry() {
                   </View>
                 </View>
 
+                {/* Monthly summary — descriptive, non-actionable. */}
+                <View style={styles.premiumFeatureRow}>
+                  <View style={styles.premiumFeatureBody}>
+                    <Text variant="body">Monthly summary</Text>
+                    <Text variant="body" color="textSecondary">
+                      A look back at your month
+                    </Text>
+                  </View>
+                </View>
+
                 <Pressable
                   onPress={() => {
                     setPremiumOpen(false);
@@ -632,10 +652,10 @@ export default function Pantry() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                 </Pressable>
+
+                <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
               </>
             )}
-
-            <PrimaryButton label="Got it" onPress={() => setPremiumOpen(false)} />
           </Animated.View>
         </View>
       </Modal>
@@ -919,5 +939,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  // Premium (owned) badge — a row so the checkmark sits before "Premium".
+  badgeOwned: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  // Eyebrow before the coming-soon group in the premium sheet; a little top
+  // breathing room to separate it from the "Scan a barcode" action above.
+  alsoLabel: {
+    marginTop: spacing.sm,
   },
 });
