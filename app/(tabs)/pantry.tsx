@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -333,6 +334,16 @@ export default function Pantry() {
 
   return (
     <Screen>
+      {/* Native keyboard-avoidance. On web this is an inert flex:1 passthrough
+          (behavior=undefined) so the visualViewport + kbInset path stays in charge;
+          on native it lifts the ScrollView above the soft keyboard. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={
+          Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined
+        }
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+      >
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + kbInset }]}
         showsVerticalScrollIndicator={false}
@@ -463,6 +474,7 @@ export default function Pantry() {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Edit sheet — Move via a select control + Remove. */}
       <Modal visible={sheetItem !== null} transparent animationType="fade" onRequestClose={closeSheet}>
