@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -72,6 +72,9 @@ export default function MealDetail() {
   const [expanded, setExpanded] = useState(false);
   // Which tab is showing. Ingredients is the default/active.
   const [tab, setTab] = useState<Tab>('ingredients');
+  // ScrollView ref — used to reset to the top when "See how to make it" flips to
+  // the howto tab, so the steps start at step 1 rather than mid-scroll.
+  const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -182,6 +185,17 @@ export default function MealDetail() {
   const steps = (gap.instructions ?? []).map(normalizeStep).filter(Boolean);
   const collapsible = steps.length > STEP_THRESHOLD;
   const visibleSteps = collapsible && !expanded ? steps.slice(0, STEP_CAP) : steps;
+  // Does this meal have steps to walk through? Same source the howto tab renders,
+  // so the footer CTA and the "Steps aren't available" note never disagree.
+  const hasSteps = steps.length > 0;
+  // On the ingredients tab of a meal WITH steps, "Make this" first routes through
+  // the steps; otherwise it goes straight to confirm. Confirm nav is unchanged.
+  const showStepsFirst = tab === 'ingredients' && hasSteps;
+  const goConfirm = () =>
+    router.push({
+      pathname: '/confirm/[id]',
+      params: { id, ...(option_id ? { option_id } : {}) },
+    });
 
   return (
     // Screen owns left/right/bottom insets; the header below owns the TOP inset
@@ -204,6 +218,7 @@ export default function MealDetail() {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -381,15 +396,19 @@ export default function MealDetail() {
           </View>
         </ScrollView>
 
-        {/* Primary CTA — pinned at the bottom. */}
+        {/* Primary CTA — pinned at the bottom. On the ingredients tab of a meal
+            with steps, it walks the user through "How to make it" first; the tabs
+            themselves stay free toggles, so the label follows the current tab. */}
         <View style={styles.footer}>
           <PrimaryButton
-            label="Make this"
-            onPress={() =>
-              router.push({
-                pathname: '/confirm/[id]',
-                params: { id, ...(option_id ? { option_id } : {}) },
-              })
+            label={showStepsFirst ? 'See how to make it' : 'Make this'}
+            onPress={
+              showStepsFirst
+                ? () => {
+                    setTab('howto');
+                    scrollRef.current?.scrollTo({ y: 0, animated: true });
+                  }
+                : goConfirm
             }
           />
         </View>
