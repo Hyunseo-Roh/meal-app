@@ -118,11 +118,23 @@ as $function$
       + coalesce((select swap_adj from sw where sw.meal_id = m.id), 0)
       + coalesce((select pantry_bonus from pb where pb.meal_id = m.id), 0)
       + case lower(coalesce(p_mood, ''))
-          when 'tired'  then case when m.effort_level = 1 then 18 when m.effort_level = 2 then 8 else 0 end
-          when 'quick'  then case when m.effort_level = 1 then 18 when m.effort_level = 2 then 8 else 0 end
-          when 'light'  then case when m.effort_level = 1 then 18 when m.effort_level = 2 then 8 else 0 end
-          when 'comfort' then case when m.cuisine_id = any(u.fav_ids) then 12 else 0 end
-          when 'adventurous' then case when u.fav_ids = '{}'::uuid[] or not (m.cuisine_id = any(u.fav_ids)) then 14 else 0 end
+          -- Low-effort moods: bumped so an effort-1 meal can overtake the (usually effort-2) hero.
+          -- effort1 +24 / effort2 +4 -> net +20 advantage, clears the base gaps (15/10) yet stays
+          -- under a favorite cuisine's +30 (taste-first preserved).
+          when 'tired'  then case when m.effort_level = 1 then 24 when m.effort_level = 2 then 4 else 0 end
+          when 'quick'  then case when m.effort_level = 1 then 24 when m.effort_level = 2 then 4 else 0 end
+          when 'light'  then case when m.effort_level = 1 then 24 when m.effort_level = 2 then 4 else 0 end
+          -- Comfort = simpler/easier dishes (effort proxy, so it works without favorites), plus a
+          -- small extra when it's also a favorite cuisine.
+          when 'comfort' then (case when m.effort_level = 1 then 14 when m.effort_level = 2 then 7 else 0 end)
+                            + (case when m.cuisine_id = any(u.fav_ids) then 6 else 0 end)
+          -- Adventurous: reward stepping outside the usual. With favorites -> non-favorite cuisines.
+          -- Without favorites -> reward the more challenging (effort-3) meals, so it actually reranks
+          -- instead of a uniform (order-preserving) shift.
+          when 'adventurous' then case
+              when u.fav_ids <> '{}'::uuid[] then (case when not (m.cuisine_id = any(u.fav_ids)) then 14 else 0 end)
+              else (case when m.effort_level = 3 then 14 when m.effort_level = 2 then 6 else 0 end)
+            end
           else 0
         end
       -- Soft over-time penalty: -1.5 pts/min over the requested time, capped -60.
