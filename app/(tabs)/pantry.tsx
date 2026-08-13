@@ -927,6 +927,8 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBorder,
     borderRadius: spacing.md,
     padding: spacing.lg,
+    // Anchor the badge nearer the top: one grid step less above it than the sides.
+    paddingTop: spacing.md,
   },
   premiumBody: {
     flex: 1,
@@ -937,14 +939,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.chipBorder,
     borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    // Deliberate step down to the title (adds to premiumBody's xs gap → a clean 8px).
+    marginBottom: spacing.xs,
   },
-  // Premium (owned) badge — a row so the checkmark sits before "Premium".
+  // Premium (owned) badge — a row so the checkmark sits before "Premium", with a
+  // comfortable gap so the green check and text aren't squeezed. Centered vertically.
   badgeOwned: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   // Eyebrow before the coming-soon group in the premium sheet; a little top
   // breathing room to separate it from the "Scan a barcode" action above.
